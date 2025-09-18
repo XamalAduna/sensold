@@ -1,0 +1,124 @@
+
+
+
+{
+
+  "vehicules": [
+    {"label": "Voitures & utilitaires", "icon": "directions_car"},
+    {"label": "Moto & scooters", "icon": "motorcycle"},
+    {"label": "Camion & bus", "icon": "local_shipping"},
+    {"label": "Équipements et accessoires", "icon": "build"},
+    {"label": "Location de véhicule", "icon": "key"},
+    {"label": "Bateaux", "icon": "sailing"}
+  ],
+  "immobilier": [
+    {"label": "Villas", "icon": "villa"},
+    {"label": "Terrains", "icon": "terrain"},
+    {"label": "Appartements", "icon": "apartment"},
+    {"label": "Immeubles", "icon": "domain"},
+    {"label": "Bureaux et commerce", "icon": "business"},
+    {"label": "Maison de vacances", "icon": "holiday_village"},
+    {"label": "Chambres", "icon": "bedroom_parent"},
+    {"label": "Terrains agricoles", "icon": "agriculture"},
+    {"label": "Appartements meublés", "icon": "home_filled"},
+    {"label": "Ferme et verger", "icon": "agriculture"}
+  ],
+  "electronique": [
+    { "label": "Téléphones & Tablettes", "icon": "smartphone" },
+    { "label": "Ordinateurs", "icon": "computer" },
+    { "label": "Son, Hifi & Casques", "icon": "headphones" },
+    { "label": "Accessoires Informatiques", "icon": "keyboard" },
+    { "label": "Jeux vidéo & Consoles", "icon": "sports_esports" },
+    { "label": "Accessoires Téléphonie", "icon": "phone_iphone" },
+    { "label": "TV, box & Vidéo projecteurs", "icon": "tv" },
+    { "label": "Appareils photos et Caméras", "icon": "photo_camera" },
+    { "label": "Montres connectées & GPS", "icon": "watch" },
+    { "label": "Imprimantes & Photocopieurs", "icon": "print" },
+    { "label": "Autres électronique", "icon": "devices_other" }
+  ],
+  "mode": [
+    { "label": "Vêtements Homme", "icon": "checkroom" },
+    { "label": "Vêtements Femme", "icon": "checkroom" },
+    { "label": "Chaussures Homme", "icon": "hiking" },
+    { "label": "Chaussures Femme", "icon": "hiking" },
+    { "label": "Montres & Bijoux", "icon": "watch" },
+    { "label": "Cosmétique & Parfums", "icon": "spa" },
+    { "label": "Maroquinerie & Bagagerie", "icon": "work" },
+    { "label": "Accessoires cheveux, Coiffure & Cils", "icon": "content_cut" },
+    { "label": "Tissus & Foulards", "icon": "texture" },
+    { "label": "Lingerie", "icon": "favorite" },
+    { "label": "Lunettes", "icon": "visibility" },
+    { "label": "Autres accessoires", "icon": "more_horiz" }
+  ],
+  "electromenager": [
+    { "label": "Cuisinières, Gazinières & Fours", "icon": "kitchen" },
+    { "label": "Réfrigérateurs & Congélateurs", "icon": "ac_unit" },
+    { "label": "Climatiseurs & ventilateurs", "icon": "air" },
+    { "label": "Machine à laver vaisselles & linges", "icon": "local_laundry_service" },
+    { "label": "Petit électroménager", "icon": "blender" },
+    { "label": "Autre électroménager", "icon": "devices_other" }
+  ],
+  "maison": [
+    { "label": "Meubles", "icon": "weekend" },
+    { "label": "Vaisselle", "icon": "restaurant" },
+    { "label": "Décoration & luminaires", "icon": "lightbulb" },
+    { "label": "Linges de maison", "icon": "hotel" },
+    { "label": "Jardin & Piscine", "icon": "pool" },
+    { "label": "Bricolage", "icon": "build" },
+    { "label": "Literie & Matelas", "icon": "bed" },
+    { "label": "Autres pour la maison", "icon": "home" }
+  ],
+  "emplois": [
+    { "label": "Offre d'emploi", "icon": "work" },
+    { "label": "Demande d'emploi", "icon": "search" },
+    { "label": "Formation", "icon": "school" }
+  ],
+  "services": [
+    { "label": "Covoiturage", "icon": "directions_car" },
+    { "label": "Cours particuliers", "icon": "school" },
+    { "label": "Babysitting et nounou", "icon": "child_care" },
+    { "label": "Ménage & Cuisine", "icon": "cleaning_services" },
+    { "label": "Courses, livraisons & déménagement", "icon": "local_shipping" },
+    { "label": "Travaux, bricolage et jardinage", "icon": "construction" },
+    { "label": "Services Web, Design & Photo", "icon": "photo_camera" },
+    { "label": "Services Mode, Beauté & Bien-être", "icon": "spa" },
+    { "label": "Autres services", "icon": "miscellaneous_services" }
+  ],
+  "enfant": [
+    { "label": "Vêtements Enfants", "icon": "checkroom" },
+    { "label": "Chaussures Enfants", "icon": "hiking" },
+    { "label": "Mobilier & Équipement bébé", "icon": "crib" },
+    { "label": "Jeux et Jouets", "icon": "toys" },
+    { "label": "Fournitures Scolaires", "icon": "menu_book" },
+    { "label": "Autres", "icon": "child_friendly" }
+  ],
+  "sports_loisirs": [
+    { "label": "DVDs, CDs & Livres", "icon": "library_books" },
+    { "label": "Vélos & Trottinettes", "icon": "directions_bike" },
+    { "label": "Instruments de musique", "icon": "music_note" },
+    { "label": "Sport & Fitness", "icon": "fitness_center" },
+    { "label": "Événements", "icon": "event" },
+    { "label": "Art & Artisanat", "icon": "palette" },
+    { "label": "Voyage & Tourisme", "icon": "flight_takeoff" },
+    { "label": "Autres Sports & Loisirs", "icon": "sports" }
+  ],
+  "alimentation": [],
+  "animaux": [
+    { "label": "Chiens", "icon": "pets" },
+    { "label": "Moutons", "icon": "yard" },
+    { "label": "Poules, Lapins & Pigeons", "icon": "egg" },
+    { "label": "Matériel pour animaux", "icon": "pets" },
+    { "label": "Autres animaux", "icon": "eco" }
+  ],
+  "materiel_pro": [
+    { "label": "Matériel Agricole", "icon": "agriculture" },
+    { "label": "Transport & Manutention", "icon": "local_shipping" },
+    { "label": "Matériaux Construction, BTP, Outillages", "icon": "construction" },
+    { "label": "Fournitures de Bureaux", "icon": "business_center" },
+    { "label": "Matériel Marchés & Commerces", "icon": "store" },
+    { "label": "Matériel Médical", "icon": "medical_services" },
+    { "label": "Énergie, Groupes Électrogène & Panneaux solaires", "icon": "battery_charging_full" },
+    { "label": "Caméras et Matériel de surveillance", "icon": "videocam" },
+    { "label": "Autre matériel professionnel", "icon": "miscellaneous_services" }
+  ]
+}
