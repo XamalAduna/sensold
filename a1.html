@@ -1,0 +1,205 @@
+
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Connexion</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"> <!-- Responsive + bloque zoom iOS -->
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background:#f3f3f3;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      min-height:100vh;
+      margin:0;
+      padding:0;
+    }
+    .form-container {
+      background:#fff;
+      padding:25px;
+      border-radius:10px;
+      box-shadow:0 5px 15px rgba(0,0,0,0.2);
+      width:100%;
+      max-width:400px; /* limite sur grand écran */
+      box-sizing:border-box;
+      margin: 10px;
+    }
+    h2 { text-align:center; margin-bottom:20px; }
+    .form-group { margin-bottom:15px; position:relative; }
+    label { display:block; font-weight:bold; margin-bottom:5px; }
+    input {
+      width:100%;
+      padding:10px;
+      border-radius:5px;
+      border:1px solid #ccc;
+      box-sizing:border-box;
+      font-size:16px; /* ✅ empêche le zoom iPhone */
+    }
+    input:focus { border-color:#009688; outline:none; }
+    .toggle-password {
+      position:absolute;
+      right:10px;
+      top:50%;
+      transform:translateY(-50%);
+      cursor:pointer;
+      font-size:18px;
+      color:#666;
+    }
+    .error { color:red; font-size:13px; margin-top:3px; }
+    .success { color:green; font-size:14px; margin-top:5px; }
+    button {
+      width:100%;
+      padding:12px;
+      background:#009688;
+      border:none;
+      color:white;
+      font-size:16px;
+      border-radius:5px;
+      cursor:pointer;
+    }
+    button:hover { background:#00796B; }
+    a {
+      display:block;
+      text-align:right;
+      margin-top:10px;
+      color:#009688;
+      text-decoration:none;
+      font-size:13px;
+    }
+    a:hover { text-decoration:underline; }
+
+    /* Loader */
+    #loader { display:none; text-align:center; margin-top:15px; }
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #009688;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+      margin:auto;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .form-container {
+        width:95%;
+        padding:20px;
+        border-radius:8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="form-container">
+    <h2>Connexion</h2>
+    <form id="loginForm">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="loginEmail">
+        <div class="error" id="emailError"></div>
+      </div>
+      <div class="form-group password-wrapper">
+        <label>Mot de passe</label>
+        <input type="password" id="loginPassword">
+        <span class="toggle-password">👁️</span>
+        <div class="error" id="passwordError"></div>
+      </div>
+      <button type="submit">Se connecter</button>
+    </form>
+    <div id="loader"><div class="spinner"></div></div>
+    <a href="#" id="forgotPassword">Mot de passe oublié ?</a>
+    <p id="loginMessage"></p>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail, signOut, reload } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
+      authDomain: "diallo-ee5aa.firebaseapp.com",
+      projectId: "diallo-ee5aa",
+      storageBucket: "diallo-ee5aa.firebasestorage.app",
+      messagingSenderId: "662485613383",
+      appId: "1:662485613383:web:c1129a35c335cc95c0ea62",
+      measurementId: "G-F3092DTNZY"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    const loginForm = document.getElementById("loginForm");
+    const emailError = document.getElementById("emailError");
+    const passwordError = document.getElementById("passwordError");
+    const loginMessage = document.getElementById("loginMessage");
+    const loader = document.getElementById("loader");
+
+    const togglePasswordSpan = document.querySelector(".toggle-password");
+    const loginPassword = document.getElementById("loginPassword");
+    togglePasswordSpan.addEventListener("click", () => {
+      loginPassword.type = loginPassword.type === "password" ? "text" : "password";
+      togglePasswordSpan.textContent = loginPassword.type === "password" ? "👁️" : "🙈";
+    });
+
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      emailError.textContent = "";
+      passwordError.textContent = "";
+      loginMessage.textContent = "";
+      loginMessage.className = "";
+
+      const email = document.getElementById("loginEmail").value.trim();
+      const password = loginPassword.value;
+
+      if (!email) { emailError.textContent = "Veuillez entrer votre email."; return; }
+      if (!password) { passwordError.textContent = "Veuillez entrer votre mot de passe."; return; }
+
+      loader.style.display = "block";
+
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        await reload(user);
+
+        if (!user.emailVerified) {
+          loginMessage.textContent = "⚠️ Veuillez confirmer votre email avant de vous connecter.";
+          loginMessage.className = "error";
+          await signOut(auth);
+          return;
+        }
+
+        loginMessage.textContent = "✅ Connexion réussie !";
+        loginMessage.className = "success";
+        // Rediriger vers la page d'accueil
+        window.location.href = "baba9.html"; // Changez ici si nécessaire
+
+      } catch {
+        loginMessage.textContent = "Email ou mot de passe incorrect";
+        loginMessage.className = "error";
+      } finally {
+        loader.style.display = "none";
+      }
+    });
+
+    document.getElementById("forgotPassword").addEventListener("click", async (e) => {
+      e.preventDefault();
+      const email = prompt("Entrez votre email pour réinitialiser votre mot de passe :");
+      if (!email) return;
+      try {
+        await sendPasswordResetEmail(auth, email);
+        alert("Un email de réinitialisation a été envoyé !");
+      } catch (error) {
+        alert("Erreur : " + error.message);
+      }
+    });
+  </script>
+</body>
+</html>
