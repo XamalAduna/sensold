@@ -1,0 +1,373 @@
+
+
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MonCoin – Annonces en ligne</title>
+  <meta name="description" content="MonCoin : Achetez et vendez facilement vos produits neufs ou d’occasion partout en Afrique.">
+
+  <link rel="icon" type="image/png" href="assets/img/favicon.png">
+  <link rel="apple-touch-icon" href="assets/img/logo-180.png">
+  <link href="https://fonts.googleapis.com/css?family=Montserrat:400,600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+
+  <style>
+    .sidenav-trigger { display: block !important; cursor: pointer; }
+    .close-menu { text-align: right; padding: 10px 20px; font-size: 24px; cursor: pointer; }
+    #userProfile { text-align: center; padding: 20px; background-color: #00796B; color: white; position: relative; }
+    #userProfile img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 10px; }
+    #userProfile h5 { margin: 0; font-size: 18px; font-weight: 600; }
+    #userProfile p { font-size: 14px; margin-top: 5px; }
+    .sidenav a { padding: 15px; font-size: 18px; color: #333; text-transform: uppercase; font-weight: bold; }
+    .sidenav a:hover { background-color: #009688; color: white; }
+    .upload-btn { background-color:#009688 ; color: white; padding: 10px 20px; margin-top: 15px; cursor: pointer; font-weight: bold; border: none; border-radius: 5px; display: inline-block; }
+    .upload-btn:hover { background-color: #00796B; }
+    input[type="file"] { display: none; }
+
+    .upload-loader { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 10; display: flex; justify-content: center; align-items: center; }
+    .upload-loader div { border: 4px solid rgba(255, 255, 255, 0.3); border-top: 4px solid #ffffff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    #mobile-nav { display: none; }
+
+    #notLoggedMsg {
+      display: none;
+      position: fixed;
+      top: 20%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #f44336;
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      z-index: 9999;
+      text-align: center;
+    }
+    #notLoggedMsg a { color: #fff; font-weight: bold; text-decoration: underline; }
+
+
+
+    /* Ton CSS existant ici */
+
+    /* Animation pop-in */
+    @keyframes popIn {
+      0% {
+        transform: scale(0.7);
+        opacity: 0;
+      }
+      80% {
+        transform: scale(1.05);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    /* Appliquer l'animation au modal */
+    .modal.open {
+      animation: popIn 0.3s ease-out;
+    }
+
+
+
+
+
+
+  </style>
+</head>
+<body>
+
+<header>
+  <nav class="nav-wrapper teal darken-2">
+    <div class="container">
+      <a href="index.html" class="brand-logo">MonCoin</a>
+      <a href="#" data-target="mobile-nav" class="sidenav-trigger right"><i class="material-icons">menu</i></a>
+    </div>
+  </nav>
+
+  <ul class="sidenav" id="mobile-nav">
+    <li class="close-menu"><i class="material-icons">close</i></li>
+    <li id="userProfile">
+      <img id="profileImage" src="assets/img/default-profile.jpg" alt="Profil">
+      <h5 id="userName">Utilisateur</h5>
+      <p id="userEmail">Email</p>
+
+      <!-- Bouton pour afficher les champs de modification -->
+      <button id="showEditProfile" class="upload-btn" style="margin-top:10px;">Modifier le profil</button>
+
+      <!-- Conteneur des champs de modification, caché par défaut -->
+      <div id="editProfileContainer" style="display:none; margin-top:15px;">
+        <!-- Bouton pour changer l'image -->
+        <label for="profileImageInput" class="upload-btn">Changer l'image</label>
+        <input type="file" id="profileImageInput" accept="image/*">
+
+        <!-- Formulaire modification prénom / nom combiné -->
+        <form id="editProfileForm" style="margin-top: 15px; text-align:center;">
+          <input type="text" id="fullNameInput" placeholder="Prénom et Nom" style="margin-top: 10px; width: 80%; padding: 5px; border-radius: 5px;">
+          <button type="submit" class="upload-btn" style="margin-top: 10px;">Mettre à jour</button>
+          <p id="editProfileMsg" style="margin-top: 10px; font-size: 14px;"></p>
+        </form>
+      </div>
+
+    </li>
+
+
+    <li><a href="#"><i class="material-icons">list_alt</i> Mes annonces</a></li>
+    <li><a href="favoris.html"><i class="material-icons">favorite</i> Mes favoris</a></li>
+    <li><a href="automobile.html"><i class="material-icons">post_add</i> Publier une annonce</a></li>
+    <li><a href="#" id="logout"><i class="material-icons">logout</i> Se déconnecter</a></li>
+  </ul>
+</header>
+
+<div id="notLoggedMsg">
+  Vous devez être connecté pour accéder au menu. <br>
+  <a href="a1.html">Se connecter</a> <hr>
+  <a href="vrai_inscription.html">S'inscrire</a>
+</div>
+
+
+
+
+<!-- Modal de confirmation de déconnexion -->
+<div id="logoutModal" class="modal" style="max-width: 350px; border-radius: 12px; overflow: hidden;">
+  <div class="modal-content center-align" style="padding: 20px; background-color: #fff;">
+    <i class="material-icons" style="font-size: 50px; color: #00796B;">logout</i>
+    <h5 style="margin-top: 15px; font-weight: 600; color: #00796B;">Déconnexion</h5>
+    <p style="color: #555; font-size: 14px;">Voulez-vous vraiment vous déconnecter ?</p>
+  </div>
+  <div class="modal-footer" style="display: flex; justify-content: space-between; gap: 10px; padding: 10px 15px; background-color: #f9f9f9;">
+    <a href="#!" id="confirmLogout" class="btn waves-effect waves-light" style="flex: 1; background-color: #00796B; color: white; border-radius: 25px; padding: 6px 0; font-size: 14px;">Oui</a>
+    <a href="#!" class="btn grey lighten-2 waves-effect waves-dark modal-close" style="flex: 1; border-radius: 25px; padding: 6px 0; font-size: 14px; color: #333;">Non</a>
+  </div>
+</div>
+
+
+
+
+
+
+
+
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-storage.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
+  authDomain: "diallo-ee5aa.firebaseapp.com",
+  projectId: "diallo-ee5aa",
+  storageBucket: "diallo-ee5aa.firebasestorage.app",
+  messagingSenderId: "662485613383",
+  appId: "1:662485613383:web:c1129a35c335cc95c0ea62",
+  measurementId: "G-F3092DTNZY"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+let isLoggedIn = false;
+
+
+
+
+
+
+document.addEventListener('DOMContentLoaded', function() {
+  const elems = document.querySelectorAll('.sidenav');
+  M.Sidenav.init(elems);
+
+  const closeMenuButton = document.querySelector('.close-menu');
+  if (closeMenuButton) {
+    closeMenuButton.addEventListener('click', function() {
+      const sidenavInstance = M.Sidenav.getInstance(elems[0]);
+      sidenavInstance.close();
+    });
+  }
+
+  onAuthStateChanged(auth, async (user) => {
+    const menuTrigger = document.querySelector('.sidenav-trigger');
+
+    if (user) {
+      isLoggedIn = true;
+      document.getElementById('mobile-nav').style.display = 'block';
+
+      const userName = document.getElementById("userName");
+      const userEmail = document.getElementById("userEmail");
+      const profileImage = document.getElementById("profileImage");
+
+      const userDocRef = doc(db, "users", user.uid);
+      const userDoc = await getDoc(userDocRef);
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        userName.innerHTML = `${userData.fullName}`;
+        userEmail.innerHTML = `${user.email}`;
+        if (userData.profileImage) profileImage.src = userData.profileImage;
+      }
+    } else {
+      isLoggedIn = false;
+      document.getElementById('mobile-nav').style.display = 'none';
+    }
+
+    // Ajout du listener **après que l’état de connexion soit déterminé**
+    menuTrigger.addEventListener('click', function(e) {
+      if (!isLoggedIn) {
+        e.preventDefault();
+        const msg = document.getElementById('notLoggedMsg');
+        msg.style.display = 'block';
+        setTimeout(() => { msg.style.display = 'none'; }, 4000);
+      }
+    });
+  });
+
+  // Afficher le formulaire seulement quand on clique sur "Modifier le profil"
+  const showEditBtn = document.getElementById("showEditProfile");
+  const editContainer = document.getElementById("editProfileContainer");
+  showEditBtn.addEventListener("click", () => {
+    editContainer.style.display = editContainer.style.display === "none" ? "block" : "none";
+  });
+});
+
+
+
+
+
+
+
+
+
+
+document.addEventListener('DOMContentLoaded', function() {
+  // --- Initialisation du modal ---
+  const logoutModal = document.getElementById('logoutModal');
+  const modalInstance = M.Modal.init(logoutModal);
+
+  // --- Ouverture du modal au clic sur "Se déconnecter" ---
+  document.getElementById("logout").addEventListener("click", (e) => {
+    e.preventDefault();
+    modalInstance.open();
+  });
+
+  // --- Confirmation de la déconnexion ---
+  document.getElementById("confirmLogout").addEventListener("click", async () => {
+    await signOut(auth);
+    window.location.href = "haha6.html";
+  });
+});
+
+
+
+// --- Changement direct de l'image sans message et affichage immédiat --- 
+const profileImageInput = document.getElementById("profileImageInput");
+profileImageInput.addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const user = auth.currentUser;
+  if (!user) return;
+  if (!file.type.startsWith("image/")) return;
+  if (file.size > 2 * 1024 * 1024) return;
+
+  // Afficher l'image localement immédiatement
+  const profileImage = document.getElementById("profileImage");
+  const reader = new FileReader();
+  reader.onload = function(event) {
+    profileImage.src = event.target.result;
+  };
+  reader.readAsDataURL(file);
+
+  // Affichage du loader
+  const loader = document.createElement("div");
+  loader.classList.add("upload-loader");
+  loader.innerHTML = "<div></div>";
+  document.getElementById("userProfile").appendChild(loader);
+  loader.style.display = "flex";
+
+  try {
+    const timestamp = Date.now();
+    const newImageName = `profile_${timestamp}.jpg`;
+    const storageRef = ref(storage, `profile_images/${user.uid}/${newImageName}`);
+    await uploadBytes(storageRef, file);
+    const downloadURL = await getDownloadURL(storageRef);
+
+    const userDocRef = doc(db, "users", user.uid);
+    const userDoc = await getDoc(userDocRef);
+    if (userDoc.exists()) {
+      const oldImageURL = userDoc.data().profileImage;
+      if (oldImageURL && !oldImageURL.includes("default-profile.jpg")) {
+        try {
+          // Supprimer l'ancienne image du stockage Firebase
+          await deleteObject(ref(storage, oldImageURL));
+        } catch (err) {
+          console.error("Erreur lors de la suppression de l'ancienne image", err);
+        }
+      }
+    }
+
+    // Mettre à jour Firestore avec la nouvelle URL de l'image
+    await updateDoc(userDocRef, { profileImage: downloadURL });
+    // L'image est déjà affichée localement, pas besoin de re-changer src
+  } catch (err) {
+    console.error(err);
+  } finally {
+    loader.remove();
+  }
+});
+
+
+
+// --- Modification prénom / nom combiné --- 
+const editProfileForm = document.getElementById("editProfileForm");
+const fullNameInput = document.getElementById("fullNameInput");
+
+const editContainer = document.getElementById("editProfileContainer");
+const showEditBtn = document.getElementById("showEditProfile");
+
+editProfileForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const user = auth.currentUser;
+  if (!user) return;
+
+  try {
+    const fullName = fullNameInput.value.trim();
+    if (!fullName) return;
+
+    const updates = { fullName: fullName };
+    const userDocRef = doc(db, "users", user.uid);
+    await updateDoc(userDocRef, updates);
+
+    document.getElementById("userName").innerText = fullName;
+
+    // Faire disparaître le formulaire
+    editContainer.style.display = "none";
+    // Faire réapparaître le bouton "Modifier le profil"
+    showEditBtn.style.display = "inline-block";
+
+    fullNameInput.value = "";
+
+  } catch (err) {
+    console.error(err);
+  }
+});
+
+
+
+
+
+</script>
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-storage.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+
+</body>
+</html>
