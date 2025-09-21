@@ -76,7 +76,21 @@
 
 
 
+.iframe-container {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%; /* ratio 16:9, tu peux ajuster */
+  height: 0;
+}
 
+.iframe-container iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
 
   </style>
 </head>
@@ -117,12 +131,13 @@
     </li>
 
 
-    <li><a href="principale.html"><i class="material-icons">list_alt</i> Mes annonces</a></li>
+    <li><a href="annonces.html"><i class="material-icons">list_alt</i> Mes annonces</a></li>
     <li><a href="favoris.html"><i class="material-icons">favorite</i> Mes favoris</a></li>
-    <li><a href="publie.html"><i class="material-icons">post_add</i> Publier une annonce</a></li>
+    <li><a href="automobile.html"><i class="material-icons">post_add</i> Publier une annonce</a></li>
     <li><a href="#" id="logout"><i class="material-icons">logout</i> Se déconnecter</a></li>
   </ul>
 </header>
+
 
 <div id="notLoggedMsg">
   Vous devez être connecté pour accéder au menu. <br>
@@ -150,16 +165,13 @@
 
 
 
-
-
-
-
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-storage.js";
 
+// 🔹 Configuration Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
   authDomain: "diallo-ee5aa.firebaseapp.com",
@@ -177,48 +189,61 @@ const storage = getStorage(app);
 
 let isLoggedIn = false;
 
-
-
-
-
-
 document.addEventListener('DOMContentLoaded', function() {
+
+  // 🔹 Initialisation du sidenav
   const elems = document.querySelectorAll('.sidenav');
   M.Sidenav.init(elems);
-
   const closeMenuButton = document.querySelector('.close-menu');
   if (closeMenuButton) {
-    closeMenuButton.addEventListener('click', function() {
+    closeMenuButton.addEventListener('click', () => {
       const sidenavInstance = M.Sidenav.getInstance(elems[0]);
       sidenavInstance.close();
     });
   }
 
-  onAuthStateChanged(auth, async (user) => {
-    const menuTrigger = document.querySelector('.sidenav-trigger');
+  // 🔹 Initialisation du modal de déconnexion
+  const logoutModal = document.getElementById('logoutModal');
+  const modalInstance = M.Modal.init(logoutModal);
 
+  document.getElementById("logout").addEventListener("click", (e) => {
+    e.preventDefault();
+    modalInstance.open();
+  });
+
+  document.getElementById("confirmLogout").addEventListener("click", async () => {
+    await signOut(auth);
+    window.location.href = "baba9.html";
+  });
+
+  // 🔹 Gestion du profil utilisateur
+  const menuTrigger = document.querySelector('.sidenav-trigger');
+  const userNameElem = document.getElementById("userName");
+  const userEmailElem = document.getElementById("userEmail");
+  const profileImageElem = document.getElementById("profileImage");
+  const showEditBtn = document.getElementById("showEditProfile");
+  const editContainer = document.getElementById("editProfileContainer");
+  const fullNameInput = document.getElementById("fullNameInput");
+  const editProfileForm = document.getElementById("editProfileForm");
+
+  onAuthStateChanged(auth, async (user) => {
     if (user) {
       isLoggedIn = true;
       document.getElementById('mobile-nav').style.display = 'block';
-
-      const userName = document.getElementById("userName");
-      const userEmail = document.getElementById("userEmail");
-      const profileImage = document.getElementById("profileImage");
 
       const userDocRef = doc(db, "users", user.uid);
       const userDoc = await getDoc(userDocRef);
       if (userDoc.exists()) {
         const userData = userDoc.data();
-        userName.innerHTML = `${userData.fullName}`;
-        userEmail.innerHTML = `${user.email}`;
-        if (userData.profileImage) profileImage.src = userData.profileImage;
+        userNameElem.textContent = userData.fullName || "Utilisateur";
+        userEmailElem.textContent = user.email || "";
+        if (userData.profileImage) profileImageElem.src = userData.profileImage;
       }
     } else {
       isLoggedIn = false;
       document.getElementById('mobile-nav').style.display = 'none';
     }
 
-    // Ajout du listener **après que l’état de connexion soit déterminé**
     menuTrigger.addEventListener('click', function(e) {
       if (!isLoggedIn) {
         e.preventDefault();
@@ -229,145 +254,154 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // Afficher le formulaire seulement quand on clique sur "Modifier le profil"
-  const showEditBtn = document.getElementById("showEditProfile");
-  const editContainer = document.getElementById("editProfileContainer");
+  // 🔹 Toggle édition profil
   showEditBtn.addEventListener("click", () => {
     editContainer.style.display = editContainer.style.display === "none" ? "block" : "none";
   });
-});
 
+  // 🔹 Upload image de profil
+  const profileImageInput = document.getElementById("profileImageInput");
+  profileImageInput.addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return alert("Aucun fichier sélectionné !");
+    if (!file.type.startsWith("image/")) return alert("Veuillez choisir une image valide !");
+    if (file.size > 2 * 1024 * 1024) return alert("Image trop grande (max 2 Mo)");
 
+    const user = auth.currentUser;
+    if (!user) return alert("Utilisateur non connecté !");
 
+    // Afficher image immédiatement
+    const reader = new FileReader();
+    reader.onload = (event) => profileImageElem.src = event.target.result;
+    reader.readAsDataURL(file);
 
+    // Loader
+    const loader = document.createElement("div");
+    loader.classList.add("upload-loader");
+    loader.innerHTML = "<div></div>";
+    document.getElementById("userProfile").appendChild(loader);
+    loader.style.display = "flex";
 
+    try {
+      const timestamp = Date.now();
+      const newImageName = `profile_${timestamp}.jpg`;
+      const storageRef = ref(storage, `profile_images/${user.uid}/${newImageName}`);
+      await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(storageRef);
 
+      const userDocRef = doc(db, "users", user.uid);
+      const userDoc = await getDoc(userDocRef);
 
-
-
-
-document.addEventListener('DOMContentLoaded', function() {
-  // --- Initialisation du modal ---
-  const logoutModal = document.getElementById('logoutModal');
-  const modalInstance = M.Modal.init(logoutModal);
-
-  // --- Ouverture du modal au clic sur "Se déconnecter" ---
-  document.getElementById("logout").addEventListener("click", (e) => {
-    e.preventDefault();
-    modalInstance.open();
-  });
-
-  // --- Confirmation de la déconnexion ---
-  document.getElementById("confirmLogout").addEventListener("click", async () => {
-    await signOut(auth);
-    window.location.href = "haha6.html";
-  });
-});
-
-
-
-// --- Changement direct de l'image sans message et affichage immédiat --- 
-const profileImageInput = document.getElementById("profileImageInput");
-profileImageInput.addEventListener("change", async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const user = auth.currentUser;
-  if (!user) return;
-  if (!file.type.startsWith("image/")) return;
-  if (file.size > 2 * 1024 * 1024) return;
-
-  // Afficher l'image localement immédiatement
-  const profileImage = document.getElementById("profileImage");
-  const reader = new FileReader();
-  reader.onload = function(event) {
-    profileImage.src = event.target.result;
-  };
-  reader.readAsDataURL(file);
-
-  // Affichage du loader
-  const loader = document.createElement("div");
-  loader.classList.add("upload-loader");
-  loader.innerHTML = "<div></div>";
-  document.getElementById("userProfile").appendChild(loader);
-  loader.style.display = "flex";
-
-  try {
-    const timestamp = Date.now();
-    const newImageName = `profile_${timestamp}.jpg`;
-    const storageRef = ref(storage, `profile_images/${user.uid}/${newImageName}`);
-    await uploadBytes(storageRef, file);
-    const downloadURL = await getDownloadURL(storageRef);
-
-    const userDocRef = doc(db, "users", user.uid);
-    const userDoc = await getDoc(userDocRef);
-    if (userDoc.exists()) {
-      const oldImageURL = userDoc.data().profileImage;
-      if (oldImageURL && !oldImageURL.includes("default-profile.jpg")) {
-        try {
-          // Supprimer l'ancienne image du stockage Firebase
-          await deleteObject(ref(storage, oldImageURL));
-        } catch (err) {
-          console.error("Erreur lors de la suppression de l'ancienne image", err);
+      // Supprimer l'ancienne image si ce n'est pas l'image par défaut
+      if (userDoc.exists()) {
+        const oldImageURL = userDoc.data().profileImage || "";
+        if (oldImageURL && !oldImageURL.includes("default-profile.jpg")) {
+          // Convertir URL en path relatif
+          const pathIndex = oldImageURL.indexOf("/o/");
+          if (pathIndex !== -1) {
+            let path = oldImageURL.substring(pathIndex + 3).split("?")[0];
+            path = decodeURIComponent(path);
+            try { await deleteObject(ref(storage, path)); } 
+            catch (err) { console.error("Erreur suppression ancienne image :", err); }
+          }
         }
       }
+
+      await updateDoc(userDocRef, { profileImage: downloadURL });
+
+    } catch (err) {
+      console.error(err);
+      alert("Erreur lors de l'upload de l'image.");
+    } finally {
+      loader.remove();
     }
+  });
 
-    // Mettre à jour Firestore avec la nouvelle URL de l'image
-    await updateDoc(userDocRef, { profileImage: downloadURL });
-    // L'image est déjà affichée localement, pas besoin de re-changer src
-  } catch (err) {
-    console.error(err);
-  } finally {
-    loader.remove();
-  }
-});
-
-
-
-// --- Modification prénom / nom combiné --- 
-const editProfileForm = document.getElementById("editProfileForm");
-const fullNameInput = document.getElementById("fullNameInput");
-
-const editContainer = document.getElementById("editProfileContainer");
-const showEditBtn = document.getElementById("showEditProfile");
-
-editProfileForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const user = auth.currentUser;
-  if (!user) return;
-
-  try {
+  // 🔹 Modification prénom/nom
+  editProfileForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const user = auth.currentUser;
+    if (!user) return alert("Utilisateur non connecté !");
     const fullName = fullNameInput.value.trim();
-    if (!fullName) return;
+    if (!fullName) return alert("Veuillez saisir un prénom et nom valides !");
 
-    const updates = { fullName: fullName };
-    const userDocRef = doc(db, "users", user.uid);
-    await updateDoc(userDocRef, updates);
+    try {
+      const userDocRef = doc(db, "users", user.uid);
+      await updateDoc(userDocRef, { fullName });
+      userNameElem.textContent = fullName;
 
-    document.getElementById("userName").innerText = fullName;
+      // Reset formulaire
+      editContainer.style.display = "none";
+      showEditBtn.style.display = "inline-block";
+      fullNameInput.value = "";
 
-    // Faire disparaître le formulaire
-    editContainer.style.display = "none";
-    // Faire réapparaître le bouton "Modifier le profil"
-    showEditBtn.style.display = "inline-block";
+    } catch (err) {
+      console.error(err);
+      alert("Erreur lors de la mise à jour du profil.");
+    }
+  });
 
-    fullNameInput.value = "";
-
-  } catch (err) {
-    console.error(err);
-  }
 });
 
 
+// 🔹 Bouton Publier une annonce
+const publishBtnMain = document.getElementById("publishBtnMain");
+const notLoggedMsg = document.getElementById("notLoggedMsg");
 
-
+publishBtnMain.addEventListener("click", () => {
+  const user = auth.currentUser;
+  if(user){
+    // Redirection vers la page de publication
+    window.location.href = "automobile.html";
+  } else {
+    // Affiche le message modal si non connecté
+    notLoggedMsg.style.display = "block";
+    setTimeout(() => { notLoggedMsg.style.display = "none"; }, 4000);
+  }
+});
 
 </script>
-<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-storage.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+
+
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js" defer></script>
+
+
+
+
+
+<div id="mainContent" style="margin-top: 20px; position: relative;">
+
+  <div class="iframe-container"><iframe src="b3.html"></iframe></div>
+
+  <button id="publishBtnMain" style="
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background:#009688;
+    color:#fff;
+    border:none;
+    padding:14px 24px;
+    border-radius:50px;
+    cursor:pointer;
+    font-size:16px;
+    box-shadow:0 4px 8px rgba(0,0,0,0.2);
+    z-index:9999;
+    display: flex;
+    align-items: center;
+    gap:8px;
+  ">
+    <span class="material-icons">post_add</span>
+    Publier une annonce
+  </button>
+</div>
+
+
+
 
 </body>
 </html>
+
+
