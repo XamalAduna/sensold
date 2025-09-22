@@ -34,26 +34,9 @@
 
     #mobile-nav { display: none; }
 
-    #notLoggedMsg {
-      display: none;
-      position: fixed;
-      top: 20%;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #f44336;
-      color: white;
-      padding: 20px;
-      border-radius: 10px;
-      z-index: 9999;
-      text-align: center;
-    }
+    #notLoggedMsg {display: none;position: fixed;top: 20%;left: 50%;transform: translateX(-50%);background: #f44336;color: white;padding: 20px;border-radius: 10px;z-index: 9999;text-align: center;}
     #notLoggedMsg a { color: #fff; font-weight: bold; text-decoration: underline; }
 
-
-
-    /* Ton CSS existant ici */
-
-    /* Animation pop-in */
     @keyframes popIn {
       0% {
         transform: scale(0.7);
@@ -68,28 +51,12 @@
       }
     }
 
-    /* Appliquer l'animation au modal */
-    .modal.open {
-      animation: popIn 0.3s ease-out;
-    }
+    
+    .modal.open {animation: popIn 0.3s ease-out;}
 
-
-
-
-.iframe-container {
-  position: relative;
-  width: 100%;
-  height: 100vh; /* prend toute la hauteur de l’écran */
-}
-
-.iframe-container iframe {
-  width: 100%;
-  height: 100%;
-  border: none;
-}
-
-
-  </style>
+.iframe-container {position: relative; width: 100%;height: 100vh;}
+.iframe-container iframe {width: 100%;height: 100%;border: none;}
+</style>
 </head>
 <body>
 
@@ -108,16 +75,15 @@
       <h5 id="userName">Utilisateur</h5>
       <p id="userEmail">Email</p>
 
-      <!-- Bouton pour afficher les champs de modification -->
+    
       <button id="showEditProfile" class="upload-btn" style="margin-top:10px;">Modifier le profil</button>
 
-      <!-- Conteneur des champs de modification, caché par défaut -->
       <div id="editProfileContainer" style="display:none; margin-top:15px;">
-        <!-- Bouton pour changer l'image -->
+       
         <label for="profileImageInput" class="upload-btn">Changer l'image</label>
         <input type="file" id="profileImageInput" accept="image/*">
 
-        <!-- Formulaire modification prénom / nom combiné -->
+        
         <form id="editProfileForm" style="margin-top: 15px; text-align:center;">
           <input type="text" id="fullNameInput" placeholder="Prénom et Nom" style="margin-top: 10px; width: 80%; padding: 5px; border-radius: 5px;">
           <button type="submit" class="upload-btn" style="margin-top: 10px;">Mettre à jour</button>
@@ -126,7 +92,6 @@
       </div>
 
     </li>
-
 
     <li><a href="annonces.html"><i class="material-icons">list_alt</i> Mes annonces</a></li>
     <li><a href="favoris.html"><i class="material-icons">favorite</i> Mes favoris</a></li>
@@ -142,10 +107,6 @@
   <a href="vrai_inscription.html">S'inscrire</a>
 </div>
 
-
-
-
-<!-- Modal de confirmation de déconnexion -->
 <div id="logoutModal" class="modal" style="max-width: 350px; border-radius: 12px; overflow: hidden;">
   <div class="modal-content center-align" style="padding: 20px; background-color: #fff;">
     <i class="material-icons" style="font-size: 50px; color: #00796B;">logout</i>
@@ -158,17 +119,13 @@
   </div>
 </div>
 
-
-
-
-
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-storage.js";
 
-// 🔹 Configuration Firebase
+
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
   authDomain: "diallo-ee5aa.firebaseapp.com",
@@ -188,7 +145,6 @@ let isLoggedIn = false;
 
 document.addEventListener('DOMContentLoaded', function() {
 
-  // 🔹 Initialisation du sidenav
   const elems = document.querySelectorAll('.sidenav');
   M.Sidenav.init(elems);
   const closeMenuButton = document.querySelector('.close-menu');
@@ -199,7 +155,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // 🔹 Initialisation du modal de déconnexion
   const logoutModal = document.getElementById('logoutModal');
   const modalInstance = M.Modal.init(logoutModal);
 
@@ -213,7 +168,7 @@ document.addEventListener('DOMContentLoaded', function() {
     window.location.href = "baba9.html";
   });
 
-  // 🔹 Gestion du profil utilisateur
+  
   const menuTrigger = document.querySelector('.sidenav-trigger');
   const userNameElem = document.getElementById("userName");
   const userEmailElem = document.getElementById("userEmail");
@@ -251,12 +206,11 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // 🔹 Toggle édition profil
+  
   showEditBtn.addEventListener("click", () => {
     editContainer.style.display = editContainer.style.display === "none" ? "block" : "none";
   });
 
-  // 🔹 Upload image de profil
   const profileImageInput = document.getElementById("profileImageInput");
   profileImageInput.addEventListener("change", async (e) => {
     const file = e.target.files[0];
@@ -267,12 +221,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const user = auth.currentUser;
     if (!user) return alert("Utilisateur non connecté !");
 
-    // Afficher image immédiatement
     const reader = new FileReader();
     reader.onload = (event) => profileImageElem.src = event.target.result;
     reader.readAsDataURL(file);
 
-    // Loader
     const loader = document.createElement("div");
     loader.classList.add("upload-loader");
     loader.innerHTML = "<div></div>";
@@ -289,11 +241,10 @@ document.addEventListener('DOMContentLoaded', function() {
       const userDocRef = doc(db, "users", user.uid);
       const userDoc = await getDoc(userDocRef);
 
-      // Supprimer l'ancienne image si ce n'est pas l'image par défaut
       if (userDoc.exists()) {
         const oldImageURL = userDoc.data().profileImage || "";
         if (oldImageURL && !oldImageURL.includes("default-profile.jpg")) {
-          // Convertir URL en path relatif
+          
           const pathIndex = oldImageURL.indexOf("/o/");
           if (pathIndex !== -1) {
             let path = oldImageURL.substring(pathIndex + 3).split("?")[0];
@@ -314,7 +265,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  // 🔹 Modification prénom/nom
   editProfileForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const user = auth.currentUser;
@@ -327,7 +277,6 @@ document.addEventListener('DOMContentLoaded', function() {
       await updateDoc(userDocRef, { fullName });
       userNameElem.textContent = fullName;
 
-      // Reset formulaire
       editContainer.style.display = "none";
       showEditBtn.style.display = "inline-block";
       fullNameInput.value = "";
@@ -340,8 +289,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 });
 
-
-// 🔹 Bouton Publier une annonce
 const publishBtnMain = document.getElementById("publishBtnMain");
 const notLoggedMsg = document.getElementById("notLoggedMsg");
 
@@ -356,21 +303,13 @@ publishBtnMain.addEventListener("click", () => {
     setTimeout(() => { notLoggedMsg.style.display = "none"; }, 4000);
   }
 });
-
 </script>
-
-
-
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js" defer></script>
 
-
-
-
-
 <div id="mainContent" style="margin-top: 20px; position: relative;">
 
-  <div class="iframe-container"><iframe src="b3.html"></iframe></div>
+  <div class="iframe-container"><iframe src="Annonces.html"></iframe></div>
 
   <button id="publishBtnMain" style="
     position: fixed;
@@ -395,10 +334,6 @@ publishBtnMain.addEventListener("click", () => {
   </button>
 </div>
 
-
-
-
 </body>
 </html>
-
 
