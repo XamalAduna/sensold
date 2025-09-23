@@ -92,7 +92,7 @@
 
     <li><a href="annonces.html"><i class="material-icons">list_alt</i> Mes annonces</a></li>
     <li><a href="favoris.html"><i class="material-icons">favorite</i> Mes favoris</a></li>
-    <li><a href="publie.html"><i class="material-icons">post_add</i> Publier une annonce</a></li>
+    <li><a href="Publication.html"><i class="material-icons">post_add</i> Publier une annonce</a></li>
     <li><a href="#" id="logout"><i class="material-icons">logout</i> Se déconnecter</a></li>
   </ul>
 </header>
@@ -293,7 +293,7 @@ publishBtnMain.addEventListener("click", () => {
   const user = auth.currentUser;
   if(user){
     // Redirection vers la page de publication
-    window.location.href = "publie.html";
+    window.location.href = "Publication.html";
   } else {
     // Affiche le message modal si non connecté
     notLoggedMsg.style.display = "block";
