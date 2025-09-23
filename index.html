@@ -115,8 +115,8 @@ body {
 
 <div id="notLoggedMsg">
   Vous devez être connecté pour accéder au menu. <br>
-  <a href="a1.html">Se connecter</a> <hr>
-  <a href="vrai_inscription.html">S'inscrire</a>
+  <a href="Connexion.html">Se connecter</a> <hr>
+  <a href="Inscription.html">S'inscrire</a>
 </div>
 
 <div id="logoutModal" class="modal" style="max-width: 350px; border-radius: 12px; overflow: hidden;">
@@ -310,7 +310,6 @@ publishBtnMain.addEventListener("click", () => {
     // Redirection vers la page de publication
     window.location.href = "Publication.html";
   } else {
-    // Affiche le message modal si non connecté
     notLoggedMsg.style.display = "block";
     setTimeout(() => { notLoggedMsg.style.display = "none"; }, 4000);
   }
