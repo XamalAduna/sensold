@@ -34,6 +34,21 @@
     #notLoggedMsg {display: none;position: fixed;top: 20%;left: 50%;transform: translateX(-50%);background: #f44336;color: white;padding: 20px;border-radius: 10px;z-index: 9999;text-align: center;}
     #notLoggedMsg a { color: #fff; font-weight: bold; text-decoration: underline; }
 
+
+    .nav-wrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000; /* pour rester au-dessus du contenu */
+}
+
+/* Pour que le contenu en dessous ne soit pas caché par le header */
+body {
+  padding-top: 64px; /* hauteur approximative du nav, à ajuster si besoin */
+}
+
+
     @keyframes popIn {
       0% {
         transform: scale(0.7);
