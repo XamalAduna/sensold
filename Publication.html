@@ -704,9 +704,9 @@ adForm.addEventListener('submit', async (e)=>{
 
     await addDoc(collection(db,'annonces'),{
       title: escapeHTML(title.value.trim()),
-      price: priceVal,
-      categorie: escapeHTML(categorieInput.value),
-      souscategorie: escapeHTML(sousInput.value),
+      price: priceVal, 
+      categorie: categorieInput.value,
+      souscategorie: sousInput.value,   
       city: escapeHTML(cityInput.value),
       quartier: escapeHTML(quartierInput.value.trim()),
       description: escapeHTML(description.value.trim()),
