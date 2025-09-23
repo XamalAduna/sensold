@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Publier une annonce</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+body {font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;background: #f0f2f5;margin: 0;padding: 20px;color: #333;}
+.form-container {max-width: 900px;margin: auto;background: #fff;padding: 30px;border-radius: 15px;box-shadow: 0 8px 20px rgba(0,0,0,0.1);}
+h1 { text-align: center; margin-bottom: 25px; color: #00796B; font-weight: 700; font-size: 30px; }
+h2 { margin: 20px 0 10px; color: #2980b9; font-size: 18px; font-weight: 700; padding-bottom: 5px; border-bottom: 2px solid #2980b9; }
+.form-section { margin-bottom: 25px; }
+.image-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); gap: 10px; }
+.image-upload { display: flex; justify-content: center; align-items: center; height: 65px; border: 2px dashed #3498db; border-radius: 10px; cursor: pointer; background: #eaf2fb; position: relative; overflow: hidden; transition: all 0.3s ease; }
+.image-upload:hover { background: #d6e8fc; border-color: #00796B; }
+.image-upload input { display: none; }
+.image-upload img { max-width: 100%; max-height: 100%; display: block; object-fit: cover; border-radius: 8px; }
+.image-upload .material-icons { font-size: 28px; color: #00796B; }
+input, textarea { width: 80%;padding: 16px 15px;  margin-top: 8px; border: 1px solid #ccc; border-radius: 12px; font-size: 17px; transition: all 0.3s ease; }
+input:focus, textarea:focus { border-color: #2980b9; box-shadow: 0 0 8px rgba(41, 128, 185, 0.3); outline: none; }
+textarea { resize: none; height: 120px; }
+.custom-dropdown { position: relative; width: 80%; margin-top: 8px; cursor: pointer; }
+.custom-dropdown .selected { padding: 16px; border-radius: 12px; border: 1px solid #ccc; background: #eaf2fb; display: flex; align-items: center; gap:10px; }
+.custom-dropdown .options { display: none; position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #ccc; border-radius: 12px; z-index: 10; max-height: 200px; overflow-y: auto; }
+.custom-dropdown .options div { padding: 12px; display: flex; align-items: center; gap: 10px; cursor:pointer; }
+.custom-dropdown .options div:hover { background: #d6e8fc; }
+.custom-dropdown.active .options { display: block; }
+.checkbox-container { display: inline-flex;align-items: center;gap: 5px;cursor: pointer;font-size: 15px;}
+.checkbox-container input { width: auto; accent-color: #2980b9; cursor: pointer; }
+.checkbox-container .material-icons { font-size: 22px; color: #2980b9; }
+.error-msg { color: #e74c3c; font-size: 14px; margin-top: 5px; display: none; }
+.button-group {display: flex;justify-content: center;gap: 15px;margin-top: 25px;flex-wrap: wrap;width: 100%;box-sizing: border-box;}
+button { padding: 14px 20px; border: none; border-radius: 10px; font-size: 16px; cursor: pointer; transition: all 0.3s ease; }
+.btn-cancel { background: #e74c3c; color: white; }
+.btn-cancel:hover { background: #c0392b; }
+.btn-submit { background:#00796B ; color: white; }
+.btn-submit:hover { background:#27ae60 ; }
+::placeholder { color: #95a5a6; opacity: 1; }
+@media(max-width: 600px){ .image-grid { grid-template-columns: repeat(3, 1fr); } .button-group { flex-direction: column; } button { width: 100%; } }
+.form-container {position: relative;}
+.closeBtnX {position: absolute; top: 15px; right: 15px; font-size: 28px; color: #333; cursor: pointer; transition: 0.3s;}
+.closeBtnX:hover {color: red; transform: scale(1.2);}
+#title, #price, #whatsapp, #telephone {display: block; width: 80%; margin: 10px auto; border: 2px solid #2980b9 !important; border-radius: 20px !important; padding: 6px 15px; background: #fff; font-size: 17px;}
+#title:focus, #price:focus, #whatsapp:focus, #telephone:focus {border-color: #00796B !important; box-shadow: 0 0 8px rgba(39, 174, 96, 0.3); outline: none;}
+#categorieDropdown, #souscategorieDropdown, #cityDropdown, #quartierDropdown {display: block; width: 80%; margin: 10px auto;}
+#description {display: block; width: 80%; margin: 10px auto;}
+.form-section div[style*="display:flex"] {justify-content: center; gap: 30px; flex-wrap: wrap;}
+label p {font-size: 20px; margin: 0;}
+#livraison + .material-icons, #produitNeuf + .material-icons {color: #00796B; font-size: 50px;}
+.input-left-icon {display: flex; align-items: center; width: 80%; margin: 5px auto; gap: 10px;}
+.input-left-icon i {font-size: 35px; color: #25D366;}
+.input-left-icon input {flex: 1; padding: 10px 12px; border-radius: 12px; border: 1px solid #2980b9; font-size: 16px;}
+.input-left-icon i.fa-phone {color: #2980b9;}
+.error-msg {width: 80%; margin: 0 auto 10px; color: #e74c3c; font-size: 14px; display: none;}
+@media(max-width: 400px) {input, textarea, .custom-dropdown {width: 95%;}}
+</style>
+</head>
+<body>
+
+
+<div class="form-container">
+<h1>Publier une annonce</h1>
+
+<span class="material-icons closeBtnX" onclick="window.location.href='baba9.html'" 
+      style="position:absolute; top:15px; right:15px; font-size:28px; color:#333; cursor:pointer; transition:0.3s;">
+  close
+</span>
+
+<form id="adForm">
+  <div class="form-section">
+    <div class="image-grid">
+      <label class="image-upload"><input type="file" name="image1" accept="image/*" onchange="previewImage(this)"><span class="material-icons">add_a_photo</span></label>
+      <label class="image-upload"><input type="file" name="image2" accept="image/*" onchange="previewImage(this)"><span class="material-icons">add_a_photo</span></label>
+      <label class="image-upload"><input type="file" name="image3" accept="image/*" onchange="previewImage(this)"><span class="material-icons">add_a_photo</span></label>
+      <label class="image-upload"><input type="file" name="image4" accept="image/*" onchange="previewImage(this)"><span class="material-icons">add_a_photo</span></label>
+      <label class="image-upload"><input type="file" name="image5" accept="image/*" onchange="previewImage(this)"><span class="material-icons">add_a_photo</span></label>
+      <label class="image-upload"><input type="file" name="image6" accept="image/*" onchange="previewImage(this)"><span class="material-icons">add_a_photo</span></label>
+      <label class="image-upload"><input type="file" name="image7" accept="image/*" onchange="previewImage(this)"><span class="material-icons">add_a_photo</span></label>
+      <label class="image-upload"><input type="file" name="image8" accept="image/*" onchange="previewImage(this)"><span class="material-icons">add_a_photo</span></label>
+      <label class="image-upload"><input type="file" name="image9" accept="image/*" onchange="previewImage(this)"><span class="material-icons">add_a_photo</span></label>
+    </div>
+    <div id="imagesError" class="error-msg">Veuillez sélectionner au moins 3 images.</div>
+  </div>
+
+  <div class="form-section">
+    <input type="text" id="title" placeholder="Titre du produit">
+    <div id="titleError" class="error-msg">Veuillez saisir un titre.</div>
+    <input type="text" id="price" placeholder="0 FCFA">
+    <div id="priceError" class="error-msg">Veuillez saisir un prix valide.</div>
+    <div class="custom-dropdown" id="categorieDropdown">
+      <div class="selected">-- Sélectionnez une catégorie ▼--</div>
+      <div class="options"></div>
+    </div>
+    <input type="hidden" id="categorie">
+    <div id="categorieError" class="error-msg">Veuillez sélectionner une catégorie.</div>
+
+    <div class="custom-dropdown" id="souscategorieDropdown" style="display:none;">
+      <div class="selected">-- Sélectionnez une sous-catégorie ▼--</div>
+      <div class="options"></div>
+    </div>
+    <input type="hidden" id="souscategorie">
+    <div id="souscategorieError" class="error-msg">Veuillez sélectionner une sous-catégorie.</div>
+
+    <div id="additionalFieldsContainer" style="width:80%; margin:10px auto;"></div>
+
+    <div class="custom-dropdown" id="cityDropdown">
+      <div class="selected">-- Sélectionnez une ville ▼--</div>
+      <div class="options"></div>
+    </div>
+    <input type="hidden" id="city">
+    <div id="cityError" class="error-msg">Veuillez sélectionner une ville.</div>
+
+    <div class="custom-dropdown" id="quartierDropdown" style="display:none;">
+      <div class="selected">-- Sélectionnez un quartier ▼--</div>
+      <div class="options"></div>
+    </div>
+    <input type="hidden" id="quartier">
+    <div id="quartierError" class="error-msg">Veuillez sélectionner un quartier.</div>
+
+    <div style="display:flex; flex-wrap:wrap; gap:30px; align-items:center; font-size:20px;">
+      <label style="display:flex; align-items:center; gap:10px;">
+        <p>Je livre</p>
+        <input type="checkbox" id="livraison" style="width:22px; height:22px;">
+        <span class="material-icons" style="font-size:40px;">delivery_dining</span>
+      </label>
+      <label style="display:flex; align-items:center; gap:10px;">
+        <p>Produit neuf</p>
+        <input type="checkbox" id="produitNeuf" style="width:22px; height:22px;">
+        <span class="material-icons" style="font-size:40px;">fiber_new</span>
+      </label>
+    </div>
+    <div style="position: relative; width: 100%;">
+      <textarea id="description" maxlength="650" placeholder="Description du produit (max 650 caractères)" style="width: 95%; padding-bottom:25px;  height:250px;"></textarea>
+      <span id="descCount" style="position:absolute; bottom:8%; right:6%; font-size:12px; color:#555;">0 / 650</span>
+    </div>
+
+    <div id="descriptionError" class="error-msg">Veuillez saisir une description.</div>
+
+  </div>
+  <div class="form-section">
+    <div class="input-left-icon">
+      <i class="fa-brands fa-whatsapp"></i>
+      <input type="tel" id="whatsapp" placeholder="7X XXX XX XX">
+    </div>
+    <div id="whatsappError" class="error-msg">Veuillez saisir un numéro WhatsApp valide.</div>
+
+    <div class="input-left-icon">
+      <i class="fa-solid fa-phone"></i>
+      <input type="tel" id="telephone" placeholder="7X XXX XX XX">
+    </div>
+    <div id="telephoneError" class="error-msg">Veuillez saisir un numéro de téléphone valide.</div>
+  <div class="button-group">
+    <button type="reset" class="btn-cancel">Annuler</button>
+    <button type="submit" class="btn-submit">Publier gratuitement</button>
+  </div>
+</form>
+
+<div id="loader" style="display:none;position:fixed;top:0; left:0; right:0; bottom:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:white;padding:30px;border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:10px;">
+    <span class="material-icons" style="font-size:48px; animation:spin 1s linear infinite;">autorenew</span>
+    <p>Publication en cours...</p>
+  </div>
+</div>
+
+<style>
+@keyframes spin { from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
+</style>
+
+<script>
+
+const categorieDropdown = document.getElementById('categorieDropdown');
+const categorieSelected = categorieDropdown.querySelector('.selected');
+const categorieOptions = categorieDropdown.querySelector('.options');
+const categorieInput = document.getElementById('categorie');
+
+const sousDropdown = document.getElementById('souscategorieDropdown');
+const sousSelected = sousDropdown.querySelector('.selected');
+const sousOptions = sousDropdown.querySelector('.options');
+const sousInput = document.getElementById('souscategorie');
+
+const cityDropdown = document.getElementById('cityDropdown');
+const citySelected = cityDropdown.querySelector('.selected');
+const cityOptions = cityDropdown.querySelector('.options');
+const cityInput = document.getElementById('city');
+
+const quartierDropdown = document.getElementById('quartierDropdown');
+const quartierSelected = quartierDropdown.querySelector('.selected');
+const quartierOptions = quartierDropdown.querySelector('.options');
+const quartierInput = document.getElementById('quartier');
+
+const additionalFieldsContainer = document.getElementById("additionalFieldsContainer");
+
+
+const categoryLabels = {
+  vehicules: 'Véhicules',
+  immobilier: 'Immobilier',
+  electronique: 'Électronique',
+  mode: 'Mode & Beauté',
+  electromenager: 'Électroménager',
+  maison: 'Pour la maison',
+  emplois: 'Emplois',
+  services: 'Services',
+  enfant: "Pour l'enfant",
+  sports_loisirs: 'Sports & Loisirs',
+  alimentation: 'Alimentation',
+  animaux: 'Animaux',
+  materiel_pro: 'Matériel Pro'
+};
+
+const categoryIcons = {
+  vehicules: 'directions_car',
+  immobilier: 'apartment',
+  electronique: 'devices',
+  mode: 'checkroom',
+  electromenager: 'kitchen',
+  maison: 'king_bed',
+  emplois: 'work',
+  services: 'handshake',
+  enfant: 'child_friendly',
+  sports_loisirs: 'sports',
+  alimentation: 'restaurant',
+  animaux: 'pets',
+  materiel_pro: 'build'
+};
+
+
+let categoriesMap = {};
+let quartiersDakar = [];
+
+const additionalFields = {
+  vehicules: {
+    "Voitures & utilitaires": [
+      { name: 'Marque', type: 'select', options: ['Acura','Alfa Romeo','Alpine','Aston Martin','Audi','BAIC','Bentley','BMW','Bugatti','Buick','BYD','Cadillac','Changan','Chery','Chevrolet','Chrysler','Citroën','Cupra','Dacia','Daewoo','Daihatsu','Datsun','Dodge','Dongfeng','DS Automobiles','FAW','Ferrari','Fiat','Fisker','Ford','Geely','Genesis','GMC','Great Wall','Haval','Holden','Honda','Hummer','Hyundai','Infiniti', 'Isuzu','Jaguar','Jeep','Kia','Koenigsegg', 'Lada','Lamborghini','Lancia','Land Rover','Lexus','Lincoln','Lotus','Lucid','Maserati','Maybach', 'Mazda','McLaren','Mercedes-Benz','MG','Mini', 'Mitsubishi','Nissan','Opel','Pagani','Peugeot','Polestar','Pontiac','Porsche','Proton','Ram','Renault','Rivian','Rolls-Royce','Rover','Saab', 'Samsung','Seat','Škoda','Smart','SsangYong', 'Subaru','Suzuki','Tata','Tesla','Toyota','Vauxhall','VinFast','Volkswagen','Volvo','Wuling','Zotye']},
+      { name: 'Modèle', type: 'text' },
+      { name: 'Kilométrage', type: 'number' },
+      { name: 'Année',type: 'select', options: Array.from({length: 2026 - 1950 + 1}, (_, i) => (2026 - i).toString())},
+      { name: 'Transmission', type: 'select', options: ['Manuelle', 'Automatique'] },
+      { name: 'Carburant', type: 'select', options: ['Essence', 'Gasoil', 'Hybride', 'Électrique'] },
+      {name: 'Nombre de portes',type: 'select',options: ['Nombre de portes', '2', '3', '4', '5', '6', '7']}
+      ],
+
+    "Moto & scooters": [
+      {name: 'Marque',  type: 'select', options: ['Aprilia','Bajaj','Benelli','BMW Motorrad','CFMoto','Derbi','Ducati','Fantic','Harley-Davidson','Hero','Husqvarna','Indian','Jawa','Kawasaki','KTM','Kymco','Lifan','Moto Guzzi','Honda','Horex','Hyosung','Italjet','Lambretta','Mahindra','Mash','Malaguti','MV Agusta','Peugeot Scooters','Piaggio','Beverly','Royal Enfield','Suzuki','Sym','TVS','Triumph','Vespa','Yamaha','Zontes']},
+      { name: 'Modèle', type: 'text' },
+      { name: 'Kilométrage', type: 'number' },
+      {name: 'Année',type: 'select', options: Array.from({length: 2026 - 1950 + 1}, (_, i) => (2026 - i).toString())}
+      ],
+
+    "Camion & bus": [
+      { name: 'Marque',  type: 'select', options: ['Ashok Leyland','Berliet','BYD','Chevrolet','Chrysler','Daf','DAF Trucks','Daewoo','Dodge','Fuso','Fiat','Ford','Freightliner','GMC','Hino','Hyundai','Isuzu','IVECO','Kamaz','Kenworth','MAN','Mack','Mahindra','Mercedes-Benz','Mitsubishi Fuso','Navistar','Neoplan','Nikola','Renault Trucks','Scania','Setra','Tata','UD Trucks','Volvo','Western Star','ZIL']},
+      { name: 'Modèle', type: 'text' },
+      { name: 'Kilométrage', type: 'number' },
+      {name: 'Année',type: 'select', options: Array.from({length: 2026 - 1950 + 1}, (_, i) => (2026 - i).toString())}
+      ],
+
+    "Équipements et accessoires": [],
+    "Location de véhicule": [],
+    "Bateaux": []
+  },
+
+  immobilier: {
+    "Villas": [
+      { name: 'Surface (m²)', type: 'number' },
+      { name: 'Nombre de chambres', type: 'number' },
+      { name: 'Nombre de salles de bain', type: 'number' },
+      { name: 'Nombre d’étages', type: 'number' },
+      { name: 'Option', type: 'select', options: ['Vente', 'Location'] },
+      { name: 'État général', type: 'select', options: ['Neuf', 'Bon état', 'À rénover'] }
+      ],
+
+    "Appartements": [
+      { name: 'Surface (m²)', type: 'number' },
+      { name: 'Nombre de pièces', type: 'number' },
+      { name: 'Nombre de salles de bain', type: 'number' },
+      { name: 'Option', type: 'select', options: ['Vente', 'Location'] },
+      { name: 'État général', type: 'select', options: ['Neuf', 'Bon état', 'À rénover'] }
+      ],
+
+    "Terrains": [
+      { name: 'Surface (m²)', type: 'number' },
+      { name: 'Option', type: 'select', options: ['Vente', 'Location'] },
+      ],
+
+    "Immeubles": [
+      { name: 'Surface (m²)', type: 'number' },
+      { name: 'Nombre d’étages', type: 'number' },
+      { name: 'Nombre d’appartements', type: 'number' },
+      { name: 'Année de construction', type: 'number' },
+      { name: 'État général', type: 'select', options: ['Neuf', 'Bon état', 'À rénover'] },
+      { name: 'Option', type: 'select', options: ['Vente', 'Location'] }
+      ],
+
+    "Bureaux et commerce": [
+      { name: 'Surface (m²)', type: 'number' },
+      { name: 'Nombre de pièces', type: 'number' },
+      { name: 'Nombre de salles de bain', type: 'number', optional: true },
+      { name: 'Option', type: 'select', options: ['Vente', 'Location'] },
+      { name: 'État général', type: 'select', options: ['Neuf', 'Bon état', 'À rénover'] }
+      ],
+
+      "Maison de vacances": [
+      { name: 'Surface (m²)', type: 'number' },
+      { name: 'Nombre de pièces', type: 'number' },
+      { name: 'Nombre de salles de bain', type: 'number', optional: true },
+      { name: 'Option', type: 'select', options: ['Location'] }
+      ],
+
+      "Chambres": [
+      { name: 'Surface (m²)', type: 'number' },
+      { name: 'Nombre de pièces', type: 'number', optional: true },
+      { name: 'Nombre de salles de bain', type: 'number', optional: true },
+      { name: 'Option', type: 'select', options: ['Location'] }
+      ],
+
+      "Terrains agricoles": [
+      { name: 'Surface (m²)', type: 'number' },
+      { name: 'Type de culture', type: 'text' },
+      { name: 'Option', type: 'select', options: ['Vente', 'Location'] }
+      ],
+
+      "Appartements meublés": [
+      { name: 'Surface (m²)', type: 'number' },
+      { name: 'Nombre de pièces', type: 'number' },
+      { name: 'Nombre de salles de bain', type: 'number' },
+      { name: 'Option', type: 'select', options: ['Vente', 'Location'] },
+      { name: 'État général', type: 'select', options: ['Neuf', 'Bon état', 'À rénover'] }
+      ],
+
+      "Ferme et verger": [
+      { name: 'Surface (m²)', type: 'number' },
+      { name: 'Option', type: 'select', options: ['Vente', 'Location'] }
+     ]
+}
+};
+
+
+function fetchJSON(url, callback) {
+  fetch(url)
+    .then(res => {
+      if (!res.ok) throw new Error(`Erreur chargement ${url}`);
+      return res.json();
+    })
+    .then(callback)
+    .catch(err => console.error(err));
+}
+
+fetchJSON('categories.json', data => {
+  categoriesMap = data;
+  categorieOptions.innerHTML = '';
+  Object.keys(categoriesMap).forEach(catKey => {
+    const catLabel = categoryLabels[catKey] || catKey.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
+    const catIcon = categoryIcons[catKey] || 'folder';
+    const div = document.createElement('div');
+    div.dataset.value = catKey;
+    div.innerHTML = `<i class="material-icons">${catIcon}</i> ${catLabel}`;
+    div.addEventListener('click', () => {
+      categorieSelected.innerHTML = div.innerHTML;
+      categorieInput.value = catKey;
+      categorieDropdown.classList.remove('active');
+      updateSousCategories(catKey);
+      additionalFieldsContainer.innerHTML = "";
+    });
+    categorieOptions.appendChild(div);
+  });
+});
+
+fetchJSON('quartiersDakar.json', data => quartiersDakar = data);
+
+fetchJSON('villes.json', villes => {
+  cityOptions.innerHTML = '';
+  villes.forEach(v => {
+    const div = document.createElement('div');
+    div.dataset.value = v;
+    div.textContent = v;
+    cityOptions.appendChild(div);
+    div.addEventListener('click', () => {
+      citySelected.textContent = v;
+      cityInput.value = v;
+      cityDropdown.classList.remove('active');
+
+      if (v === 'Dakar') {
+        quartierDropdown.style.display = 'block';
+        quartierOptions.innerHTML = '';
+        quartiersDakar.forEach(q => {
+          const opt = document.createElement('div');
+          opt.textContent = q;
+          opt.dataset.value = q;
+          opt.addEventListener('click', () => {
+            quartierSelected.textContent = q;
+            quartierInput.value = q;
+            quartierDropdown.classList.remove('active');
+          });
+          quartierOptions.appendChild(opt);
+        });
+        quartierSelected.textContent = '-- Sélectionnez un quartier --';
+        quartierInput.value = '';
+      } else {
+        quartierDropdown.style.display = 'none';
+        quartierInput.value = '';
+      }
+    });
+  });
+});
+
+[categorieSelected, sousSelected, citySelected, quartierSelected].forEach((el, i) => {
+  const dropdowns = [categorieDropdown, sousDropdown, cityDropdown, quartierDropdown];
+  el.addEventListener('click', () => dropdowns[i].classList.toggle('active'));
+});
+
+
+function updateSousCategories(catKey) {
+  sousOptions.innerHTML = '';
+  sousInput.value = '';
+  let subs = [];
+  if (Array.isArray(categoriesMap[catKey])) subs = categoriesMap[catKey];
+  else if (categoriesMap[catKey]?.sous) subs = categoriesMap[catKey].sous;
+
+  if (!subs || subs.length === 0) {
+    sousDropdown.style.display = 'none';
+    additionalFieldsContainer.innerHTML = ""; 
+    return;
+  }
+
+  subs.forEach(sc => {
+    const div = document.createElement('div');
+    div.dataset.value = (sc.label || '').toLowerCase();
+    div.innerHTML = `<i class="material-icons">${sc.icon || 'label'}</i> ${sc.label}`;
+    div.addEventListener('click', () => {
+      sousSelected.innerHTML = div.innerHTML;
+      sousInput.value = sc.label;
+      sousDropdown.classList.remove('active');
+
+  
+      if(additionalFields[catKey] && additionalFields[catKey][sc.label] && additionalFields[catKey][sc.label].length > 0){
+        showAdditionalFields(catKey, sc.label);
+      } else {
+        additionalFieldsContainer.innerHTML = ""; 
+      }
+    });
+    sousOptions.appendChild(div);
+  });
+
+  sousDropdown.style.display = 'block';
+  sousSelected.innerHTML = '-- Sélectionnez une sous-catégorie --';
+  sousInput.value = '';
+}
+
+function showAdditionalFields(category, subCategory) {
+  additionalFieldsContainer.innerHTML = ""; 
+
+  const fields = additionalFields[category][subCategory];
+  if (!fields || fields.length === 0) return;
+
+  fields.forEach(fieldData => {
+    let fieldWrapper = document.createElement('div');
+    fieldWrapper.style.marginBottom = "10px";
+
+    let field;
+    const fieldId = fieldData.name.replace(/\s+/g,''); 
+
+    if (fieldData.type === 'number' || fieldData.type === 'text') {
+      field = document.createElement('input');
+      field.type = fieldData.type;
+    } else if (fieldData.type === 'select') {
+      field = document.createElement('select');
+      const placeholder = document.createElement('option');
+      placeholder.disabled = true;
+      placeholder.selected = true;
+      placeholder.textContent = `-- Sélectionner ${fieldData.name} --`;
+      field.appendChild(placeholder);
+
+      fieldData.options.forEach(optText => {
+        const opt = document.createElement('option');
+        opt.value = optText;
+        opt.textContent = optText;
+        field.appendChild(opt);
+      });
+
+      setTimeout(() => { M.FormSelect.init(field); }, 50);
+    }
+
+    field.id = fieldId;
+    field.placeholder = fieldData.name;
+    field.style.width = "100%";
+
+    fieldWrapper.appendChild(field);
+    additionalFieldsContainer.appendChild(fieldWrapper);
+  });
+}
+
+function getAdditionalFieldsData() {
+  const data = {};
+  additionalFieldsContainer.querySelectorAll('input, select').forEach(field => {
+    const key = field.id;
+    let value = field.value ? field.value.trim() : null;
+    data[key] = value || null;
+  });
+  return data;
+}
+
+const additionalData = getAdditionalFieldsData();
+
+function previewImage(input) {
+  if (!input.files || !input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    let icon = input.parentElement.querySelector('.material-icons');
+    let img = input.parentElement.querySelector('img');
+    if (!img) {
+      img = document.createElement('img');
+      input.parentElement.appendChild(img);
+      if (icon) icon.style.display = 'none';
+    }
+    img.src = e.target.result;
+  }
+  reader.readAsDataURL(input.files[0]);
+}
+</script>
+
+
+<script>
+const priceInput = document.getElementById('price');
+priceInput.value = ' FCFA';
+
+priceInput.addEventListener('input', () => {
+  let value = priceInput.value.replace(/\s*FCFA$/i, ''); 
+
+  value = value.replace(/\D/g, '');
+  priceInput.value = value + ' FCFA';
+});
+
+priceInput.addEventListener('click', () => {
+  const pos = priceInput.value.length - 5; 
+  priceInput.setSelectionRange(pos, pos);
+});
+priceInput.addEventListener('focus', () => {
+  const pos = priceInput.value.length - 5;
+  priceInput.setSelectionRange(pos, pos);
+});
+</script>
+
+<script>
+  function setupNumberField(id) {
+    const input = document.getElementById(id);
+
+    input.addEventListener('input', () => {
+      let value = input.value.replace(/\D/g, '');
+      if (value.length > 9) value = value.slice(0, 9);
+      input.value = value;
+    });
+  }
+  setupNumberField('whatsapp');
+  setupNumberField('telephone');
+</script>
+
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
+import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-storage.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
+  authDomain: "diallo-ee5aa.firebaseapp.com",
+  projectId: "diallo-ee5aa",
+  storageBucket: "diallo-ee5aa.firebasestorage.app",
+  messagingSenderId: "662485613383",
+  appId: "1:662485613383:web:c1129a35c335cc95c0ea62",
+  measurementId: "G-F3092DTNZY"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+const emailDisplay = document.createElement('p');
+emailDisplay.id = 'userEmailDisplay';
+emailDisplay.style.fontWeight = 'bold';
+emailDisplay.style.marginTop = '15px';
+document.querySelector('.form-container').prepend(emailDisplay);
+
+onAuthStateChanged(auth, user => {
+  if(user) emailDisplay.textContent = "Connecté : " + user.email;
+  else window.location.href = "baba9.html";
+});
+
+function escapeHTML(str) {
+  if (!str) return '';
+  return str.replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+}
+
+function resetDropdowns() {
+  categorieSelected.innerHTML = '-- Sélectionnez une catégorie --';
+  categorieInput.value = '';
+  sousSelected.innerHTML = '-- Sélectionnez une sous-catégorie --';
+  sousInput.value = '';
+  sousDropdown.style.display = 'none';
+  citySelected.innerHTML = '-- Sélectionnez une ville --';
+  cityInput.value = '';
+  quartierSelected.innerHTML = '-- Sélectionnez un quartier --';
+  quartierInput.value = '';
+  quartierDropdown.style.display = 'none';
+}
+
+function cleanAdditionalData(data) {
+  const cleaned = {};
+  for (let key in data) {
+    if (key && data[key] !== undefined && data[key] !== "") {
+      cleaned[key] = data[key];
+    }
+  }
+  return cleaned;
+}
+
+const adForm = document.getElementById('adForm');
+const loader = document.getElementById('loader');
+adForm.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  let isValid = true;
+
+  const images = adForm.querySelectorAll('input[type="file"]');
+  let selectedImages = 0;
+  images.forEach(img=>{ if(img.files.length>0) selectedImages++; });
+  if(selectedImages<3){ document.getElementById('imagesError').style.display='block'; isValid=false; }
+  else document.getElementById('imagesError').style.display='none';
+
+  const title = document.getElementById('title');
+  if(title.value.trim()===''){ document.getElementById('titleError').style.display='block'; isValid=false; }
+  else document.getElementById('titleError').style.display='none';
+
+  const categorieInput = document.getElementById('categorie');
+  if(categorieInput.value===''){ document.getElementById('categorieError').style.display='block'; isValid=false; }
+  else document.getElementById('categorieError').style.display='none';
+
+  const sousInput = document.getElementById('souscategorie');
+  const sousDropdown = document.getElementById('souscategorieDropdown');
+  if(sousDropdown.style.display!=='none' && sousInput.value===''){ document.getElementById('souscategorieError').style.display='block'; isValid=false; }
+  else document.getElementById('souscategorieError').style.display='none';
+
+  const cityInput = document.getElementById('city');
+  if(cityInput.value===''){ document.getElementById('cityError').style.display='block'; isValid=false; }
+  else document.getElementById('cityError').style.display='none';
+
+  const quartierInput = document.getElementById('quartier');
+  const quartierValue = quartierInput.value;
+  if(cityInput.value === 'Dakar' && quartierValue === ''){
+    document.getElementById('quartierError').style.display = 'block';
+    isValid = false;
+  } else document.getElementById('quartierError').style.display = 'none';
+
+  const description = document.getElementById('description');
+  if(description.value.trim()===''){ document.getElementById('descriptionError').style.display='block'; isValid=false; }
+  else document.getElementById('descriptionError').style.display='none';
+
+  const whatsapp = document.getElementById('whatsapp');
+  if(!/^\d{9}$/.test(whatsapp.value.trim())){ document.getElementById('whatsappError').style.display='block'; isValid=false; }
+  else document.getElementById('whatsappError').style.display='none';
+
+  const telephone = document.getElementById('telephone');
+  if(!/^\d{9}$/.test(telephone.value.trim())){ document.getElementById('telephoneError').style.display='block'; isValid=false; }
+  else document.getElementById('telephoneError').style.display='none';
+
+  if(!isValid) return;
+
+  try {
+    loader.style.display = 'flex';
+
+    const imageFiles = Array.from(images).filter(input=>input.files[0]).map(i=>i.files[0]);
+    const imageUrls = [];
+    const userId = auth.currentUser.uid;
+
+    for(const file of imageFiles){
+      const storageRef = ref(storage, `annonces/${userId}/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      imageUrls.push(url);
+    }
+
+    let priceVal = document.getElementById('price').value.replace(/\s*FCFA$/i,'').trim();
+
+    const additionalFieldsContainer = document.getElementById('additionalFieldsContainer');
+    const additionalData = {};
+    if(additionalFieldsContainer){
+      additionalFieldsContainer.querySelectorAll('input, select').forEach(field => {
+        const key = field.id;
+        let value = field.value.trim();
+        if(value === '') value = null;
+        additionalData[key] = value;
+      });
+    }
+    const cleanedAdditionalData = cleanAdditionalData(additionalData);
+
+    await addDoc(collection(db,'annonces'),{
+      title: escapeHTML(title.value.trim()),
+      price: priceVal,
+      categorie: escapeHTML(categorieInput.value),
+      souscategorie: escapeHTML(sousInput.value),
+      city: escapeHTML(cityInput.value),
+      quartier: escapeHTML(quartierInput.value.trim()),
+      description: escapeHTML(description.value.trim()),
+      whatsapp: '+221' + escapeHTML(whatsapp.value.trim()),
+      telephone: '+221' + escapeHTML(telephone.value.trim()),
+      livraison: document.getElementById('livraison').checked,
+      produitNeuf: document.getElementById('produitNeuf').checked,
+      images: imageUrls,
+      createdAt: serverTimestamp(),
+      userEmail: escapeHTML(auth.currentUser.email),
+      ownerId: auth.currentUser.uid, 
+      ...Object.fromEntries(Object.entries(cleanedAdditionalData).map(([k,v])=>[escapeHTML(k), escapeHTML(v)]))
+    });
+
+    loader.style.display = 'none';
+    M.toast({html: 'Annonce publiée avec succès !', classes: 'green darken-1'});
+
+    adForm.reset();
+    resetDropdowns();
+    images.forEach(img => {
+      const parent = img.parentElement;
+      const preview = parent.querySelector('img');
+      const icon = parent.querySelector('.material-icons');
+      if (preview) preview.remove();
+      if (icon) icon.style.display = 'block';
+    });
+
+    document.getElementById("additionalFieldsContainer").innerHTML = "";
+  } catch(err){
+    loader.style.display = 'none';
+    console.error("Erreur Firestore :", err);
+    alert("Erreur Firestore : " + err.message);
+    M.toast({html: 'Erreur lors de l\'enregistrement de l\'annonce.', classes: 'red darken-1'});
+  }
+});
+</script>
+
+
+
+<script>
+const description = document.getElementById('description');
+const descCount = document.getElementById('descCount');
+description.addEventListener('input', () => {
+  const len = description.value.length;
+  descCount.textContent = `${len} / 650`;
+  if (len > 650) {
+    descCount.style.color = 'red';
+  } else if (len > 500) {
+    descCount.style.color = 'orange';
+  } else {
+    descCount.style.color = '#555';
+  }
+});
+</script>
+</body>
+</html>
