@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -152,6 +151,9 @@ button:hover { background: #00796B; }
         await setDoc(doc(db, "users", user.uid), {
           fullName, email: emailValue, createdAt: new Date(), emailVerified: false
         });
+
+        
+        await signOut(auth);
 
         globalMessage.textContent = "✅ Inscription réussie ! Vérifiez votre boîte mail pour confirmer votre compte.";
         globalMessage.className = "success";
