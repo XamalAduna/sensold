@@ -366,7 +366,7 @@ onAuthStateChanged(auth, async (user) => {
 async function loadAnnonces(){
   annoncesContainer.innerHTML = "<p>⏳ Chargement des annonces...</p>";
   try {
-    const annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt","desc"), limit(20));
+    const annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt","desc"));
     const annoncesSnap = await getDocs(annoncesQuery);
 
     if(annoncesSnap.empty){ 
