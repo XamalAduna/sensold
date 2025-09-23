@@ -578,10 +578,19 @@ function renderPagination(totalPages){
   }
 }
 
-// 🔹 Filtres catégories et sous-catégories
-function setupCategoryFilters(){
+
+
+function setupCategoryFilters() {
   const allCategory = document.querySelector('.category[data-cat="all"]');
-  if(allCategory) allCategory.classList.add("active");
+  if (allCategory) allCategory.classList.add("active");
+
+  // Gestion du clic en dehors du menu (une seule fois)
+  document.addEventListener("click", e => {
+    const menu = document.getElementById("subDropdownMenu");
+    if (menu && !menu.parentElement.contains(e.target)) {
+      menu.style.display = "none";
+    }
+  });
 
   categoryElements.forEach(cat => {
     cat.addEventListener("click", () => {
@@ -591,55 +600,52 @@ function setupCategoryFilters(){
       selectedCategory = cat.dataset.cat;
       selectedSubcategory = null;
       currentPage = 1;
-      applyAllFilters();
-
       const subs = categoriesData[selectedCategory] || [];
-      if(subs.length === 0){ 
-        subContainer.innerHTML = "<p style='text-align:center;color:#777;'>Aucune sous-catégorie</p>"; 
-        return; 
+      if (subs.length === 0) {
+        subContainer.innerHTML = "<p style='text-align:center;color:#777;'>Aucune sous-catégorie</p>";
+      } else {
+        subContainer.innerHTML = `
+          <div style="text-align:center; margin-top:10px; position:relative; display:inline-block;">
+            <button id="subDropdownBtn" style="padding:8px 12px; border-radius:8px; border:1px solid #ccc; background:#fff; cursor:pointer;">
+              Sélectionner une sous-catégorie ▼
+            </button>
+            <div id="subDropdownMenu" style="display:none; position:absolute; top:100%; left:0; background:#fff; border:1px solid #ccc; border-radius:8px; width:220px; box-shadow:0 2px 6px rgba(0,0,0,0.15); z-index:1000;">
+              ${subs.map(s => `<div class="sub-item" style="display:flex; align-items:center; gap:8px; padding:6px 10px; cursor:pointer;">
+                <i class="material-icons" style="color:#009688;">${s.icon}</i>
+                <span>${s.label}</span>
+              </div>`).join('')}
+            </div>
+          </div>
+        `;
+
+        const btn = document.getElementById("subDropdownBtn");
+        const items = document.querySelectorAll(".sub-item");
+
+        btn.addEventListener("click", () => {
+          const menu = document.getElementById("subDropdownMenu");
+          menu.style.display = menu.style.display === "block" ? "none" : "block";
+        });
+
+        items.forEach(item => {
+          item.addEventListener("click", () => {
+            items.forEach(i => { i.style.background = "#fff"; i.style.color = "#000"; });
+            item.style.background = "#009688";
+            item.style.color = "#fff";
+            selectedSubcategory = item.querySelector("span").textContent.trim();
+            btn.textContent = selectedSubcategory + " ▼";
+            document.getElementById("subDropdownMenu").style.display = "none";
+            currentPage = 1;
+            applyAllFilters();
+          });
+        });
       }
 
-      subContainer.innerHTML = `
-        <div style="text-align:center; margin-top:10px; position:relative; display:inline-block;">
-          <button id="subDropdownBtn" style="padding:8px 12px; border-radius:8px; border:1px solid #ccc; background:#fff; cursor:pointer;">Sélectionner une sous-catégorie ▼</button>
-          <div id="subDropdownMenu" style="display:none; position:absolute; top:100%; left:0; background:#fff; border:1px solid #ccc; border-radius:8px; width:220px; box-shadow:0 2px 6px rgba(0,0,0,0.15); z-index:1000;">
-            ${subs.map(s => `<div class="sub-item" style="display:flex; align-items:center; gap:8px; padding:6px 10px; cursor:pointer;">
-              <i class="material-icons" style="color:#009688;">${s.icon}</i>
-              <span>${s.label}</span>
-            </div>`).join('')}
-          </div>
-        </div>
-      `;
-
-      const btn = document.getElementById("subDropdownBtn");
-      const menu = document.getElementById("subDropdownMenu");
-      const items = menu.querySelectorAll(".sub-item");
-
-      btn.addEventListener("click", () => { 
-        menu.style.display = menu.style.display === "block" ? "none" : "block"; 
-      });
-
-      items.forEach(item => {
-        item.addEventListener("click", () => {
-          items.forEach(i => { i.style.background="#fff"; i.style.color="#000"; });
-          item.style.background="#009688";
-          item.style.color="#fff";
-          selectedSubcategory = item.querySelector("span").textContent.trim();
-          btn.textContent = item.querySelector("span").textContent + " ▼";
-          menu.style.display = "none";
-          currentPage = 1;
-          applyAllFilters();
-        });
-      });
-
-      document.addEventListener("click", e => { 
-        if(!subContainer.contains(e.target)) menu.style.display="none"; 
-      });
+      // Appliquer les filtres après chaque sélection de catégorie
+      applyAllFilters();
     });
   });
-
-  applyAllFilters();
 }
+
 
 // 🔹 Recherche et tri
 function setupSearchAndSort(){
