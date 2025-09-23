@@ -152,13 +152,12 @@ button:hover { background: #00796B; }
           fullName, email: emailValue, createdAt: new Date(), emailVerified: false
         });
 
-        
-        await signOut(auth);
-
         globalMessage.textContent = "✅ Inscription réussie ! Vérifiez votre boîte mail pour confirmer votre compte.";
         globalMessage.className = "success";
         registerForm.reset();
         grecaptcha.reset(recaptchaWidgetId);
+
+        await signOut(auth);
 
       } catch (error) {
         let message = "Une erreur est survenue.";
