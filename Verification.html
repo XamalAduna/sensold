@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Confirmation / Réinitialisation</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    body {font-family: Arial, sans-serif;display: flex;justify-content: center;align-items: center;min-height: 100vh;background: #f3f3f3;margin: 0;padding: 0;}
+    .container {background: #fff;padding: 30px 20px;border-radius: 10px;box-shadow: 0 5px 15px rgba(0,0,0,0.2);text-align: center;width: 90%;max-width: 400px;box-sizing: border-box;margin: 10px;}
+    h1 {color: #009688;margin-bottom: 20px;font-size: 1.5em;}
+    p {color: #333;font-size: 1em;}
+    a, button {display: inline-block;margin-top: 15px;text-decoration: none;color: #fff;background: #009688;padding: 10px 20px;border-radius: 5px;border: none;cursor: pointer;font-size: 1em;box-sizing: border-box;}
+    a:hover, button:hover {background: #00796B;}
+    .password-wrapper {position: relative;margin-top: 10px;}
+    input {padding: 12px;width: 100%;border: 1px solid #ccc;border-radius: 5px;box-sizing: border-box;font-size: 16px;}
+    .toggle-password {position: absolute;right: 10px;top: 50%;transform: translateY(-50%);cursor: pointer;font-size: 18px;color: #666;}
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 20px 15px;
+        width: 95%;
+      }
+      h1 {
+        font-size: 1.3em;
+      }
+      p, input, button, a {
+        font-size: 1em;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 id="status">Vérification en cours...</h1>
+    <p id="message">Merci de patienter.</p>
+
+    <div class="password-wrapper" id="passwordWrapper" style="display:none;">
+      <input type="password" id="newPassword" placeholder="Nouveau mot de passe" />
+      <span class="toggle-password" id="togglePassword">👁️</span>
+    </div>
+
+    <button id="resetBtn" style="display:none;">Réinitialiser</button>
+    <a href="Connexion.html" id="link" style="display:none;">Se connecter</a>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
+    import { getAuth, applyActionCode, confirmPasswordReset } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
+      authDomain: "diallo-ee5aa.firebaseapp.com",
+      projectId: "diallo-ee5aa",
+      storageBucket: "diallo-ee5aa.firebasestorage.app",
+      messagingSenderId: "662485613383",
+      appId: "1:662485613383:web:c1129a35c335cc95c0ea62",
+      measurementId: "G-F3092DTNZY"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const mode = urlParams.get("mode");
+    const oobCode = urlParams.get("oobCode");
+
+    if (mode === "verifyEmail" && oobCode) {
+      applyActionCode(auth, oobCode)
+        .then(() => {
+          document.getElementById("status").textContent = "Email confirmé ✅";
+          document.getElementById("message").textContent = "Votre email est bien vérifié, vous pouvez maintenant vous connecter.";
+          document.getElementById("link").style.display = "inline-block";
+        })
+        .catch((error) => {
+          document.getElementById("status").textContent = "Erreur ❌";
+          document.getElementById("message").textContent = "Impossible de confirmer l’email : " + error.message;
+        });
+
+    } else if (mode === "resetPassword" && oobCode) {
+      document.getElementById("status").textContent = "Réinitialisation du mot de passe 🔑";
+      document.getElementById("message").textContent = "Veuillez entrer votre nouveau mot de passe.";
+      document.getElementById("passwordWrapper").style.display = "block";
+      document.getElementById("resetBtn").style.display = "inline-block";
+
+      const togglePassword = document.getElementById("togglePassword");
+      const newPasswordInput = document.getElementById("newPassword");
+
+      togglePassword.addEventListener("click", () => {
+        if (newPasswordInput.type === "password") {
+          newPasswordInput.type = "text";
+          togglePassword.textContent = "🙈";
+        } else {
+          newPasswordInput.type = "password";
+          togglePassword.textContent = "👁️";
+        }
+      });
+
+      document.getElementById("resetBtn").addEventListener("click", () => {
+        const newPassword = newPasswordInput.value;
+        if (!newPassword) {
+          alert("Veuillez entrer un mot de passe."); 
+          return;
+        }
+        confirmPasswordReset(auth, oobCode, newPassword) 
+          .then(() => {
+            document.getElementById("status").textContent = "Mot de passe changé ✅";
+            document.getElementById("message").textContent = "Votre mot de passe a bien été réinitialisé. Vous pouvez maintenant vous connecter.";
+            document.getElementById("passwordWrapper").style.display = "none";
+            document.getElementById("resetBtn").style.display = "none";
+            document.getElementById("link").style.display = "inline-block";
+          })
+          .catch((error) => {
+            document.getElementById("status").textContent = "Erreur ❌";
+            document.getElementById("message").textContent = "Impossible de réinitialiser : " + error.message;
+          });
+      });
+
+    } else {
+      document.getElementById("status").textContent = "Erreur ❌";
+      document.getElementById("message").textContent = "Lien invalide ou expiré.";
+    }
+  </script>
+</body>
+</html>
