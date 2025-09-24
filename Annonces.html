@@ -77,20 +77,18 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 </head>
 <body>
 <div class="search-bar" style="display:flex; align-items:center; gap:10px;">
-  <!-- 🔹 Champ recherche -->
+
   <div class="search-box" style="flex:1; display:flex; align-items:center; position:relative;">
     <input type="text" id="search-input" placeholder="Rechercher..." style="flex:1; padding:8px 36px 8px 12px; border:1px solid #ccc; border-radius:8px;">
     <span class="material-icons search-btn" id="search-btn" style="position:absolute; right:8px; cursor:pointer; color:#009688;">search</span>
     <div id="suggestions" class="suggestions" style="display:none;"></div>
   </div>
 
-  <!-- 🔹 Icône filtre à droite du champ -->
   <span id="filter-toggle" class="material-icons" style="cursor:pointer; color:#009688; font-size:28px;">
     filter_list
   </span>
 </div>
 
-<!-- 🔹 Menu caché filtres prix -->
 <div id="filter-menu" style="display:none; margin-top:6px; background:#fff; border:1px solid #ccc; border-radius:8px; padding:6px; width:200px; box-shadow:0 2px 6px rgba(0,0,0,0.15);">
   <button class="price-btn" id="price-asc">
     <span class="material-icons">arrow_upward</span>
@@ -102,7 +100,6 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
   </button>
 </div>
 
-<!-- ====== CATÉGORIES ====== -->
 <section class="categories">
   <div class="categories-wrapper">
     <div class="categories-scroll">
@@ -172,7 +169,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/fireba
 import { getFirestore, collection, getDocs, query, orderBy, limit, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 
-// 🔹 Config Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
   authDomain: "diallo-ee5aa.firebaseapp.com",
@@ -183,12 +179,10 @@ const firebaseConfig = {
   measurementId: "G-F3092DTNZY"
 };
 
-// 🔹 Initialisation Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth();
 
-// 🔹 Données catégories et sous-catégories
 const categoriesData = {
   
   "vehicules": [
@@ -311,19 +305,16 @@ const categoriesData = {
   ]
 };
 
-// 🔹 Sélecteurs et variables globales
 const annoncesContainer = document.getElementById("annonces");
 const subContainer = document.getElementById("subcategories-container");
 const categoryElements = document.querySelectorAll(".category");
 const suggestionsBox = document.getElementById("suggestions");
 
-// 🔹 Boutons filtre prix
 const filterToggle = document.getElementById("filter-toggle");
 const filterMenu = document.getElementById("filter-menu");
 const priceAscBtn = document.getElementById("price-asc");
 const priceDescBtn = document.getElementById("price-desc");
 
-// 🔹 Variables globales
 let currentUser = null;
 let userFavorites = [];
 let annoncesData = [];
@@ -332,11 +323,9 @@ let selectedSubcategory = null;
 let searchText = "";
 let sortOrder = "default";
 
-// 🔹 Pagination
 let currentPage = 1;
 const annoncesPerPage = 10;
 
-// 🔹 Helper temps écoulé
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
@@ -349,7 +338,6 @@ function timeAgo(timestamp){
   return `il y a ${days} j`;
 }
 
-// 🔹 Connexion utilisateur
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
   if(user){
@@ -391,7 +379,6 @@ async function loadAnnonces(){
   }
 }
 
-// 🔹 Fonction pour échapper le HTML (prévention XSS)
 function escapeHTML(str) {
   if (!str) return "";
   return str
@@ -519,7 +506,7 @@ async function renderAnnonces(filtered) {
 
     card.addEventListener("click", e => {
       if (e.target.classList.contains("favorite")) return;
-      window.location.href = `abc1.html?id=${encodeURIComponent(docId)}`;
+      window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
     });
 
     annoncesContainer.appendChild(card);
@@ -528,7 +515,6 @@ async function renderAnnonces(filtered) {
   renderPagination(Math.ceil(filtered.length / annoncesPerPage));
 }
 
-// 🔹 Pagination
 function renderPagination(totalPages){
   let paginationContainer = document.getElementById("pagination");
   if(!paginationContainer){
@@ -577,8 +563,6 @@ function renderPagination(totalPages){
     paginationContainer.appendChild(createPageBtn(totalPages));
   }
 }
-
-
 
 function setupCategoryFilters() {
   const allCategory = document.querySelector('.category[data-cat="all"]');
@@ -646,8 +630,6 @@ function setupCategoryFilters() {
   });
 }
 
-
-// 🔹 Recherche et tri
 function setupSearchAndSort(){
   const searchInput = document.getElementById("search-input");
   const searchBtn = document.getElementById("search-btn");
@@ -657,7 +639,6 @@ function setupSearchAndSort(){
   searchInput.addEventListener("keypress", e=>{ if(e.key==="Enter"){ searchText = searchInput.value; currentPage = 1; applyAllFilters(); } });
 }
 
-// 🔹 Menu filtre prix
 function setupFilterMenu(){
   if(!filterToggle) return;
 
@@ -670,7 +651,6 @@ function setupFilterMenu(){
   });
 }
 
-// 🔹 Appliquer tous les filtres
 function applyAllFilters() {
   let filtered = annoncesData;
 
@@ -688,7 +668,6 @@ function applyAllFilters() {
 }
 </script>
 
-<!-- Modal connexion -->
 <div id="notLoggedMsg" style="
   display:none;
   position: fixed;
@@ -706,12 +685,5 @@ function applyAllFilters() {
   <a href="a1.html">Se connecter</a> <hr>
   <a href="vrai_inscription.html">S'inscrire</a>
 </div>
-
 </body>
 </html>
-
-
-
-
-
-
