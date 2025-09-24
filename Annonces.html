@@ -506,7 +506,7 @@ async function renderAnnonces(filtered) {
 
     card.addEventListener("click", e => {
       if (e.target.classList.contains("favorite")) return;
-      window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
+      window.location.href = `../Details.html?id=${encodeURIComponent(docId)}`;
     });
 
     annoncesContainer.appendChild(card);
