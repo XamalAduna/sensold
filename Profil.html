@@ -82,7 +82,6 @@ async function loadSellerProfile() {
       return;
     }
 
-    // Parcours sécurisé des annonces
     annoncesSnap.forEach(doc => {
       try {
         const data = doc.data();
@@ -111,7 +110,7 @@ async function loadSellerProfile() {
         annonceElem.appendChild(infoDiv);
 
         annonceElem.addEventListener('click', () => {
-          window.location.href = `abc1.html?id=${encodeURIComponent(doc.id)}`;
+          window.location.href = `Details.html?id=${encodeURIComponent(doc.id)}`;
         });
 
         annoncesDiv.appendChild(annonceElem);
