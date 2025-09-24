@@ -66,7 +66,7 @@ label p {font-size: 20px; margin: 0;}
 <div class="form-container">
 <h1>Publier une annonce</h1>
 
-<span class="material-icons closeBtnX" onclick="window.location.href='https://xamaladuna.github.io/sensold/index.html'" 
+<span class="material-icons closeBtnX" onclick="window.location.href='../index.html'" 
       style="position:absolute; top:15px; right:15px; font-size:28px; color:#333; cursor:pointer; transition:0.3s;">
   close
 </span>
@@ -93,14 +93,14 @@ label p {font-size: 20px; margin: 0;}
     <input type="text" id="price" placeholder="0 FCFA">
     <div id="priceError" class="error-msg">Veuillez saisir un prix valide.</div>
     <div class="custom-dropdown" id="categorieDropdown">
-      <div class="selected">-- Sélectionnez une catégorie ▼--</div>
+      <div class="selected">Sélectionnez une catégorie ▼</div>
       <div class="options"></div>
     </div>
     <input type="hidden" id="categorie">
     <div id="categorieError" class="error-msg">Veuillez sélectionner une catégorie.</div>
 
     <div class="custom-dropdown" id="souscategorieDropdown" style="display:none;">
-      <div class="selected">-- Sélectionnez une sous-catégorie ▼--</div>
+      <div class="selected">Sélectionnez une sous-catégorie ▼</div>
       <div class="options"></div>
     </div>
     <input type="hidden" id="souscategorie">
@@ -109,14 +109,14 @@ label p {font-size: 20px; margin: 0;}
     <div id="additionalFieldsContainer" style="width:80%; margin:10px auto;"></div>
 
     <div class="custom-dropdown" id="cityDropdown">
-      <div class="selected">-- Sélectionnez une ville ▼--</div>
+      <div class="selected">Sélectionnez une ville ▼</div>
       <div class="options"></div>
     </div>
     <input type="hidden" id="city">
     <div id="cityError" class="error-msg">Veuillez sélectionner une ville.</div>
 
     <div class="custom-dropdown" id="quartierDropdown" style="display:none;">
-      <div class="selected">-- Sélectionnez un quartier ▼--</div>
+      <div class="selected">Sélectionnez un quartier ▼</div>
       <div class="options"></div>
     </div>
     <input type="hidden" id="quartier">
@@ -172,7 +172,6 @@ label p {font-size: 20px; margin: 0;}
 </style>
 
 <script>
-
 const categorieDropdown = document.getElementById('categorieDropdown');
 const categorieSelected = categorieDropdown.querySelector('.selected');
 const categorieOptions = categorieDropdown.querySelector('.options');
@@ -194,7 +193,6 @@ const quartierOptions = quartierDropdown.querySelector('.options');
 const quartierInput = document.getElementById('quartier');
 
 const additionalFieldsContainer = document.getElementById("additionalFieldsContainer");
-
 
 const categoryLabels = {
   vehicules: 'Véhicules',
@@ -227,7 +225,6 @@ const categoryIcons = {
   animaux: 'pets',
   materiel_pro: 'build'
 };
-
 
 let categoriesMap = {};
 let quartiersDakar = [];
@@ -520,7 +517,6 @@ function previewImage(input) {
 }
 </script>
 
-
 <script>
 const priceInput = document.getElementById('price');
 priceInput.value = ' FCFA';
@@ -556,7 +552,6 @@ priceInput.addEventListener('focus', () => {
   setupNumberField('telephone');
 </script>
 
-
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
@@ -586,7 +581,7 @@ document.querySelector('.form-container').prepend(emailDisplay);
 
 onAuthStateChanged(auth, user => {
   if(user) emailDisplay.textContent = "Connecté : " + user.email;
-  else window.location.href = "https://xamaladuna.github.io/sensold/index.html";
+  else window.location.href = "../index.html";
 });
 
 function escapeHTML(str) {
@@ -599,14 +594,14 @@ function escapeHTML(str) {
 }
 
 function resetDropdowns() {
-  categorieSelected.innerHTML = '-- Sélectionnez une catégorie --';
+  categorieSelected.innerHTML = 'Sélectionnez une catégorie';
   categorieInput.value = '';
-  sousSelected.innerHTML = '-- Sélectionnez une sous-catégorie --';
+  sousSelected.innerHTML = 'Sélectionnez une sous-catégorie';
   sousInput.value = '';
   sousDropdown.style.display = 'none';
-  citySelected.innerHTML = '-- Sélectionnez une ville --';
+  citySelected.innerHTML = 'Sélectionnez une ville';
   cityInput.value = '';
-  quartierSelected.innerHTML = '-- Sélectionnez un quartier --';
+  quartierSelected.innerHTML = 'Sélectionnez un quartier';
   quartierInput.value = '';
   quartierDropdown.style.display = 'none';
 }
