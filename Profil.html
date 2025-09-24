@@ -28,7 +28,7 @@ body { font-family: Arial, sans-serif; background:#f7f7f7; margin:0; padding:20p
   <h2>Les annonces de ce vendeur</h2>
   <div class="annonces" id="seller-annonces"></div>
 </div>
-
+  
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getFirestore, doc, getDoc, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
@@ -61,14 +61,10 @@ const uid = params.get('uid');
 
 async function loadSellerProfile() {
   try {
-    let seller = {};
-    if(uid){
-      const sellerRef = doc(db, "users", uid);
-      const sellerSnap = await getDoc(sellerRef);
-      if(sellerSnap.exists()){
-        seller = sellerSnap.data();
-      }
-    }
+    // Récupération du profil vendeur
+    const sellerRef = doc(db, "users", uid);
+    const sellerSnap = await getDoc(sellerRef);
+    const seller = sellerSnap.exists() ? sellerSnap.data() : {};
 
     const sellerDiv = document.getElementById('seller-info');
     sellerDiv.innerHTML = `
@@ -76,6 +72,7 @@ async function loadSellerProfile() {
       <div><strong>${escapeHTML(seller.fullName) || "Inconnu"}</strong></div>
     `;
 
+    // Récupération des annonces du vendeur
     const annoncesSnap = await getDocs(query(collection(db,"annonces"), where("ownerId","==",uid)));
     const annoncesDiv = document.getElementById('seller-annonces');
     annoncesDiv.innerHTML = '';
@@ -85,35 +82,43 @@ async function loadSellerProfile() {
       return;
     }
 
+    // Parcours sécurisé des annonces
     annoncesSnap.forEach(doc => {
-      const data = doc.data();
-      const mainImage = Array.isArray(data.images) && data.images.length > 0 
+      try {
+        const data = doc.data();
+        if(!data) return;
+
+        const mainImage = Array.isArray(data.images) && data.images.length > 0 
           ? data.images[0] 
           : 'https://via.placeholder.com/120x90?text=Pas+d\'image';
 
-      const annonceElem = document.createElement('div');
-      annonceElem.className = 'annonce';
+        const annonceElem = document.createElement('div');
+        annonceElem.className = 'annonce';
 
-      const imgElem = document.createElement('img');
-      imgElem.src = mainImage;
-      imgElem.alt = "Image annonce";
-      imgElem.loading = "lazy";
+        const imgElem = document.createElement('img');
+        imgElem.src = mainImage;
+        imgElem.alt = "Image annonce";
+        imgElem.loading = "lazy";
 
-      const infoDiv = document.createElement('div');
-      infoDiv.className = 'annonce-info';
-      infoDiv.innerHTML = `
-        <h3>${escapeHTML(data.title) || 'Sans titre'}</h3>
-        <p>Prix: ${data.price ? escapeHTML(data.price) + " FCFA" : "Prix sur demande"}</p>
-      `;
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'annonce-info';
+        infoDiv.innerHTML = `
+          <h3>${escapeHTML(data.title || 'Sans titre')}</h3>
+          <p>Prix: ${data.price ? escapeHTML(data.price) + " FCFA" : "Prix sur demande"}</p>
+        `;
 
-      annonceElem.appendChild(imgElem);
-      annonceElem.appendChild(infoDiv);
+        annonceElem.appendChild(imgElem);
+        annonceElem.appendChild(infoDiv);
 
-      annonceElem.addEventListener('click', () => {
-        window.location.href = `Details.html?id=${encodeURIComponent(doc.id)}`;
-      });
+        annonceElem.addEventListener('click', () => {
+          window.location.href = `abc1.html?id=${encodeURIComponent(doc.id)}`;
+        });
 
-      annoncesDiv.appendChild(annonceElem);
+        annoncesDiv.appendChild(annonceElem);
+
+      } catch(e) {
+        console.warn("Annonce ignorée à cause d'une erreur:", e);
+      }
     });
 
   } catch(err) {
@@ -121,6 +126,7 @@ async function loadSellerProfile() {
     document.getElementById('seller-annonces').innerHTML = `<div class="message">Erreur lors du chargement des annonces.</div>`;
   }
 }
+
 loadSellerProfile();
 </script>
 </body>
