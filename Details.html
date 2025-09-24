@@ -1,0 +1,285 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Détails du produit</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+body { font-family: Arial, sans-serif; background:#f7f7f7; margin:0; padding:20px; }
+.container { max-width:800px; margin:0 auto; background:white; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.1); padding-bottom: 75px;}
+h2 { text-align:center; color:#00796B; margin-bottom:20px; }
+.image-wrapper { position: relative; }
+.main-image { width: 100%; max-height: 400px; object-fit: contain; border-radius: 12px; background: #00796B; margin-bottom: 15px; }
+.arrow { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); color: #fff; border: none; font-size: 28px; padding: 8px 12px; cursor: pointer; border-radius: 50%; }
+.arrow.left { left: 10px; }
+.arrow.right { right: 10px; }
+.thumbnails { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; scroll-behavior: smooth; justify-content: center; margin-bottom: 15px; }
+.thumbnails img { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; cursor: pointer; border: 2px solid transparent; transition: border 0.2s; }
+.thumbnails img.active { border: 2px solid #00796B; }
+.product-header { text-align: left; margin-bottom: 15px; }
+.product-header .price { font-size: 32px; font-weight: bold; color: #00796B; margin: 0 0 5px 0; }
+.product-header h1 { font-size: 24px; color: #00796B; margin: 0; }
+.details { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
+.details p { margin:0; font-size:15px; display:flex; align-items:center; gap:5px; padding:4px 8px; border:1px solid #ddd; border-radius:8px; background:#f9f9f9; }
+.details i.material-icons { color:#00796B; font-size:20px; vertical-align:middle; }
+.details .description-content { padding:8px; border:1px solid #ddd; border-radius:8px; background:#f1f1f1; margin-bottom:5px; white-space: pre-wrap; width:100%; display:flex; align-items:flex-start; gap:5px; }
+.seller a { display:flex; align-items:center; gap:10px; text-decoration:none; color:inherit; max-width:100%; min-width:0; }
+.seller img { width:50px; height:50px; border-radius:50%; object-fit:cover; flex-shrink:0; }
+.seller div { flex:1 1 auto; min-width:0; }
+.seller div strong { display:block; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.seller div span { display:block; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.buttons { display:flex; gap:10px; margin-top:20px; flex-wrap:wrap; }
+.button { flex:1; text-align:center; padding:10px; border:none; border-radius:8px; font-size:16px; cursor:pointer; color:white; text-decoration:none; }
+.button.whatsapp { background:#25D366; }
+.button.phone { background:#00796B; }
+.button.email { background:#00796B; }
+.button.disabled { background:#999; cursor:not-allowed; }
+.description-text { flex:1; min-width:0; white-space:normal; overflow-wrap:anywhere; word-break:break-word; }
+.image-wrapper { position:relative; width:100%; height:400px; overflow:hidden; border-radius:12px; margin-bottom:15px; }
+.main-image { width:100%; height:100%; object-fit:contain; background-color:white; display:block; }
+.spinner { position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; margin: -20px 0 0 -20px; border: 4px solid #ccc; border-top: 4px solid #00796B; border-radius: 50%; animation: spin 1s linear infinite; z-index: 10; } @keyframes spin { 100% { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<h2>Détails du produit</h2>
+<div class="container">
+  <div class="image-wrapper">
+    <img id="main-image" class="main-image" src="https://via.placeholder.com/400x300?text=Chargement...">
+    <button class="arrow left" onclick="prevImage()">&#10094;</button>
+    <button class="arrow right" onclick="nextImage()">&#10095;</button>
+  </div>
+
+  <div class="thumbnails" id="thumbnails"></div>
+
+  <div class="product-header">
+    <p class="price" id="product-price">...</p>
+    <h1 id="product-title">Chargement...</h1>
+    <p id="product-location"></p>
+  </div>
+
+  <div class="details" id="details"></div>
+  <div class="seller" id="seller-info"></div>
+  <div class="buttons" id="contact-buttons"></div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+const firebaseConfig = {
+  apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
+  authDomain: "diallo-ee5aa.firebaseapp.com",
+  projectId: "diallo-ee5aa",
+  storageBucket: "diallo-ee5aa.firebasestorage.app",
+  messagingSenderId: "662485613383",
+  appId: "1:662485613383:web:c1129a35c335cc95c0ea62",
+  measurementId: "G-F3092DTNZY"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const params = new URLSearchParams(window.location.search);
+const id = params.get('id');
+
+let images = [];
+let currentIndex = 0;
+
+function escapeHTML(str) {
+  return str
+    ? str.replace(/&/g, "&amp;")
+         .replace(/</g, "&lt;")
+         .replace(/>/g, "&gt;")
+         .replace(/"/g, "&quot;")
+         .replace(/'/g, "&#039;")
+    : "";
+}
+
+function timeAgo(timestamp){
+  if(!timestamp) return "Date inconnue";
+  const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
+  if(seconds < 60) return "à l’instant";
+  const minutes = Math.floor(seconds/60);
+  if(minutes < 60) return `il y a ${minutes} min`;
+  const hours = Math.floor(minutes/60);
+  if(hours < 24) return `il y a ${hours} h`;
+  const days = Math.floor(hours/24);
+  return `il y a ${days} j`;
+}
+
+function isValidImageURL(url) {
+  return /^https?:\/\//i.test(url);
+}
+
+function showSecurityModal(callback) {
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;';
+  
+  const box = document.createElement('div');
+  box.style.cssText = 'background:white;padding:20px;border-radius:12px;max-width:400px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,0.2);position:relative;';
+  
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '×';
+  closeBtn.style.cssText = 'position:absolute;top:10px;right:10px;background:transparent;border:none;font-size:24px;cursor:pointer;color:#00796B;';
+  closeBtn.addEventListener('click', () => document.body.removeChild(modal));
+  box.appendChild(closeBtn);
+
+  const msg = document.createElement('p');
+  msg.textContent = "⚠️ Conseils de sécurité :\n1 - Ne pas envoyer de paiements sans vérifier le produit.\n2 - Ne pas envoyer d'argent par virement ou transfert.\n3 - Rencontrer le vendeur dans un lieu public.";
+  msg.style.whiteSpace = 'pre-line';
+  msg.style.marginBottom = '20px';
+  box.appendChild(msg);
+
+  const okBtn = document.createElement('button');
+  okBtn.textContent = 'OK';
+  okBtn.style.cssText = 'padding:10px 20px;background:#00796B;color:white;border:none;border-radius:8px;cursor:pointer;';
+  okBtn.addEventListener('click', () => {
+    document.body.removeChild(modal);
+    callback();
+  });
+  box.appendChild(okBtn);
+
+  modal.appendChild(box);
+  document.body.appendChild(modal);
+}
+
+async function loadDetails() {
+  try {
+    const docRef = doc(db, "annonces", id);
+    const docSnap = await getDoc(docRef);
+
+    if (!docSnap.exists()) {
+      document.getElementById('details').textContent = "Produit non trouvé.";
+      return;
+    }
+    const data = docSnap.data();
+
+    const mainImage = document.getElementById('main-image');
+    const thumbnails = document.getElementById('thumbnails');
+    thumbnails.innerHTML = '';
+
+    const spinner = document.createElement('div');
+    spinner.className = 'spinner';
+    mainImage.parentElement.style.position = 'relative';
+    mainImage.parentElement.appendChild(spinner);
+
+    images = Array.isArray(data.images) && data.images.length > 0
+      ? data.images.filter(isValidImageURL)
+      : ["https://via.placeholder.com/400x300?text=Pas+d'image"];
+    currentIndex = 0;
+
+    function updateMainImage() {
+      spinner.style.display = 'block';
+      mainImage.style.opacity = '0.3';
+      mainImage.src = images[currentIndex];
+    }
+
+    mainImage.addEventListener('load', () => {
+      spinner.style.display = 'none';
+      mainImage.style.opacity = '1';
+    });
+    updateMainImage();
+
+    images.forEach((url, index) => {
+      const thumb = document.createElement('img');
+      thumb.src = url;
+      thumb.loading = "lazy";
+      if (index === 0) thumb.classList.add("active");
+      thumb.addEventListener('click', () => {
+        currentIndex = index;
+        updateMainImage();
+      });
+      thumbnails.appendChild(thumb);
+    });
+
+    document.getElementById('product-price').textContent = data.price ? escapeHTML(data.price + " FCFA") : "Prix sur demande";
+    document.getElementById('product-title').textContent = escapeHTML(data.title || "Sans titre");
+    document.getElementById('product-location').innerHTML = `<i class="material-icons" style="color:#E91E63;">location_on</i> ${escapeHTML(data.city || "")}${data.quartier ? " - " + escapeHTML(data.quartier) : ""}`;
+
+    if (data.createdAt) {
+      const timeElem = document.createElement('p');
+      timeElem.style.fontSize = "14px";
+      timeElem.style.color = "#666";
+      timeElem.innerHTML = `<i class="material-icons" style="font-size:16px;vertical-align:middle;">schedule</i> ${timeAgo(data.createdAt)}`;
+      document.querySelector('.product-header').appendChild(timeElem);
+    }
+
+    const order = ["categorie","souscategorie","Marque","Modèle","Année","Kilométrage","Carburant","Transmission","Nombredeportes","Surface(m²)","Nombredechambres","Nombredesallesdebain","Nombredepièces","Nombred’appartements","Nombred’étages","Annéedeconstruction","Typedeculture","Étatgénéral","Option","produitNeuf","livraison","description"];
+    const iconsMap = { categorie:"category", souscategorie:"category", Marque:"branding_watermark", Modèle:"build", Année:"calendar_today", Kilométrage:"speed", Carburant:"local_gas_station", Transmission:"settings", Nombredeportes:"door_front", "Surface(m²)":"square_foot", Nombredechambres:"bed", Nombredesallesdebain:"bathtub", Nombredepièces:"meeting_room", "Nombred’appartements":"apartment", "Nombred’étages":"stairs", Annéedeconstruction:"history", Typedeculture:"agriculture", Étatgénéral:"construction", Option:"done", produitNeuf:"new_releases", livraison:"local_shipping", description:"description"};
+
+    const detailsDiv = document.getElementById('details');
+    detailsDiv.innerHTML = "";
+
+    order.forEach(key => {
+      if (data[key] !== undefined && data[key] !== false) {
+        const icon = iconsMap[key] || "info";
+        const div = document.createElement(key === "description" ? "div" : "p");
+        div.innerHTML = key === "description"
+          ? `<div class="description-content"><i class="material-icons">${icon}</i><div class="description-text"><strong>${escapeHTML(key)}:</strong> ${escapeHTML(data[key])}</div></div>`
+          : `<i class="material-icons">${icon}</i> <strong>${escapeHTML(key)}:</strong> ${escapeHTML(data[key] === true ? "Oui" : data[key])}`;
+        detailsDiv.appendChild(div);
+      }
+    });
+
+    let seller = {};
+    if (data.ownerId) {
+      const sellerRef = doc(db, "users", data.ownerId);
+      const sellerSnap = await getDoc(sellerRef);
+      if (sellerSnap.exists()) {
+        seller = sellerSnap.data();
+        seller.uid = sellerSnap.id;
+      }
+    }
+
+    const sellerDiv = document.getElementById('seller-info');
+    sellerDiv.innerHTML = `
+      <a href="profil-vendeur.html?uid=${encodeURIComponent(seller.uid || '')}" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
+        <img src="${isValidImageURL(seller.profileImage) ? seller.profileImage : 'https://via.placeholder.com/50'}" alt="Profil">
+        <strong>${escapeHTML(seller.fullName || "Inconnu")}</strong><br>
+      </a>
+    `;
+
+    const contactDiv = document.getElementById('contact-buttons');
+    contactDiv.innerHTML = "";
+    
+    const wa = document.createElement('a');
+    wa.className = "button whatsapp";
+    if(data.whatsapp){
+      wa.href = "#";
+      wa.innerHTML = `<i class="fa-brands fa-whatsapp fa-2x"></i>`;
+      wa.addEventListener('click', e => {
+        e.preventDefault();
+        showSecurityModal(() => {
+          const text = `Bonjour, je suis intéressé par votre ${escapeHTML(data.title)} de ${escapeHTML(data.price || "Prix sur demande")}.\nLien: ${window.location.href}`;
+          window.open(`https://wa.me/${data.whatsapp.replace(/\D/g,'')}?text=${encodeURIComponent(text)}`, "_blank");
+        });
+      });
+    } else wa.classList.add("disabled");
+    contactDiv.appendChild(wa);
+
+    const phone = document.createElement('a');
+    phone.className = "button phone";
+    if(data.telephone){
+      phone.href = "#";
+      phone.innerHTML = `<i class="material-icons">call</i>`;
+      phone.addEventListener('click', e => {
+        e.preventDefault();
+        showSecurityModal(() => {
+          window.location.href = `tel:${data.telephone.replace(/\D/g,'')}`;
+        });
+      });
+    } else phone.classList.add("disabled");
+    contactDiv.appendChild(phone);
+
+  } catch(err){
+    console.error("Erreur chargement détails:", err);
+    document.getElementById('details').textContent = "⚠️ Erreur de chargement : " + escapeHTML(err.message);
+  }
+}
+window.prevImage = function() {currentIndex = (currentIndex - 1 + images.length) % images.length;document.getElementById('main-image').src = images[currentIndex];}
+window.nextImage = function() {currentIndex = (currentIndex + 1) % images.length;document.getElementById('main-image').src = images[currentIndex];}
+loadDetails();
+</script>
+</body>
+</html>
