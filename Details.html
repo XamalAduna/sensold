@@ -234,7 +234,7 @@ async function loadDetails() {
 
     const sellerDiv = document.getElementById('seller-info');
     sellerDiv.innerHTML = `
-      <a href="profil-vendeur.html?uid=${encodeURIComponent(seller.uid || '')}" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
+      <a href="Profil.html?uid=${encodeURIComponent(seller.uid || '')}" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
         <img src="${isValidImageURL(seller.profileImage) ? seller.profileImage : 'https://via.placeholder.com/50'}" alt="Profil">
         <strong>${escapeHTML(seller.fullName || "Inconnu")}</strong><br>
       </a>
