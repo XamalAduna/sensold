@@ -349,7 +349,7 @@ function fetchJSON(url, callback) {
     .catch(err => console.error(err));
 }
 
-fetchJSON('categories.json', data => {
+fetchJSON('../categories.json', data => {
   categoriesMap = data;
   categorieOptions.innerHTML = '';
   Object.keys(categoriesMap).forEach(catKey => {
@@ -369,9 +369,9 @@ fetchJSON('categories.json', data => {
   });
 });
 
-fetchJSON('quartiersDakar.json', data => quartiersDakar = data);
+fetchJSON('../quartiersDakar.json', data => quartiersDakar = data);
 
-fetchJSON('villes.json', villes => {
+fetchJSON('../villes.json', villes => {
   cityOptions.innerHTML = '';
   villes.forEach(v => {
     const div = document.createElement('div');
