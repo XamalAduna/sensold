@@ -259,18 +259,41 @@ async function loadDetails() {
     contactDiv.appendChild(wa);
 
     const phone = document.createElement('a');
-    phone.className = "button phone";
-    if(data.telephone){
-      phone.href = "#";
-      phone.innerHTML = `<i class="material-icons">call</i>`;
-      phone.addEventListener('click', e => {
-        e.preventDefault();
-        showSecurityModal(() => {
-          window.location.href = `tel:${data.telephone.replace(/\D/g,'')}`;
-        });
-      });
-    } else phone.classList.add("disabled");
-    contactDiv.appendChild(phone);
+phone.className = "button phone";
+if(data.telephone){
+  phone.href = "#";
+  phone.innerHTML = `<i class="material-icons">call</i>`;
+  phone.addEventListener('click', e => {
+    e.preventDefault();
+
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;';
+
+    const box = document.createElement('div');
+    box.style.cssText = 'background:white;padding:20px;border-radius:12px;max-width:400px;text-align:center;position:relative;';
+
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '×';
+    closeBtn.style.cssText = 'position:absolute;top:10px;right:10px;background:transparent;border:none;font-size:24px;cursor:pointer;color:#00796B;';
+    closeBtn.addEventListener('click', () => document.body.removeChild(modal));
+    box.appendChild(closeBtn);
+
+    const warning = document.createElement('p');
+    warning.textContent = "⚠️ Conseils de sécurité :\n1 - Ne pas envoyer de paiements sans vérifier le produit.\n2 - Ne pas envoyer d'argent par virement ou transfert.\n3 - Rencontrer le vendeur dans un lieu public.";
+    warning.style.whiteSpace = 'pre-line';
+    warning.style.marginBottom = '20px';
+    box.appendChild(warning);
+
+    const number = document.createElement('p');
+    number.innerHTML = `📞 Numéro du vendeur : <strong>${escapeHTML(data.telephone)}</strong>`;
+    number.style.fontSize = '18px';
+    box.appendChild(number);
+
+    modal.appendChild(box);
+    document.body.appendChild(modal);
+  });
+} else phone.classList.add("disabled");
+contactDiv.appendChild(phone);
 
   } catch(err){
     console.error("Erreur chargement détails:", err);
