@@ -85,6 +85,12 @@ const id = params.get('id');
 let images = [];
 let currentIndex = 0;
 
+function updateActiveThumbnail() {
+  document.querySelectorAll('.thumbnails img').forEach((img, i) => {
+    img.classList.toggle('active', i === currentIndex);
+  });
+}
+
 function escapeHTML(str) {
   return str
     ? str.replace(/&/g, "&amp;")
@@ -181,16 +187,18 @@ async function loadDetails() {
     updateMainImage();
 
     images.forEach((url, index) => {
-      const thumb = document.createElement('img');
-      thumb.src = url;
-      thumb.loading = "lazy";
-      if (index === 0) thumb.classList.add("active");
-      thumb.addEventListener('click', () => {
-        currentIndex = index;
-        updateMainImage();
-      });
-      thumbnails.appendChild(thumb);
-    });
+  const thumb = document.createElement('img');
+  thumb.src = url;
+  thumb.loading = "lazy";
+  if (index === 0) thumb.classList.add("active");
+  thumb.addEventListener('click', () => {
+    document.querySelectorAll('.thumbnails img').forEach(img => img.classList.remove('active'));
+    thumb.classList.add('active');
+    currentIndex = index;
+    updateMainImage();
+  });
+  thumbnails.appendChild(thumb);
+});
 
     document.getElementById('product-price').textContent = data.price ? escapeHTML(data.price + " FCFA") : "Prix sur demande";
     document.getElementById('product-title').textContent = escapeHTML(data.title || "Sans titre");
@@ -299,8 +307,19 @@ contactDiv.appendChild(phone);
     document.getElementById('details').textContent = "⚠️ Erreur de chargement : " + escapeHTML(err.message);
   }
 }
-window.prevImage = function() {currentIndex = (currentIndex - 1 + images.length) % images.length;document.getElementById('main-image').src = images[currentIndex];}
-window.nextImage = function() {currentIndex = (currentIndex + 1) % images.length;document.getElementById('main-image').src = images[currentIndex];}
+
+window.prevImage = function() {
+  currentIndex = (currentIndex - 1 + images.length) % images.length;
+  document.getElementById('main-image').src = images[currentIndex];
+  updateActiveThumbnail();
+}
+
+window.nextImage = function() {
+  currentIndex = (currentIndex + 1) % images.length;
+  document.getElementById('main-image').src = images[currentIndex];
+  updateActiveThumbnail();
+}
+
 loadDetails();
 </script>
 </body>
