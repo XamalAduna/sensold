@@ -124,7 +124,7 @@ onAuthStateChanged(auth, async (user) => {
 
     card.addEventListener("click", (e) => {
       if(e.target.classList.contains("favorite")) return;
-      window.location.href = `Details.html?id=${a.id}`;
+      window.location.href = `../Details.html?id=${a.id}`;
     });
 
     const favBtn = card.querySelector(".favorite");
