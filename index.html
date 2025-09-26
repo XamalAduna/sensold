@@ -290,7 +290,7 @@ const notLoggedMsg = document.getElementById("notLoggedMsg");
 publishBtnMain.addEventListener("click", () => {
   const user = auth.currentUser;
   if(user){
-    // Redirection vers la page de publication
+   
     window.location.href = "Publication/";
   } else {
     notLoggedMsg.style.display = "block";
@@ -303,7 +303,7 @@ publishBtnMain.addEventListener("click", () => {
 
 <div id="mainContent" style="margin-top:0; position: relative;">
 
-  <div class="iframe-container"><iframe src="Annonces.html"></iframe></div>
+  <div class="iframe-container"><iframe src="Annonces/"></iframe></div>
 
   <button id="publishBtnMain" style="
     position: fixed;
