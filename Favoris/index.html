@@ -7,7 +7,8 @@
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <style>
 body { font-family: Arial, sans-serif; background:#f7f7f7; margin:0; padding:20px; }
-h2, h3 { text-align:center; color:#00796B; margin-bottom:10px; }
+h2 { text-align:center; margin-bottom:10px; color:#00796B; }
+h3 { text-align:center; color:#00796B; margin-bottom:15px; }
 .annonces-container { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:20px; }
 @media (min-width:1024px){ .annonces-container { grid-template-columns: repeat(4,1fr); } }
 @media (max-width:600px){ .annonces-container { grid-template-columns: repeat(2,1fr); } }
@@ -30,16 +31,17 @@ h2, h3 { text-align:center; color:#00796B; margin-bottom:10px; }
 <h3 id="user-email"></h3>
 <div id="favoris-container" class="annonces-container"></div>
 
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-import { getFirestore, collection, doc, getDoc, getDocs, updateDoc, query, where } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
   authDomain: "diallo-ee5aa.firebaseapp.com",
   projectId: "diallo-ee5aa",
-  storageBucket: "diallo-ee5aa.appspot.com",
+  storageBucket: "diallo-ee5aa.firebasestorage.app",
   messagingSenderId: "662485613383",
   appId: "1:662485613383:web:c1129a35c335cc95c0ea62",
   measurementId: "G-F3092DTNZY"
@@ -48,15 +50,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth();
-
 const container = document.getElementById("favoris-container");
 const emailEl = document.getElementById("user-email");
-
-function escapeHTML(text){
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
-}
 
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
@@ -76,8 +71,9 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
-  emailEl.textContent = `Connecté : ${escapeHTML(user.email)}`;
-  const userRef = doc(db, "users", user.uid);
+  emailEl.textContent = `Connecté : ${user.email}`;
+
+  const userRef = doc(db,"users",user.uid);
   const userSnap = await getDoc(userRef);
   let favorites = userSnap.data()?.favorites || [];
 
@@ -86,75 +82,52 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
+  const annoncesSnap = await getDocs(collection(db,"annonces"));
+  const annonces = [];
+  annoncesSnap.forEach(d=>{
+    const data = d.data();
+    data.id = d.id;
+    if(favorites.includes(d.id)) annonces.push(data);
+  });
+  const usersSnap = await getDocs(collection(db,"users"));
+  const usersMap = {};
+  usersSnap.forEach(uDoc => {
+    const u = uDoc.data();
+    const email = (u.email || "").toLowerCase().trim();
+    usersMap[email] = u;
+  });
+
   container.innerHTML = "";
-
-  for (let favId of favorites){
-    const annDoc = await getDoc(doc(db, "annonces", favId));
-    if(!annDoc.exists()) continue;
-    const a = annDoc.data();
-    a.id = annDoc.id;
-
-    if(!a.userId) continue;
-    const sellerRef = doc(db, "users", a.userId);
-    const sellerSnap = await getDoc(sellerRef);
-    const sellerData = sellerSnap.exists() ? sellerSnap.data() : {};
+  annonces.forEach(a => {
+    const annonceEmail = (a.userEmail || "").toLowerCase().trim();
+    const sellerData = usersMap[annonceEmail] || {};
     const fullName = sellerData.fullName || "Inconnu";
     const photo = sellerData.profileImage || "https://via.placeholder.com/40";
+    const quartier = a.quartier ? ", " + a.quartier : "";
 
     const card = document.createElement("div");
     card.className = "annonce-card";
-
-    const img = document.createElement("img");
-    img.src = a.images?.[0] || 'https://via.placeholder.com/400x200?text=Annonce';
-    img.alt = a.title ? escapeHTML(a.title) : "Annonce";
-
-    const favBtn = document.createElement("span");
-    favBtn.className = "material-icons favorite active";
-    favBtn.textContent = "favorite";
-
-    const content = document.createElement("div");
-    content.className = "content";
-
-    const priceEl = document.createElement("p");
-    priceEl.className = "price";
-    priceEl.textContent = a.price ? a.price + " FCFA" : "Prix sur demande";
-
-    const titleEl = document.createElement("h3");
-    titleEl.className = "title";
-    titleEl.textContent = a.title ? a.title : "Sans titre";
-
-    const locationEl = document.createElement("p");
-    locationEl.className = "location";
-    locationEl.textContent = `📍 ${a.city || "Ville non précisée"}${a.quartier ? ", " + a.quartier : ""}`;
-
-    const dateEl = document.createElement("p");
-    dateEl.className = "date";
-    dateEl.textContent = `⏰ ${timeAgo(a.createdAt)}`;
-
-    content.append(priceEl, titleEl, locationEl, dateEl);
-
-    const sellerDiv = document.createElement("div");
-    sellerDiv.className = "seller";
-
-    const sellerImg = document.createElement("img");
-    sellerImg.src = photo;
-    sellerImg.alt = fullName;
-
-    const sellerInfo = document.createElement("div");
-    sellerInfo.className = "seller-info";
-    const sellerName = document.createElement("strong");
-    sellerName.textContent = fullName;
-    sellerInfo.appendChild(sellerName);
-
-    sellerDiv.append(sellerImg, sellerInfo);
-
-    card.append(img, favBtn, content, sellerDiv);
+    card.innerHTML = `
+      <img src="${a.images?.[0] || 'https://via.placeholder.com/400x200?text=Annonce'}" alt="${a.title || 'Annonce'}">
+      <span class="material-icons favorite active">favorite</span>
+      <div class="content">
+        <p class="price">${a.price ? a.price + " FCFA" : "Prix sur demande"}</p>
+        <h3 class="title">${a.title || "Sans titre"}</h3>
+        <p class="location">📍 ${a.city || "Ville non précisée"}${quartier}</p>
+        <p class="date">⏰ ${timeAgo(a.createdAt)}</p>
+      </div>
+      <div class="seller">
+        <img src="${photo}" alt="profil">
+        <div class="seller-info"><strong>${fullName}</strong></div>
+      </div>
+    `;    
 
     card.addEventListener("click", (e) => {
-      if(e.target === favBtn) return;
+      if(e.target.classList.contains("favorite")) return;
       window.location.href = `Details.html?id=${a.id}`;
     });
 
+    const favBtn = card.querySelector(".favorite");
     favBtn.addEventListener("click", async (e) => {
       e.stopPropagation();
       if(favBtn.classList.contains("active")){
@@ -169,9 +142,8 @@ onAuthStateChanged(auth, async (user) => {
       }
       await updateDoc(userRef, { favorites });
     });
-
     container.appendChild(card);
-  }
+  });
 });
 </script>
 </body>
