@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Modifier une annonce</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+body { font-family: Arial, sans-serif; background:#f7f7f7; margin:0; padding:20px; }
+h2 { text-align:center; color:#00796B; }
+form { max-width:500px; margin:20px auto; background:white; padding:20px; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
+label { display:block; margin-top:15px; font-weight:bold; color:#333; }
+input, textarea { width:100%; padding:10px; margin-top:6px; border:1px solid #ccc; border-radius:6px; font-size:14px; }
+textarea { resize: vertical; }
+button { margin-top:20px; width:100%; padding:12px; background:#00796B; color:white; border:none; border-radius:6px; font-size:16px; cursor:pointer; transition:0.3s; }
+button:hover { background:#004d40; }
+button.cancel { background:#ccc; color:#333; margin-top:10px; }
+button.cancel:hover { background:#999; }
+#confirmModal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index:9999; justify-content: center; align-items: center; }
+#confirmModal .modal-content { background:white; padding:20px 30px; border-radius:12px; max-width:400px; width:90%; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.2); }
+#confirmModal p { font-size:16px; margin-bottom:20px; }
+#confirmModal button { width:auto; padding:10px 20px; margin:5px; }
+#confirmModal #confirmBtn { background:#00796B; color:white; }
+#confirmModal #confirmBtn:hover { background:#004d40; }
+#confirmModal #cancelBtn { background:#ccc; color:#333; }
+#confirmModal #cancelBtn:hover { background:#999; }
+</style>
+</head>
+<body>
+<h2>✏️ Modifier mon annonce</h2>
+<form id="edit-form">
+  <label for="title">Titre</label>
+  <input type="text" id="title" required>
+
+  <label for="price">Prix (FCFA)</label>
+  <input type="number" id="price" required>
+
+  <label for="description">Description</label>
+  <textarea id="description" rows="5"></textarea>
+
+  <button type="submit">💾 Enregistrer</button>
+  <button type="button" class="cancel" onclick="window.location.href='annonces.html'">❌ Annuler</button>
+</form>
+
+<div id="confirmModal">
+  <div class="modal-content">
+    <p>Êtes-vous sûr de vouloir enregistrer les modifications ?</p>
+    <button id="confirmBtn">✅ Confirmer</button>
+    <button id="cancelBtn">❌ Annuler</button>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
+import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
+  authDomain: "diallo-ee5aa.firebaseapp.com",
+  projectId: "diallo-ee5aa",
+  storageBucket: "diallo-ee5aa.firebasestorage.app",
+  messagingSenderId: "662485613383",
+  appId: "1:662485613383:web:c1129a35c335cc95c0ea62",
+  measurementId: "G-F3092DTNZY"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth();
+
+const params = new URLSearchParams(window.location.search);
+const annonceId = params.get("id");
+
+const form = document.getElementById("edit-form");
+const titleEl = document.getElementById("title");
+const priceEl = document.getElementById("price");
+const descEl = document.getElementById("description");
+
+const confirmModal = document.getElementById("confirmModal");
+const confirmBtn = document.getElementById("confirmBtn");
+const cancelBtn = document.getElementById("cancelBtn");
+
+function escapeHTML(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+onAuthStateChanged(auth, async (user) => {
+  if(!user){
+    window.location.href = "baba9.html";
+    return;
+  }
+
+  if(!annonceId){
+    alert("Annonce introuvable !");
+    window.location.href = "mes-annonces.html";
+    return;
+  }
+
+  const annonceRef = doc(db,"annonces",annonceId);
+  let annonceSnap;
+  try {
+    annonceSnap = await getDoc(annonceRef);
+  } catch(err) {
+    console.error("Erreur chargement annonce:", err);
+    alert("Impossible de charger l'annonce.");
+    window.location.href = "mes-annonces.html";
+    return;
+  }
+
+  if(!annonceSnap.exists()){
+    alert("Annonce non trouvée !");
+    window.location.href = "mes-annonces.html";
+    return;
+  }
+
+  const annonce = annonceSnap.data();
+  if(annonce.userEmail !== user.email){
+    alert("⛔ Vous n’avez pas le droit de modifier cette annonce !");
+    window.location.href = "mes-annonces.html";
+    return;
+  }
+
+  titleEl.value = escapeHTML(annonce.title || "");
+  priceEl.value = escapeHTML(annonce.price || "");
+  descEl.value = escapeHTML(annonce.description || "");
+
+  form.addEventListener("submit", (e)=>{
+    e.preventDefault();
+    confirmModal.style.display = "flex";
+  });
+
+  confirmBtn.addEventListener("click", async () => {
+    try {
+      await updateDoc(annonceRef, {
+        title: escapeHTML(titleEl.value.trim()),
+        price: parseInt(priceEl.value),
+        description: escapeHTML(descEl.value.trim())
+      });
+      window.location.href = "annonces.html";
+    } catch(err) {
+      console.error("Erreur mise à jour:", err);
+      alert("Impossible de mettre à jour l'annonce. Veuillez réessayer.");
+    }
+  });
+
+  cancelBtn.addEventListener("click", () => {
+    confirmModal.style.display = "none";
+  });
+});
+</script>
+</body>
+</html>
