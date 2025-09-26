@@ -143,7 +143,7 @@ onAuthStateChanged(auth, async (user) => {
       }
 
       await updateDoc(annonceRef, updatedData);
-      window.location.href = "annonces.html";
+      window.location.href = "Mes_annonces/index.html";
     } catch(err) {
       console.error("Erreur mise à jour:", err);
       alert("Impossible de mettre à jour l'annonce. Veuillez réessayer.");
