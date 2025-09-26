@@ -24,6 +24,7 @@ h3 { text-align:center; color:#00796B; margin-bottom:15px; }
 .seller img { width:40px; height:40px; border-radius:50%; object-fit:cover; }
 .seller-info { font-size:14px; }
 .seller-info strong { display:block; }
+.title {font-size: 16px;font-weight: bold;margin: 0 0 6px;color: #333;text-align: left;}
 </style>
 </head>
 <body>
@@ -124,7 +125,7 @@ onAuthStateChanged(auth, async (user) => {
 
     card.addEventListener("click", (e) => {
       if(e.target.classList.contains("favorite")) return;
-      window.location.href = `../Details.html?id=${a.id}`;
+      window.location.href = `Details.html?id=${a.id}`;
     });
 
     const favBtn = card.querySelector(".favorite");
