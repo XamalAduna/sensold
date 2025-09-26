@@ -95,7 +95,7 @@ onAuthStateChanged(auth, async (user) => {
 
   if(!annonceId){
     alert("Annonce introuvable !");
-    window.location.href = "mes-annonces.html";
+    window.location.href = "Mes_annonces/index.html";
     return;
   }
 
@@ -106,20 +106,20 @@ onAuthStateChanged(auth, async (user) => {
   } catch(err) {
     console.error("Erreur chargement annonce:", err);
     alert("Impossible de charger l'annonce.");
-    window.location.href = "mes-annonces.html";
+    window.location.href = "Mes_annonces/index.html";
     return;
   }
 
   if(!annonceSnap.exists()){
     alert("Annonce non trouvée !");
-    window.location.href = "mes-annonce.html";
+    window.location.href = "Mes_annonces/index.html";
     return;
   }
 
   const annonce = annonceSnap.data();
   if(annonce.userEmail !== user.email){
     alert("⛔ Vous n’avez pas le droit de modifier cette annonce !");
-    window.location.href = "mes-annonces.html";
+    window.location.href = "Mes_annonces/index.html";
     return;
   }
 
