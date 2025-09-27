@@ -8,7 +8,6 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
 <style>
 body {font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;background: #f0f2f5;margin: 0;padding: 20px;color: #333;}
 .form-container {max-width: 900px;margin: auto;background: #fff;padding: 30px;border-radius: 15px;box-shadow: 0 8px 20px rgba(0,0,0,0.1);}
@@ -709,7 +708,9 @@ adForm.addEventListener('submit', async (e)=>{
       images: imageUrls,
       createdAt: serverTimestamp(),
       userEmail: escapeHTML(auth.currentUser.email),
-      ownerId: auth.currentUser.uid, 
+      ownerId: auth.currentUser.uid,
+      boost: false, 
+      boostEnd: null,
       ...Object.fromEntries(Object.entries(cleanedAdditionalData).map(([k,v])=>[escapeHTML(k), escapeHTML(v)]))
     });
 
