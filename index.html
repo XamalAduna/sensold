@@ -14,7 +14,8 @@
 
   <style>
     .sidenav-trigger { display: block !important; cursor: pointer; }
-    .close-menu { text-align: right; padding: 8px 15px; font-size: 24px; cursor: pointer;}
+    .close-menu { padding: 8px 15px; font-size: 24px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; text-align: left; }
+    .close-menu .site-name { font-size: 18px; color: #009688; font-weight: bold; }
     #userProfile { text-align: center; padding: 20px; background-color: #00796B; color: white; position: relative; }
     #userProfile img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 10px; }
     #userProfile h5 { margin: 0; font-size: 18px; font-weight: 600; }
@@ -66,15 +67,16 @@ body {padding-top: 64px;}
   </nav>
 
   <ul class="sidenav" id="mobile-nav">
-    <li class="close-menu"><i class="material-icons">close</i></li>
+    <li class="close-menu">
+      <span class="site-name">MonCoin</span>
+      <i class="material-icons">close</i>
+    </li>
     <li id="userProfile">
-      <img id="profileImage" src="assets/img/default-profile.jpg" alt="Profil">
+     <img id="profileImage" src="assets/img/default-profile.jpg" alt="Profil">
       <h5 id="userName">Utilisateur</h5>
       <p id="userEmail">Email</p>
 
-    
       <button id="showEditProfile" class="upload-btn" style="margin-top:10px;">Modifier le profil</button>
-
       <div id="editProfileContainer" style="display:none; margin-top:15px;">
        
         <label for="profileImageInput" class="upload-btn">Changer l'image</label>
@@ -87,9 +89,7 @@ body {padding-top: 64px;}
           <p id="editProfileMsg" style="margin-top: 10px; font-size: 14px;"></p>
         </form>
       </div>
-
     </li>
-
     <li><a href="Mes_annonces/"><i class="material-icons">list_alt</i> Mes annonces</a></li>
     <li><a href="Favoris/"><i class="material-icons">favorite</i> Mes favoris</a></li>
     <li><a href="Publication/"><i class="material-icons">post_add</i> Publier une annonce</a></li>
