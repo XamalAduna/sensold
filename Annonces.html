@@ -675,9 +675,7 @@ function applyAllFilters() {
 
   if(sortOrder === "asc") filtered.sort((a,b)=>(a.price||0)-(b.price||0));
   else if(sortOrder === "desc") filtered.sort((a,b)=>(b.price||0)-(a.price||0));
-
-  renderAnnonces(filtered);
-}
+  renderAnnonces(filtered);}
 </script>  
 </body>
 </html>
