@@ -13,21 +13,15 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 @media (min-width:1024px){ .annonces-container { grid-template-columns: repeat(4,1fr); } }
 @media (max-width:600px){ .annonces-container { grid-template-columns: repeat(2,1fr); } }
 
+.annonce-card { background:white; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,0.1); overflow:hidden; display:flex; flex-direction:column; position:relative; cursor:pointer;height: 320px;}
 
-.annonce-card {
-  background:white;
-  border-radius:12px;
-  box-shadow:0 2px 6px rgba(0,0,0,0.1);
-  overflow:hidden;
-  display:flex;
-  flex-direction:column;
-  position:relative;
-  cursor:pointer;
-  height: auto; /* au lieu de 320px */
-  min-height: 320px; /* tu peux garder une taille minimale */
+.annonce-card img {
+  width: 100%;
+  height: 200px;      /* fixe la hauteur de toutes les images */
+  object-fit: cover;   /* garde le recadrage correct sans déformer */
+  border-radius: 8px 8px 0 0; /* optionnel : coins arrondis en haut */
 }
 
-.annonce-card img { width:100%; height:150px; object-fit:cover;}
 
 .favorite { position:absolute; top:10px; right:10px; background:white; border-radius:50%; padding:5px; cursor:pointer; color:#00796B; box-shadow:0 2px 6px rgba(0,0,0,0.2); transition:color 0.3s; }
 .favorite.active { color:red; }
