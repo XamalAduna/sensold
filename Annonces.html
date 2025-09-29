@@ -107,19 +107,30 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
   line-height: 1.2;
 }
 
+.seller {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* espace entre image et infos */
+}
 
 .seller-info {
-  white-space: nowrap;      /* empêche le retour à la ligne */
-  overflow: hidden;         /* coupe le texte qui dépasse */
-  text-overflow: ellipsis;  /* ajoute "..." si ça dépasse */
-  display: inline-block;
-  transition: padding-left 0.2s;
+  flex: 1;           /* prend tout l’espace restant */
+  white-space: nowrap; /* empêche le retour à la ligne */
+  overflow: hidden;    /* cache le débordement si le nom est trop long */
+  text-overflow: ellipsis; /* ajoute "..." si nécessaire */
+  position: relative;
 }
 
-.seller-info.indent {
-  padding-left: 10px; /* décalage quand le nom est long */
+.seller-info::after {
+  content: "Boutique Pro";  /* label statique pour tester */
+  position: absolute;
+  right: 0;
+  background: #00796B;
+  color: white;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
 }
-
 
 </style>
 </head>
@@ -547,7 +558,7 @@ async function renderAnnonces(filtered) {
 `;
 
     const titleEl = card.querySelector('.title');
-      if ((a.title || "").length > 9) { // tu peux ajuster 50 à 40 si tu veux
+      if ((a.title || "").length > 30) { // tu peux ajuster 50 à 40 si tu veux
       titleEl.classList.add('long-text');}
 
     const sellerInfoDiv = card.querySelector(".seller-info");
