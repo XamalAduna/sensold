@@ -561,11 +561,6 @@ async function renderAnnonces(filtered) {
       if ((a.title || "").length > 30) { // tu peux ajuster 50 à 40 si tu veux
       titleEl.classList.add('long-text');}
 
-    const sellerInfoDiv = card.querySelector(".seller-info");
-if (fullName.length > 4) {  // ajuster selon ton seuil
-  sellerInfoDiv.classList.add("indent");
-}
-
 
     const favBtn = card.querySelector(".favorite");
     favBtn.addEventListener("click", async e => {
