@@ -85,6 +85,21 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }}
 .annonce-card .time-badge {position: absolute;top: 10px;left: 10px;background: rgba(0, 0, 0, 0.6);color: #fff;padding: 4px 8px; border-radius: 6px;font-size: 12px;font-weight: bold;z-index: 5;}
+.product-card .title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;      /* Limite à 2 lignes */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;    /* Ajoute les ... */
+  font-size: 16px;            /* Taille normale */
+  line-height: 1.2em;
+}
+
+/* Optionnel : réduire légèrement la taille si le texte est long */
+.product-card .title.long-text {
+  font-size: 14px;
+}
+
 </style>
 </head>
 <body>
@@ -509,7 +524,6 @@ async function renderAnnonces(filtered) {
     <div class="seller-info"><strong>${fullName}</strong></div>
   </div>
 `;
-
 
     const favBtn = card.querySelector(".favorite");
     favBtn.addEventListener("click", async e => {
