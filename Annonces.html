@@ -108,19 +108,16 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 }
 
 
-/* Titre long dans la carte */
-.long-text {
-  font-size: 14px;       /* réduit légèrement la taille du texte */
-  line-height: 1.2;      /* espace plus compact entre les lignes */
-  overflow-wrap: break-word; /* coupe le texte si nécessaire */
+.seller-info {
+  white-space: nowrap;      /* empêche le retour à la ligne */
+  overflow: hidden;         /* coupe le texte qui dépasse */
+  text-overflow: ellipsis;  /* ajoute "..." si ça dépasse */
+  display: inline-block;
+  transition: padding-left 0.2s;
 }
 
-/* Nom du vendeur long */
-.long-name {
-  display: block;
-  word-break: break-word; /* permet le retour à la ligne du nom */
-  font-size: 13px;        /* optionnel : réduire la taille si trop long */
-  line-height: 1.2;
+.seller-info.indent {
+  padding-left: 10px; /* décalage quand le nom est long */
 }
 
 
@@ -554,9 +551,9 @@ async function renderAnnonces(filtered) {
       titleEl.classList.add('long-text');}
 
     const sellerInfoDiv = card.querySelector(".seller-info");
-      if(fullName.length > 4){   // par exemple, plus de 15 caractères
-      sellerInfoDiv.classList.add("long-name");}
-
+if (fullName.length > 15) {  // ajuster selon ton seuil
+  sellerInfoDiv.classList.add("indent");
+}
 
 
     const favBtn = card.querySelector(".favorite");
