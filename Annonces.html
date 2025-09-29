@@ -85,7 +85,8 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }}
 .annonce-card .time-badge {position: absolute;top: 10px;left: 10px;background: rgba(0, 0, 0, 0.6);color: #fff;padding: 4px 8px; border-radius: 6px;font-size: 12px;font-weight: bold;z-index: 5;}
-.product-card .title {
+  
+.annonce-card .title {
   display: -webkit-box;
   -webkit-line-clamp: 2;      /* Limite à 2 lignes */
   -webkit-box-orient: vertical;
@@ -96,7 +97,7 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 }
 
 /* Optionnel : réduire légèrement la taille si le texte est long */
-.product-card .title.long-text {
+.annonce-card .title.long-text {
   font-size: 14px;
 }
 
@@ -524,6 +525,11 @@ async function renderAnnonces(filtered) {
     <div class="seller-info"><strong>${fullName}</strong></div>
   </div>
 `;
+
+    const titleEl = card.querySelector('.title');
+      if ((a.title || "").length > 50) { // tu peux ajuster 50 à 40 si tu veux
+      titleEl.classList.add('long-text');}
+
 
     const favBtn = card.querySelector(".favorite");
     favBtn.addEventListener("click", async e => {
