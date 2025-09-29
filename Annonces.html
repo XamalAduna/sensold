@@ -25,6 +25,19 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 
 .price { color: #00796B; font-weight: bold; font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0;margin: 0; line-height: 1; }
 
+.price { 
+  color: #00796B; 
+  font-weight: bold; 
+  font-size: 18px; 
+  white-space: nowrap; 
+  overflow: hidden; 
+  text-overflow: ellipsis;  
+  flex-shrink: 0;           
+  margin: 0;       /* supprime marge au dessus et en dessous */
+  line-height: 1;  /* réduit l’espace vertical du texte */
+  display: inline-block;  /* empêche le conteneur d’ajouter de l’espace vertical */
+}
+
 
   
 .location, .date { font-size:13px; color:#555; margin:2px 0;overflow: hidden;white-space: nowrap; text-overflow: ellipsis;  }
