@@ -19,26 +19,9 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 .favorite { position:absolute; top:10px; right:10px; background:white; border-radius:50%; padding:5px; cursor:pointer; color:#00796B; box-shadow:0 2px 6px rgba(0,0,0,0.2); transition:color 0.3s; }
 .favorite.active { color:red; }
 .content { padding:0; flex:1; min-width: 0;}
+.price {color: #00796B;font-weight: bold; font-size: 18px;white-space: nowrap;overflow: hidden;text-overflow: ellipsis;flex-shrink: 0;margin: 0;line-height: 1; }
 
-.price {
-  color: #00796B;
-  font-weight: bold;
-  font-size: 18px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex-shrink: 0;
-  margin: 0;       /* Pas de marge */
-  line-height: 1;  /* Ligne serrée */
-}
-
-
-
-  
 .title {font-size: 16px;font-weight: bold;color: #333;display: -webkit-box;-webkit-line-clamp: 2; -webkit-box-orient: vertical;overflow: hidden;text-overflow: ellipsis; white-space: normal; line-height: 1.2em; margin: 0;}
-
-
-
 .location, .date { font-size:13px; color:#555; margin:2px 0;overflow: hidden;white-space: nowrap; text-overflow: ellipsis;  }
 .seller { display:flex; align-items:center; gap:10px; padding:10px 12px; border-top:1px solid #eee; background:#fafafa; padding: 6px 12px;}
 .seller img { width:40px; height:40px; border-radius:50%; object-fit:cover;}
@@ -111,8 +94,9 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 
 .annonce-card .price,
 .annonce-card .title {
+    padding-left:50px ;
     margin: 0;
-    line-height: 1; /* ou 1.1 pour un peu plus de lisibilité */
+    line-height: 1;
 }
 
 
