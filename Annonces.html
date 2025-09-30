@@ -693,7 +693,12 @@ function applyAllFilters() {
 
   if(sortOrder === "asc") filtered.sort((a,b)=>(a.price||0)-(b.price||0));
   else if(sortOrder === "desc") filtered.sort((a,b)=>(b.price||0)-(a.price||0));
-  renderAnnonces(filtered);}
+  
+ 
+  annoncesData = filtered;
+  loadedCount = 0;
+  annoncesContainer.innerHTML = "";
+  loadNextBatch();}
 
 window.addEventListener("scroll", () => {
   if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 100) {
