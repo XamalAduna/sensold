@@ -138,7 +138,7 @@ onAuthStateChanged(auth, async (user)=>{
     card.addEventListener("click", e=>{
       if(e.target.classList.contains("favorite")) return; // ignore clic sur cœur
       if(!a.id) return console.error("Annonce sans ID :", a);
-      window.location.href=`Details.html?id=${encodeURIComponent(a.id)}`;
+      window.location.href=`../Details.html?id=${encodeURIComponent(a.id)}`;
     });
 
     annoncesContainer.appendChild(card);
