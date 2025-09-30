@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
@@ -62,21 +62,24 @@ let currentUser = null;
 let userFavorites = [];
 let annoncesData = [];
 
-function escapeHTML(str){ if(!str) return ""; return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;"); }
+function escapeHTML(str) {
+  if (!str) return "";
+  return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+}
 
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
-  if(seconds<60) return "à l’instant";
-  const minutes=Math.floor(seconds/60);
-  if(minutes<60) return `il y a ${minutes} min`;
-  const hours=Math.floor(minutes/60);
-  if(hours<24) return `il y a ${hours} h`;
-  const days=Math.floor(hours/24);
+  if(seconds < 60) return "à l’instant";
+  const minutes = Math.floor(seconds/60);
+  if(minutes < 60) return `il y a ${minutes} min`;
+  const hours = Math.floor(minutes/60);
+  if(hours < 24) return `il y a ${hours} h`;
+  const days = Math.floor(hours/24);
   return `il y a ${days} j`;
 }
 
-onAuthStateChanged(auth, async (user)=>{
+onAuthStateChanged(auth, async (user) => {
   currentUser = user;
   if(!user){
     annoncesContainer.innerHTML = "<p style='text-align:center;color:#777;'>Connectez-vous pour voir vos favoris.</p>";
@@ -89,34 +92,46 @@ onAuthStateChanged(auth, async (user)=>{
   loadFavorites();
 });
 
-async function loadFavorites(){
+async function loadFavorites() {
   annoncesContainer.innerHTML = "";
-  document.getElementById("spinner").style.display="flex";
+  document.getElementById("spinner").style.display = "flex";
 
-  try{
-    const annoncesSnap = await getDocs(query(collection(db,"annonces"), orderBy("createdAt","desc")));
+  try {
+    const annoncesSnap = await getDocs(query(collection(db, "annonces"), orderBy("createdAt","desc")));
     annoncesData = [];
-    annoncesSnap.forEach(docSnap=>{
+    annoncesSnap.forEach(docSnap => {
       const data = docSnap.data();
       data.id = docSnap.id;
       if(userFavorites.includes(data.id)) annoncesData.push(data);
     });
 
-    if(annoncesData.length===0){
+    if(annoncesData.length === 0){
       annoncesContainer.innerHTML = "<p style='text-align:center;color:#777;'>Aucune annonce dans vos favoris.</p>";
-      document.getElementById("spinner").style.display="none";
+      document.getElementById("spinner").style.display = "none";
       return;
     }
 
     for(const a of annoncesData){
-      const card=document.createElement("div");
-      card.className="annonce-card";
+      const card = document.createElement("div");
+      card.className = "annonce-card";
 
-      const annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
-      const sellerPhoto = escapeHTML(a.userPhoto || "https://via.placeholder.com/40");
-      const sellerName = escapeHTML(a.userName || "Utilisateur inconnu");
+      let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
 
-      card.innerHTML=`
+      // Vendeur
+      let sellerPhoto = "https://via.placeholder.com/40";
+      let sellerName = "Utilisateur inconnu";
+      if(a.userId){
+        try{
+          const sellerSnap = await getDoc(doc(db,"users",a.userId));
+          if(sellerSnap.exists()){
+            const sellerData = sellerSnap.data();
+            sellerPhoto = escapeHTML(sellerData.photoURL || sellerPhoto);
+            sellerName = escapeHTML(sellerData.fullName || sellerName);
+          }
+        }catch(err){ console.log(err); }
+      }
+
+      card.innerHTML = `
         <img src="${annonceImage}" loading="lazy" alt="${escapeHTML(a.title||'Annonce')}">
         <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
         <span class="material-icons favorite active">favorite</span>
@@ -131,6 +146,7 @@ async function loadFavorites(){
         </div>
       `;
 
+      // Retirer des favoris
       const favBtn = card.querySelector(".favorite");
       favBtn.addEventListener("click", async e=>{
         e.stopPropagation();
@@ -139,18 +155,20 @@ async function loadFavorites(){
         card.remove();
       });
 
-      card.addEventListener("click", ()=>{ window.location.href=`Details.html?id=${encodeURIComponent(a.id)}`; });
+      card.addEventListener("click", () => {
+        window.location.href = `Details.html?id=${encodeURIComponent(a.id)}`;
+      });
 
       annoncesContainer.appendChild(card);
     }
-  }catch(err){
+
+  } catch(err){
     console.error(err);
-    annoncesContainer.innerHTML="<p style='text-align:center;color:red;'>Erreur de chargement.</p>";
-  }finally{
-    document.getElementById("spinner").style.display="none";
+    annoncesContainer.innerHTML = "<p style='text-align:center;color:red;'>Erreur de chargement.</p>";
+  } finally {
+    document.getElementById("spinner").style.display = "none";
   }
 }
 </script>
 </body>
 </html>
-
