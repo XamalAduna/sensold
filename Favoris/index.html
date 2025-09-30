@@ -12,7 +12,6 @@ h3 { text-align:center; color:#00796B; margin-bottom:15px; }
 .annonces-container { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:20px; }
 @media (min-width:1024px){ .annonces-container { grid-template-columns: repeat(4,1fr); } }
 @media (max-width:600px){ .annonces-container { grid-template-columns: repeat(2,1fr); } }
-
 .annonce-card { background:white; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,0.1); overflow:hidden; display:flex; flex-direction:column; position:relative; cursor:pointer; height: 320px;}
 .annonce-card img { width:100%; height:200px; object-fit:cover; }
 .favorite { position:absolute; top:10px; right:10px; background:white; border-radius:50%; padding:5px; cursor:pointer; color:#00796B; box-shadow:0 2px 6px rgba(0,0,0,0.2); transition:color 0.3s; }
@@ -25,7 +24,6 @@ h3 { text-align:center; color:#00796B; margin-bottom:15px; }
 .seller img { width:40px; height:40px; border-radius:50%; object-fit:cover; }
 .seller-info { font-size:14px; }
 .seller-info strong { display:block; }
-
 .back-btn { position: fixed; top: 20px; right: 20px; background: #d32f2f; color: white; border: none; border-radius: 50%; width: 36px; height: 36px; font-size: 20px; cursor: pointer; z-index: 10000; display: flex; justify-content: center; align-items: center; }
 .back-btn:hover { background: #9a0007; }
 </style>
@@ -125,7 +123,7 @@ onAuthStateChanged(auth, async (user) => {
         <img src="${photo}" alt="profil">
         <div class="seller-info"><strong>${fullName}</strong></div>
       </div>
-    `;    
+    `;
 
     card.addEventListener("click", (e) => {
       if(e.target.classList.contains("favorite")) return;
@@ -154,4 +152,3 @@ onAuthStateChanged(auth, async (user) => {
 </script>
 </body>
 </html>
-
