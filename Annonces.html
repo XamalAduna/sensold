@@ -316,6 +316,11 @@ let sortOrder = "default";
 let currentPage = 1;
 const annoncesPerPage = 10;
 
+const batchSize = 20; // nombre d'annonces à charger par lot
+let loadedCount = 0;   // nombre d'annonces déjà affichées
+let annoncesData = []; // ton tableau d'annonces déjà récupérées
+
+
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
@@ -339,6 +344,19 @@ onAuthStateChanged(auth, async (user) => {
   }
   loadAnnonces();
 });
+
+function loadNextBatch() {
+  const start = loadedCount;
+  const end = Math.min(loadedCount + batchSize, annoncesData.length);
+  const batch = annoncesData.slice(start, end);
+
+  batch.forEach(a => {
+    renderSingleAnnonce(a); // ta fonction qui crée la carte d'annonce
+  });
+
+  loadedCount = end;
+}
+
 
 async function loadAnnonces() {
   annoncesContainer.innerHTML = "";
@@ -676,6 +694,13 @@ function applyAllFilters() {
   if(sortOrder === "asc") filtered.sort((a,b)=>(a.price||0)-(b.price||0));
   else if(sortOrder === "desc") filtered.sort((a,b)=>(b.price||0)-(a.price||0));
   renderAnnonces(filtered);}
+
+window.addEventListener("scroll", () => {
+  if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 100) {
+    if(loadedCount < annoncesData.length) loadNextBatch();
+  }
+});
+
 </script>  
 </body>
 </html>
