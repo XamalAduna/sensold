@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
@@ -6,7 +6,6 @@
 <title>Mes Favoris – MonCoin</title>
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <style>
-/* Conserve tout ton CSS existant */
 body { font-family:Arial, sans-serif; background:#f7f7f7; margin:0; padding:8px; padding-bottom:100px; }
 h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 .annonces-container { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:20px; }
@@ -41,7 +40,7 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-import { getFirestore, collection, getDocs, query, orderBy, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, query, orderBy, doc, getDoc, updateDoc, arrayRemove } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -63,24 +62,21 @@ let currentUser = null;
 let userFavorites = [];
 let annoncesData = [];
 
-function escapeHTML(str) {
-  if (!str) return "";
-  return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
-}
+function escapeHTML(str){ if(!str) return ""; return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;"); }
 
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
-  if(seconds < 60) return "à l’instant";
-  const minutes = Math.floor(seconds/60);
-  if(minutes < 60) return `il y a ${minutes} min`;
-  const hours = Math.floor(minutes/60);
-  if(hours < 24) return `il y a ${hours} h`;
-  const days = Math.floor(hours/24);
+  if(seconds<60) return "à l’instant";
+  const minutes=Math.floor(seconds/60);
+  if(minutes<60) return `il y a ${minutes} min`;
+  const hours=Math.floor(minutes/60);
+  if(hours<24) return `il y a ${hours} h`;
+  const days=Math.floor(hours/24);
   return `il y a ${days} j`;
 }
 
-onAuthStateChanged(auth, async (user) => {
+onAuthStateChanged(auth, async (user)=>{
   currentUser = user;
   if(!user){
     annoncesContainer.innerHTML = "<p style='text-align:center;color:#777;'>Connectez-vous pour voir vos favoris.</p>";
@@ -93,54 +89,68 @@ onAuthStateChanged(auth, async (user) => {
   loadFavorites();
 });
 
-async function loadFavorites() {
+async function loadFavorites(){
   annoncesContainer.innerHTML = "";
-  document.getElementById("spinner").style.display = "flex";
+  document.getElementById("spinner").style.display="flex";
 
-  try {
-    const annoncesSnap = await getDocs(query(collection(db, "annonces"), orderBy("createdAt","desc")));
+  try{
+    const annoncesSnap = await getDocs(query(collection(db,"annonces"), orderBy("createdAt","desc")));
     annoncesData = [];
-    annoncesSnap.forEach(docSnap => {
+    annoncesSnap.forEach(docSnap=>{
       const data = docSnap.data();
       data.id = docSnap.id;
       if(userFavorites.includes(data.id)) annoncesData.push(data);
     });
 
-    if(annoncesData.length === 0){
+    if(annoncesData.length===0){
       annoncesContainer.innerHTML = "<p style='text-align:center;color:#777;'>Aucune annonce dans vos favoris.</p>";
-      document.getElementById("spinner").style.display = "none";
+      document.getElementById("spinner").style.display="none";
       return;
     }
 
     for(const a of annoncesData){
-      const card = document.createElement("div");
-      card.className = "annonce-card";
+      const card=document.createElement("div");
+      card.className="annonce-card";
 
-      let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
-      card.innerHTML = `
-        <img src="${annonceImage}" loading="lazy" alt="${escapeHTML(a.title || 'Annonce')}">
+      const annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
+      const sellerPhoto = escapeHTML(a.userPhoto || "https://via.placeholder.com/40");
+      const sellerName = escapeHTML(a.userName || "Utilisateur inconnu");
+
+      card.innerHTML=`
+        <img src="${annonceImage}" loading="lazy" alt="${escapeHTML(a.title||'Annonce')}">
         <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
+        <span class="material-icons favorite active">favorite</span>
         <div class="content">
           <p class="price">${escapeHTML(a.price ? a.price+" FCFA":"Prix sur demande")}</p>
           <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
           <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier? ", "+escapeHTML(a.quartier):""}</p>
         </div>
+        <div class="seller">
+          <img src="${sellerPhoto}" alt="profil vendeur">
+          <div class="seller-info"><strong>${sellerName}</strong></div>
+        </div>
       `;
 
-      card.addEventListener("click", () => {
-        window.location.href = `Details.html?id=${encodeURIComponent(a.id)}`;
+      const favBtn = card.querySelector(".favorite");
+      favBtn.addEventListener("click", async e=>{
+        e.stopPropagation();
+        const favRef = doc(db,"users",currentUser.uid);
+        await updateDoc(favRef,{favorites: arrayRemove(a.id)});
+        card.remove();
       });
+
+      card.addEventListener("click", ()=>{ window.location.href=`Details.html?id=${encodeURIComponent(a.id)}`; });
 
       annoncesContainer.appendChild(card);
     }
-
-  } catch(err){
+  }catch(err){
     console.error(err);
-    annoncesContainer.innerHTML = "<p style='text-align:center;color:red;'>Erreur de chargement.</p>";
-  } finally {
-    document.getElementById("spinner").style.display = "none";
+    annoncesContainer.innerHTML="<p style='text-align:center;color:red;'>Erreur de chargement.</p>";
+  }finally{
+    document.getElementById("spinner").style.display="none";
   }
 }
 </script>
 </body>
 </html>
+
