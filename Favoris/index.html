@@ -8,7 +8,6 @@
 <style>
 h2 {position:fixed;top:0;left:0;right:0;background:#f7f7f7;z-index:1000;text-align:center;padding:10px 0;margin:0;}
 body {padding-top:60px;}
-
 .annonces-container { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:20px; }
 @media (min-width:1024px){ .annonces-container { grid-template-columns:repeat(4,1fr); } }
 @media (max-width:600px){ .annonces-container { grid-template-columns:repeat(2,1fr); } }
@@ -27,19 +26,14 @@ body {padding-top:60px;}
 .loader { border:6px solid #f3f3f3; border-top:6px solid #009688; border-radius:50%; width:50px; height:50px; animation:spin 1s linear infinite; }
 @keyframes spin { 0% { transform:rotate(0deg); } 100% { transform:rotate(360deg); } }
 .annonce-card .time-badge { position:absolute; top:10px; left:10px; background:rgba(0,0,0,0.6); color:#fff; padding:4px 8px; border-radius:6px; font-size:12px; font-weight:bold; z-index:5; }
+#modal {display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:15px 25px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.3);z-index:2000;font-size:14px;text-align:center;}
 </style>
 </head>
 <body>
 
-<div id="modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
-background:white;padding:15px 25px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.3);z-index:2000;font-size:14px;text-align:center;">
-  Annonce retirée de vos favoris ✅
-</div>
-
+<div id="modal">Annonce retirée de vos favoris ✅</div>
 <h2>Mes Favoris ❤️</h2>
-<div id="spinner" style="display:flex; justify-content:center; align-items:center; height:200px;">
-  <div class="loader"></div>
-</div>
+<div id="spinner" style="display:flex; justify-content:center; align-items:center; height:200px;"><div class="loader"></div></div>
 <div id="annonces" class="annonces-container"></div>
 
 <script type="module">
@@ -64,48 +58,23 @@ const annoncesContainer = document.getElementById("annonces");
 let currentUser = null;
 
 function escapeHTML(str){ if(!str) return ""; return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;"); }
-function timeAgo(timestamp){
-  if(!timestamp) return "Date inconnue";
-  const seconds=(Date.now()-timestamp.toDate().getTime())/1000;
-  if(seconds<60) return "à l’instant";
-  const minutes=Math.floor(seconds/60);
-  if(minutes<60) return `il y a ${minutes} min`;
-  const hours=Math.floor(minutes/60);
-  if(hours<24) return `il y a ${hours} h`;
-  const days=Math.floor(hours/24);
-  return `il y a ${days} j`;
-}
+function timeAgo(timestamp){ if(!timestamp) return "Date inconnue"; const seconds=(Date.now()-timestamp.toDate().getTime())/1000; if(seconds<60) return "à l’instant"; const minutes=Math.floor(seconds/60); if(minutes<60) return `il y a ${minutes} min`; const hours=Math.floor(minutes/60); if(hours<24) return `il y a ${hours} h`; const days=Math.floor(hours/24); return `il y a ${days} j`; }
 
 onAuthStateChanged(auth, async (user)=>{
-  if(!user){
-    window.location.href="index.html"; // redirection si pas connecté
-    return;
-  }
+  if(!user){ window.location.href="index.html"; return; }
   currentUser = user;
 
   const userSnap = await getDoc(doc(db,"users",user.uid));
   const favorites = userSnap.data()?.favorites || [];
-
-  if(favorites.length === 0){
-    annoncesContainer.innerHTML="<p style='text-align:center;color:#777;'>Aucun favori pour le moment.</p>";
-    document.getElementById("spinner").style.display="none";
-    return;
-  }
+  if(favorites.length === 0){ annoncesContainer.innerHTML="<p style='text-align:center;color:#777;'>Aucun favori pour le moment.</p>"; document.getElementById("spinner").style.display="none"; return; }
 
   const annoncesSnap = await getDocs(query(collection(db,"annonces"), orderBy("createdAt","desc")));
   const annoncesData = [];
-  annoncesSnap.forEach(d=>{
-    const data=d.data();
-    data.id=d.id;
-    if(favorites.includes(data.id)) annoncesData.push(data);
-  });
+  annoncesSnap.forEach(d=>{ const data=d.data(); data.id=d.id; if(favorites.includes(data.id)) annoncesData.push(data); });
 
   const usersSnap = await getDocs(collection(db,"users"));
   const usersMap = {};
-  usersSnap.forEach(uDoc=>{
-    const u=uDoc.data();
-    if(u.email) usersMap[u.email.toLowerCase().trim()]=u;
-  });
+  usersSnap.forEach(uDoc=>{ const u=uDoc.data(); if(u.email) usersMap[u.email.toLowerCase().trim()]=u; });
 
   annoncesContainer.innerHTML="";
   annoncesData.forEach(a=>{
@@ -133,20 +102,20 @@ onAuthStateChanged(auth, async (user)=>{
       </div>
     `;
 
+    // Gestion du clic sur le cœur
+    const favBtn = card.querySelector(".favorite");
     favBtn.addEventListener("click", async e=>{
-  e.stopPropagation();
-  await updateDoc(doc(db,"users",currentUser.uid), {favorites: arrayRemove(a.id)});
-  card.remove();
-
-  // Afficher la modale
-  const modal = document.getElementById("modal");
-  modal.style.display = "block";
-  setTimeout(() => { modal.style.display = "none"; }, 2000); // disparaît après 2 secondes
-});
+      e.stopPropagation();
+      await updateDoc(doc(db,"users",currentUser.uid), {favorites: arrayRemove(a.id)});
+      card.remove();
+      const modal = document.getElementById("modal");
+      modal.style.display = "block";
+      setTimeout(() => { modal.style.display = "none"; }, 2000);
+    });
 
     // Gestion du clic sur la carte
     card.addEventListener("click", e=>{
-      if(e.target.classList.contains("favorite")) return; // ignore clic sur cœur
+      if(e.target.classList.contains("favorite")) return;
       if(!a.id) return console.error("Annonce sans ID :", a);
       window.location.href=`../Details.html?id=${encodeURIComponent(a.id)}`;
     });
