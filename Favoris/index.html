@@ -27,9 +27,11 @@ body {font-family:Arial, sans-serif; background:#f7f7f7; padding-top:60px;}
 .loader { border:6px solid #f3f3f3; border-top:6px solid #009688; border-radius:50%; width:50px; height:50px; animation:spin 1s linear infinite; }
 @keyframes spin { 0% { transform:rotate(0deg); } 100% { transform:rotate(360deg); } }
 .annonce-card .time-badge { position:absolute; top:10px; left:10px; background:rgba(0,0,0,0.6); color:#fff; padding:4px 8px; border-radius:6px; font-size:12px; font-weight:bold; z-index:5; }
+
 </style>
 </head>
 <body>
+<button class="back-btn" onclick="window.location.href='../index.html'">✖</button>
 <h2>Mes Favoris ❤️</h2>
 <div id="spinner" style="display:flex; justify-content:center; align-items:center; height:200px;">
   <div class="loader"></div>
