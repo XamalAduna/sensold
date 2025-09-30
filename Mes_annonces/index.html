@@ -9,18 +9,29 @@
 body { font-family: Arial, sans-serif; background:#f7f7f7; margin:0; padding:20px; }
 h2 { text-align:center; margin-bottom:10px; color:#00796B; }
 h3 { text-align:center; color:#00796B; margin-bottom:15px; }
+
 .annonces-container { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:20px; }
 @media (min-width:1024px){ .annonces-container { grid-template-columns: repeat(4,1fr); } }
 @media (max-width:600px){ .annonces-container { grid-template-columns: repeat(2,1fr); } }
-.annonce-card { background:white; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,0.1); overflow:hidden; display:flex; flex-direction:column; position:relative;}
-.annonce-card img { width:100%; height:200px; object-fit:cover; }
-.content { padding:12px; flex:1; }
-.title { font-size:16px; font-weight:bold; margin:0 0 6px; color:#333; }
-.price { color:#00796B; font-weight:bold; font-size:18px; margin:0 0 6px; }
-.location, .date { font-size:13px; color:#555; margin:2px 0; }
+
+.annonce-card { background:white; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,0.1); overflow:hidden; display:flex; flex-direction:column; position:relative; cursor:pointer; }
+.annonce-card img { width:100%; height:150px; object-fit:cover; border-radius:8px 8px 0 0; }
+.content { padding:0 5px; flex:1; min-width:0; }
+.title { font-size:16px; font-weight:bold; color:#333; margin:0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; line-height:1.2em; }
+.price { color:#00796B; font-weight:bold; font-size:18px; margin:0; line-height:1; }
+.location, .date { font-size:13px; color:#555; margin:2px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+.seller { display:flex; align-items:center; gap:8px; padding:2px 12px; border-top:1px solid #eee; background:#fafafa; }
+.seller img { width:30px; height:30px; border-radius:50%; object-fit:cover; }
+.seller-info { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; position:relative; padding-right:70px; }
+.seller-info strong { display:block; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-size:13px; }
+
+.annonce-card .time-badge { position:absolute; top:10px; left:10px; background:rgba(0,0,0,0.6); color:#fff; padding:4px 8px; border-radius:6px; font-size:12px; font-weight:bold; z-index:5; }
+
 .actions { display:flex; justify-content:space-between; padding:10px 12px; border-top:1px solid #eee; background:#fafafa; }
 .actions button { background:#00796B; border:none; color:white; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:13px; transition:0.3s; }
 .actions button:hover { background:#004d40; }
+
 #deleteModal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index:9999; justify-content: center; align-items: center; }
 #deleteModal .modal-content { background:white; padding:20px 30px; border-radius:12px; max-width:400px; width:90%; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.2); }
 #deleteModal p { font-size:16px; margin-bottom:20px; }
@@ -29,21 +40,20 @@ h3 { text-align:center; color:#00796B; margin-bottom:15px; }
 #confirmDelete:hover { background:#9a0007; }
 #cancelDelete { background:#ccc; color:#333; }
 #cancelDelete:hover { background:#999; }
-.title { font-size:16px; font-weight:bold; margin:0 0 6px; color:#333; text-align:left; }
+
 #successMessage { display: none; position: fixed; top:20px; right:20px; background:#4caf50; color:white; padding:12px 20px; border-radius:8px; box-shadow:0 4px 8px rgba(0,0,0,0.2); z-index:10000; font-size:14px; }
- 
+
 @media (max-width: 600px) {
-  .actions {
-    flex-direction: column;
-    gap: 8px;}}
- 
+  .actions { flex-direction: column; gap: 8px; }
+}
+
 .back-btn { position: fixed; top: 20px; right: 20px; background: #d32f2f; color: white; border: none; border-radius: 50%; width: 36px; height: 36px; font-size: 20px; cursor: pointer; z-index: 10000; display: flex; justify-content: center; align-items: center; }
 .back-btn:hover { background: #9a0007; }
 </style>
 </head>
 <body>
 <button class="back-btn" onclick="window.location.href='../index.html'">✖</button>
- 
+
 <h2>📢 Mes annonces</h2>
 <h3 id="user-email"></h3>
 <div id="annonces-container" class="annonces-container"></div>
@@ -57,6 +67,7 @@ h3 { text-align:center; color:#00796B; margin-bottom:15px; }
 </div>
 
 <div id="successMessage">✅ L'annonce a été supprimée avec succès</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getFirestore, collection, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
@@ -126,11 +137,15 @@ onAuthStateChanged(auth, async (user) => {
     card.className = "annonce-card";
     card.innerHTML = `
       <img src="${a.images?.[0] || 'https://via.placeholder.com/400x200?text=Annonce'}" alt="${a.title || 'Annonce'}">
+      <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
       <div class="content">
         <p class="price">${a.price ? a.price + " FCFA" : "Prix sur demande"}</p>
         <h3 class="title">${a.title || "Sans titre"}</h3>
         <p class="location">📍 ${a.city || "Ville non précisée"}${quartier}</p>
-        <p class="date">⏰ ${timeAgo(a.createdAt)}</p>
+      </div>
+      <div class="seller">
+        <img src="${a.userPhoto || 'https://via.placeholder.com/40'}" alt="profil vendeur">
+        <div class="seller-info"><strong>${a.userName || "Utilisateur inconnu"}</strong></div>
       </div>
       <div class="actions">
         <button class="edit">✏️ Modifier</button>
@@ -138,17 +153,17 @@ onAuthStateChanged(auth, async (user) => {
       </div>
     `;
 
-    card.querySelector(".edit").addEventListener("click", (e)=>{
+    card.querySelector(".edit").addEventListener("click", e=>{
       e.stopPropagation();
       window.location.href = `../Edit.html?id=${a.id}`;
     });
 
-    card.querySelector(".delete").addEventListener("click", (e)=>{
+    card.querySelector(".delete").addEventListener("click", e=>{
       e.stopPropagation();
       annonceToDelete = a;
       deleteModal.style.display = "flex";
     });
-    
+
     container.appendChild(card);
   });
 });
