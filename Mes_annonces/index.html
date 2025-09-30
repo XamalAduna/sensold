@@ -82,8 +82,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth();
 const container = document.getElementById("annonces-container");
-const emailEl = document.getElementById("user-email");
-
+  
 const deleteModal = document.getElementById("deleteModal");
 const confirmDeleteBtn = document.getElementById("confirmDelete");
 const cancelDeleteBtn = document.getElementById("cancelDelete");
@@ -107,8 +106,6 @@ onAuthStateChanged(auth, async (user) => {
     window.location.href = "../index.html";
     return;
   }
-
-  emailEl.textContent = `Connecté : ${user.email}`;
 
   const annoncesSnap = await getDocs(collection(db,"annonces"));
   const annonces = [];
