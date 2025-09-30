@@ -6,7 +6,7 @@
 <title>Mes Favoris – MonCoin</title>
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <style>
-body { font-family:Arial, sans-serif; background:#f7f7f7; margin:0; padding:8px; padding-bottom:100px; }
+body { font-family: Arial, sans-serif; background:#f7f7f7; margin:0; padding:8px; padding-bottom:100px; }
 h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 .annonces-container { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:20px; }
 @media (min-width:1024px){ .annonces-container { grid-template-columns:repeat(4,1fr); } }
@@ -53,7 +53,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth();
-
 const annoncesContainer = document.getElementById("annonces");
 let currentUser = null;
 
@@ -71,12 +70,11 @@ function timeAgo(timestamp){
 }
 
 onAuthStateChanged(auth, async (user)=>{
-  currentUser = user;
   if(!user){
-    annoncesContainer.innerHTML="<p style='text-align:center;color:#777;'>Connectez-vous pour voir vos favoris.</p>";
-    document.getElementById("spinner").style.display="none";
+    window.location.href="index.html"; // redirection si pas connecté
     return;
   }
+  currentUser = user;
 
   const userSnap = await getDoc(doc(db,"users",user.uid));
   const favorites = userSnap.data()?.favorites || [];
@@ -87,7 +85,6 @@ onAuthStateChanged(auth, async (user)=>{
     return;
   }
 
-  // Récupérer toutes les annonces
   const annoncesSnap = await getDocs(query(collection(db,"annonces"), orderBy("createdAt","desc")));
   const annoncesData = [];
   annoncesSnap.forEach(d=>{
@@ -96,7 +93,6 @@ onAuthStateChanged(auth, async (user)=>{
     if(favorites.includes(data.id)) annoncesData.push(data);
   });
 
-  // Récupérer tous les utilisateurs
   const usersSnap = await getDocs(collection(db,"users"));
   const usersMap = {};
   usersSnap.forEach(uDoc=>{
@@ -130,6 +126,7 @@ onAuthStateChanged(auth, async (user)=>{
       </div>
     `;
 
+    // Gestion du clic sur le cœur
     const favBtn = card.querySelector(".favorite");
     favBtn.addEventListener("click", async e=>{
       e.stopPropagation();
@@ -137,15 +134,12 @@ onAuthStateChanged(auth, async (user)=>{
       card.remove();
     });
 
-    card.addEventListener("click", (e) => {
-  if(e.target.classList.contains("favorite")) return; // ignore le clic sur le cœur
-  if(!a.id){
-    console.error("Annonce sans ID :", a);
-    return;
-  }
-  window.location.href = `Details.html?id=${encodeURIComponent(a.id)}`;
-});
-
+    // Gestion du clic sur la carte
+    card.addEventListener("click", e=>{
+      if(e.target.classList.contains("favorite")) return; // ignore clic sur cœur
+      if(!a.id) return console.error("Annonce sans ID :", a);
+      window.location.href=`Details.html?id=${encodeURIComponent(a.id)}`;
+    });
 
     annoncesContainer.appendChild(card);
   });
