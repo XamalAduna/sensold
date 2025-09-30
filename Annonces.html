@@ -17,7 +17,7 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 .favorite.active { color:red; }
 .content { padding:0; flex:1; min-width:0; }
 .price { color:#00796B; font-weight:bold; font-size:18px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex-shrink:0; margin:0; line-height:1; }
-.title { font-size:16px; font-weight:bold; color:#333; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; white-space:normal; line-height:1.2em; margin:0; }
+.title { font-size:16px; font-weight:bold; color:#333; display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; white-space:normal; line-height:1.2em; margin:0; }
 .location, .date { font-size:13px; color:#555; margin:2px 0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
 .seller { display:flex; align-items:center; gap:8px; padding:2px 12px; border-top:1px solid #eee; background:#fafafa; }
 .seller img { width:30px; height:30px; border-radius:50%; object-fit:cover; }
@@ -315,11 +315,6 @@ let sortOrder = "default";
 let currentPage = 1;
 const annoncesPerPage = 10;
 
-const batchSize = 20; // nombre d'annonces à charger par lot
-let loadedCount = 0;   // nombre d'annonces déjà affichées
-let annoncesData = []; // ton tableau d'annonces déjà récupérées
-
-
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
@@ -343,19 +338,6 @@ onAuthStateChanged(auth, async (user) => {
   }
   loadAnnonces();
 });
-
-function loadNextBatch() {
-  const start = loadedCount;
-  const end = Math.min(loadedCount + batchSize, annoncesData.length);
-  const batch = annoncesData.slice(start, end);
-
-  batch.forEach(a => {
-    renderSingleAnnonce(a); // ta fonction qui crée la carte d'annonce
-  });
-
-  loadedCount = end;
-}
-
 
 async function loadAnnonces() {
   annoncesContainer.innerHTML = "";
@@ -680,43 +662,19 @@ function setupFilterMenu(){
   });
 }
 
-let filteredData = []; // nouveau tableau pour les annonces filtrées
-
 function applyAllFilters() {
-  filteredData = annoncesData; // on ne touche pas à annoncesData
+  let filtered = annoncesData;
 
-  if(selectedCategory && selectedCategory !== "all") 
-      filteredData = filteredData.filter(a => a.categorie === selectedCategory);
-  if(selectedSubcategory) 
-      filteredData = filteredData.filter(a => a.souscategorie === selectedSubcategory);
-  if(searchText) 
-      filteredData = filteredData.filter(a => 
-        (a.title?.toLowerCase().includes(searchText.toLowerCase())) || 
-        (a.city?.toLowerCase().includes(searchText.toLowerCase()))
-      );
+  if(selectedCategory && selectedCategory !== "all") filtered = filtered.filter(a => a.categorie === selectedCategory);
+  if(selectedSubcategory) filtered = filtered.filter(a => a.souscategorie === selectedSubcategory);
+  if(searchText) filtered = filtered.filter(a => 
+    (a.title?.toLowerCase().includes(searchText.toLowerCase())) || 
+    (a.city?.toLowerCase().includes(searchText.toLowerCase()))
+  );
 
-  if(sortOrder === "asc") filteredData.sort((a,b)=>(a.price||0)-(b.price||0));
-  else if(sortOrder === "desc") filteredData.sort((a,b)=>(b.price||0)-(a.price||0));
-
-  loadedCount = 0;
-  annoncesContainer.innerHTML = "";
-  loadNextBatch(); // on utilisera filteredData à l'intérieur
-}
-
-function loadNextBatch() {
-  const start = loadedCount;
-  const end = Math.min(loadedCount + batchSize, filteredData.length);
-  const batch = filteredData.slice(start, end);
-
-  batch.forEach(a => renderSingleAnnonce(a));
-  loadedCount = end;
-}
-window.addEventListener("scroll", () => {
-  if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 100) {
-    if(loadedCount < filteredData.length) loadNextBatch();
-  }
-});
-
+  if(sortOrder === "asc") filtered.sort((a,b)=>(a.price||0)-(b.price||0));
+  else if(sortOrder === "desc") filtered.sort((a,b)=>(b.price||0)-(a.price||0));
+  renderAnnonces(filtered);}
 </script>  
 </body>
 </html>
