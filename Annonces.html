@@ -1,4 +1,3 @@
-
 <!DOCTYPE html> 
 <html lang="fr">
 <head>
@@ -681,28 +680,40 @@ function setupFilterMenu(){
   });
 }
 
+let filteredData = []; // nouveau tableau pour les annonces filtrées
+
 function applyAllFilters() {
-  let filtered = annoncesData;
+  filteredData = annoncesData; // on ne touche pas à annoncesData
 
-  if(selectedCategory && selectedCategory !== "all") filtered = filtered.filter(a => a.categorie === selectedCategory);
-  if(selectedSubcategory) filtered = filtered.filter(a => a.souscategorie === selectedSubcategory);
-  if(searchText) filtered = filtered.filter(a => 
-    (a.title?.toLowerCase().includes(searchText.toLowerCase())) || 
-    (a.city?.toLowerCase().includes(searchText.toLowerCase()))
-  );
+  if(selectedCategory && selectedCategory !== "all") 
+      filteredData = filteredData.filter(a => a.categorie === selectedCategory);
+  if(selectedSubcategory) 
+      filteredData = filteredData.filter(a => a.souscategorie === selectedSubcategory);
+  if(searchText) 
+      filteredData = filteredData.filter(a => 
+        (a.title?.toLowerCase().includes(searchText.toLowerCase())) || 
+        (a.city?.toLowerCase().includes(searchText.toLowerCase()))
+      );
 
-  if(sortOrder === "asc") filtered.sort((a,b)=>(a.price||0)-(b.price||0));
-  else if(sortOrder === "desc") filtered.sort((a,b)=>(b.price||0)-(a.price||0));
-  
- 
-  annoncesData = filtered;
+  if(sortOrder === "asc") filteredData.sort((a,b)=>(a.price||0)-(b.price||0));
+  else if(sortOrder === "desc") filteredData.sort((a,b)=>(b.price||0)-(a.price||0));
+
   loadedCount = 0;
   annoncesContainer.innerHTML = "";
-  loadNextBatch();}
+  loadNextBatch(); // on utilisera filteredData à l'intérieur
+}
 
+function loadNextBatch() {
+  const start = loadedCount;
+  const end = Math.min(loadedCount + batchSize, filteredData.length);
+  const batch = filteredData.slice(start, end);
+
+  batch.forEach(a => renderSingleAnnonce(a));
+  loadedCount = end;
+}
 window.addEventListener("scroll", () => {
   if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 100) {
-    if(loadedCount < annoncesData.length) loadNextBatch();
+    if(loadedCount < filteredData.length) loadNextBatch();
   }
 });
 
