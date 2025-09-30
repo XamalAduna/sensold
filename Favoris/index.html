@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -12,18 +13,19 @@ h3 { text-align:center; color:#00796B; margin-bottom:15px; }
 .annonces-container { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:20px; }
 @media (min-width:1024px){ .annonces-container { grid-template-columns: repeat(4,1fr); } }
 @media (max-width:600px){ .annonces-container { grid-template-columns: repeat(2,1fr); } }
-.annonce-card { background:white; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,0.1); overflow:hidden; display:flex; flex-direction:column; position:relative; cursor:pointer; height: 320px;}
+.annonce-card { background:white; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,0.1); overflow:hidden; display:flex; flex-direction:column; position:relative; cursor:pointer;height: 320px;}
 .annonce-card img { width:100%; height:200px; object-fit:cover; }
 .favorite { position:absolute; top:10px; right:10px; background:white; border-radius:50%; padding:5px; cursor:pointer; color:#00796B; box-shadow:0 2px 6px rgba(0,0,0,0.2); transition:color 0.3s; }
 .favorite.active { color:red; }
 .content { padding:12px; flex:1; }
-.title { font-size:16px; font-weight:bold; margin:0 0 6px; color:#333; text-align:left; }
+.title { font-size:16px; font-weight:bold; margin:0 0 6px; color:#333; }
 .price { color:#00796B; font-weight:bold; font-size:18px; margin:0 0 6px; }
 .location, .date { font-size:13px; color:#555; margin:2px 0; }
 .seller { display:flex; align-items:center; gap:10px; padding:10px 12px; border-top:1px solid #eee; background:#fafafa; }
 .seller img { width:40px; height:40px; border-radius:50%; object-fit:cover; }
 .seller-info { font-size:14px; }
 .seller-info strong { display:block; }
+.title {font-size: 16px;font-weight: bold;margin: 0 0 6px;color: #333;text-align: left;}
 .back-btn { position: fixed; top: 20px; right: 20px; background: #d32f2f; color: white; border: none; border-radius: 50%; width: 36px; height: 36px; font-size: 20px; cursor: pointer; z-index: 10000; display: flex; justify-content: center; align-items: center; }
 .back-btn:hover { background: #9a0007; }
 </style>
@@ -33,7 +35,6 @@ h3 { text-align:center; color:#00796B; margin-bottom:15px; }
 <h2>⭐ Mes favoris</h2>
 <h3 id="user-email"></h3>
 <div id="favoris-container" class="annonces-container"></div>
-
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getFirestore, collection, getDocs, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
@@ -91,7 +92,6 @@ onAuthStateChanged(auth, async (user) => {
     data.id = d.id;
     if(favorites.includes(d.id)) annonces.push(data);
   });
-
   const usersSnap = await getDocs(collection(db,"users"));
   const usersMap = {};
   usersSnap.forEach(uDoc => {
@@ -108,23 +108,28 @@ onAuthStateChanged(auth, async (user) => {
     const photo = sellerData.profileImage || "https://via.placeholder.com/40";
     const quartier = a.quartier ? ", " + a.quartier : "";
 
-    const card = document.createElement("div");
-    card.className = "annonce-card";
     card.innerHTML = `
-      <img src="${a.images?.[0] || 'https://via.placeholder.com/400x200?text=Annonce'}" alt="${a.title || 'Annonce'}">
-      <span class="material-icons favorite active">favorite</span>
-      <div class="content">
-        <p class="price">${a.price ? a.price + " FCFA" : "Prix sur demande"}</p>
-        <h3 class="title">${a.title || "Sans titre"}</h3>
-        <p class="location">📍 ${a.city || "Ville non précisée"}${quartier}</p>
-        <p class="date">⏰ ${timeAgo(a.createdAt)}</p>
-      </div>
-      <div class="seller">
-        <img src="${photo}" alt="profil">
-        <div class="seller-info"><strong>${fullName}</strong></div>
-      </div>
-    `;
+  <img src="${a.images?.[0] || 'https://via.placeholder.com/400x200?text=Annonce'}" 
+       loading="lazy"
+       alt="${escapeHTML(a.title || 'Annonce')}"
+       onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
+  <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
+  <span class="material-icons favorite ${isFav ? 'active' : ''}">
+    ${isFav ? 'favorite' : 'favorite_border'}
+  </span>
+  <div class="content">
+    <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
+    <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
+    <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
+  </div>
+  <div class="seller">
+    <img src="${photo}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
+    <div class="seller-info"><strong>${fullName}</strong></div>
+  </div>
+`;
 
+
+    
     card.addEventListener("click", (e) => {
       if(e.target.classList.contains("favorite")) return;
       window.location.href = `../Details.html?id=${a.id}`;
@@ -145,7 +150,6 @@ onAuthStateChanged(auth, async (user) => {
       }
       await updateDoc(userRef, { favorites });
     });
-
     container.appendChild(card);
   });
 });
