@@ -137,13 +137,15 @@ onAuthStateChanged(auth, async (user)=>{
       card.remove();
     });
 
-    card.addEventListener("click", ()=>{
-      if(!a.id){
-        console.error("Annonce sans ID :", a);
-        return;
-      }
-      window.location.href=`Details.html?id=${encodeURIComponent(a.id)}`;
-    });
+    card.addEventListener("click", (e) => {
+  if(e.target.classList.contains("favorite")) return; // ignore le clic sur le cœur
+  if(!a.id){
+    console.error("Annonce sans ID :", a);
+    return;
+  }
+  window.location.href = `Details.html?id=${encodeURIComponent(a.id)}`;
+});
+
 
     annoncesContainer.appendChild(card);
   });
