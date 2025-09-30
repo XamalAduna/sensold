@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
@@ -57,16 +57,11 @@ const db = getFirestore(app);
 const auth = getAuth();
 
 const annoncesContainer = document.getElementById("annonces");
-
 let currentUser = null;
 let userFavorites = [];
 let annoncesData = [];
 
-function escapeHTML(str) {
-  if (!str) return "";
-  return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
-}
-
+function escapeHTML(str) { if(!str) return ""; return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;"); }
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
@@ -86,8 +81,7 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById("spinner").style.display = "none";
     return;
   }
-  const userRef = doc(db,"users",user.uid);
-  const userSnap = await getDoc(userRef);
+  const userSnap = await getDoc(doc(db,"users",user.uid));
   userFavorites = userSnap.data()?.favorites || [];
   loadFavorites();
 });
@@ -97,7 +91,7 @@ async function loadFavorites() {
   document.getElementById("spinner").style.display = "flex";
 
   try {
-    const annoncesSnap = await getDocs(query(collection(db, "annonces"), orderBy("createdAt","desc")));
+    const annoncesSnap = await getDocs(query(collection(db,"annonces"), orderBy("createdAt","desc")));
     annoncesData = [];
     annoncesSnap.forEach(docSnap => {
       const data = docSnap.data();
@@ -116,10 +110,9 @@ async function loadFavorites() {
       card.className = "annonce-card";
 
       let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
-
-      // Vendeur
       let sellerPhoto = "https://via.placeholder.com/40";
       let sellerName = "Utilisateur inconnu";
+
       if(a.userId){
         try{
           const sellerSnap = await getDoc(doc(db,"users",a.userId));
@@ -146,12 +139,10 @@ async function loadFavorites() {
         </div>
       `;
 
-      // Retirer des favoris
       const favBtn = card.querySelector(".favorite");
       favBtn.addEventListener("click", async e=>{
         e.stopPropagation();
-        const favRef = doc(db,"users",currentUser.uid);
-        await updateDoc(favRef,{favorites: arrayRemove(a.id)});
+        await updateDoc(doc(db,"users",currentUser.uid), {favorites: arrayRemove(a.id)});
         card.remove();
       });
 
