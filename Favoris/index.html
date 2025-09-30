@@ -35,28 +35,9 @@ body {font-family:Arial, sans-serif; background:#f7f7f7;margin:0; padding:20px;}
 <body>
 <button class="back-btn" onclick="window.location.href='../index.html'">✖</button>
 <h2>Mes Favoris ❤️</h2>
-<div id="spinner" style="display:flex; justify-content:center; align-items:center; height:200px;">
-  <div class="loader"></div>
-</div>
 <div id="annonces" class="annonces-container"></div>
 
-<!-- Toast de confirmation -->
-<div id="toast" style="
-  position:fixed;
-  bottom:20px;
-  left:50%;
-  transform:translateX(-50%);
-  background:#00796B;
-  color:white;
-  padding:12px 20px;
-  border-radius:8px;
-  box-shadow:0 2px 6px rgba(0,0,0,0.2);
-  display:none;
-  z-index:10000;
-  font-weight:bold;
-">
-  Annonce retirée de vos favoris
-</div>
+<div id="toast" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#00796B;color:white;padding:12px 20px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.2);display:none;z-index:10000;font-weight:bold;">Annonce retirée de vos favoris</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
@@ -92,7 +73,6 @@ function timeAgo(timestamp){
   return `il y a ${days} j`;
 }
 
-// Fonction toast
 function showToast(message){
   const toast = document.getElementById("toast");
   toast.textContent = message;
@@ -112,7 +92,6 @@ onAuthStateChanged(auth, async (user)=>{
 
   if(favorites.length === 0){
     annoncesContainer.innerHTML="<p style='text-align:center;color:#777;'>Aucun favori pour le moment.</p>";
-    document.getElementById("spinner").style.display="none";
     return;
   }
 
@@ -141,7 +120,6 @@ onAuthStateChanged(auth, async (user)=>{
     const sellerPhoto = escapeHTML(sellerData.profileImage || "https://via.placeholder.com/40");
     const sellerName = escapeHTML(sellerData.fullName || "Utilisateur inconnu");
     const quartier = a.quartier ? ", "+escapeHTML(a.quartier) : "";
-
     card.innerHTML=`
       <img src="${annonceImage}" loading="lazy" alt="${escapeHTML(a.title||'Annonce')}">
       <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
@@ -157,7 +135,6 @@ onAuthStateChanged(auth, async (user)=>{
       </div>
     `;
 
-    // Gestion du clic sur le cœur
     const favBtn = card.querySelector(".favorite");
     favBtn.addEventListener("click", async e=>{
       e.stopPropagation();
@@ -166,7 +143,6 @@ onAuthStateChanged(auth, async (user)=>{
       showToast("Annonce retirée de vos favoris");
     });
 
-    // Gestion du clic sur la carte
     card.addEventListener("click", e=>{
       if(e.target.classList.contains("favorite")) return; // ignore clic sur cœur
       if(!a.id) return console.error("Annonce sans ID :", a);
@@ -176,7 +152,6 @@ onAuthStateChanged(auth, async (user)=>{
     annoncesContainer.appendChild(card);
   });
 
-  document.getElementById("spinner").style.display="none";
 });
 </script>
 </body>
