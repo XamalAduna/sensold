@@ -315,6 +315,11 @@ let sortOrder = "default";
 let currentPage = 1;
 const annoncesPerPage = 10;
 
+// --- Variables pour pagination Firestore rapide ---
+let lastVisible = null;
+let loadingAnnonces = false;
+let hasMoreAnnonces = true;
+
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
@@ -336,59 +341,81 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     userFavorites = [];
   }
-  loadAnnonces();
+  loadAnnonces(true);
 });
 
-async function loadAnnonces() {
-  annoncesContainer.innerHTML = "";
+// --- Load annonces avec pagination Firestore et cache utilisateurs ---
+async function loadAnnonces(reset = true) {
+  if (loadingAnnonces) return;
+  loadingAnnonces = true;
   document.getElementById("spinner").style.display = "flex";
 
-  try {
-    const annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt","desc"));
-    const annoncesSnap = await getDocs(annoncesQuery);
-
-    if(annoncesSnap.empty){ 
-      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
-      document.getElementById("spinner").style.display = "none";
-      return; 
-    }
-
+  if(reset){
+    annoncesContainer.innerHTML = "";
+    lastVisible = null;
+    hasMoreAnnonces = true;
     annoncesData = [];
-    annoncesSnap.forEach(docSnap => {
-      const data = docSnap.data();
-      data.id = docSnap.id;
-      annoncesData.push(data);
-    });
+  }
 
-    if (!window.__usersCache) {
-      try {
-        const usersSnap = await getDocs(collection(db, "users"));
-        const byEmail = {};
-        const byId = {};
-        usersSnap.forEach(uDoc => {
-          const u = uDoc.data() || {};
-          byId[uDoc.id] = u;
-          const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-          if(email) byEmail[email] = u;
-        });
-        window.__usersCache = { byEmail, byId };
-      } catch(err) {
-        console.error("Erreur chargement users:", err);
-        window.__usersCache = { byEmail: {}, byId: {} };
-      }
+  if (!hasMoreAnnonces) {
+    document.getElementById("spinner").style.display = "none";
+    loadingAnnonces = false;
+    return;
+  }
+
+  try {
+    let annoncesQueryRef = query(
+      collection(db, "annonces"),
+      orderBy("createdAt","desc"),
+      limit(10)
+    );
+
+    if(lastVisible) annoncesQueryRef = query(annoncesQueryRef, startAfter(lastVisible));
+
+    const annoncesSnap = await getDocs(annoncesQueryRef);
+    if(annoncesSnap.empty){
+      if(!lastVisible) annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
+      hasMoreAnnonces = false;
+      return;
     }
-    setupCategoryFilters();
-    setupSearchAndSort();
-    setupFilterMenu();
+
+    lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
+
+    const annoncesBatch = annoncesSnap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
+    annoncesData.push(...annoncesBatch);
+
+    // Cache utilisateurs pour ne pas refaire des getDocs à chaque fois
+    if(!window.__usersCache){
+      window.__usersCache = { byEmail: {}, byId: {} };
+    }
+
+    const missingUserIds = annoncesBatch
+      .map(a => a.userId || a.uid)
+      .filter(uid => uid && !window.__usersCache.byId[uid]);
+
+    if(missingUserIds.length > 0){
+      const userDocs = await Promise.all(missingUserIds.map(uid => getDoc(doc(db, "users", uid))));
+      userDocs.forEach(uDoc => { if(uDoc.exists()) window.__usersCache.byId[uDoc.id] = uDoc.data(); });
+    }
+
     applyAllFilters();
+
   } catch(err){
     console.error("Erreur chargement annonces:", err);
     annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   } finally {
-    document.getElementById("spinner").style.display = "none"; 
+    document.getElementById("spinner").style.display = "none";
+    loadingAnnonces = false;
   }
 }
-  
+
+// Infinite scroll pour charger plus d'annonces comme Coin Afrique
+window.addEventListener("scroll", () => {
+  if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 200) {
+    loadAnnonces(false);
+  }
+});
+
 function escapeHTML(str) {
   if (!str) return "";
   return str
@@ -412,24 +439,6 @@ async function renderAnnonces(filtered) {
   const start = (currentPage - 1) * annoncesPerPage;
   const end = start + annoncesPerPage;
   const pageItems = filtered.slice(start, end);
-
-  if (!window.__usersCache) {
-    try {
-      const usersSnap = await getDocs(collection(db, "users"));
-      const byEmail = {};
-      const byId = {};
-      usersSnap.forEach(uDoc => {
-        const u = uDoc.data() || {};
-        byId[uDoc.id] = u;
-        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-        if (email) byEmail[email] = u;
-      });
-      window.__usersCache = { byEmail, byId };
-    } catch (err) {
-      console.error("Erreur chargement users:", err);
-      window.__usersCache = { byEmail: {}, byId: {} };
-    }
-  }
 
   for (const a of pageItems) {
     const docId = escapeHTML(a.id || "");
@@ -495,9 +504,9 @@ async function renderAnnonces(filtered) {
 `;
 
     const titleEl = card.querySelector('.title');
-      if ((a.title || "").length > 30) { // tu peux ajuster 50 à 40 si tu veux
-      titleEl.classList.add('long-text');}
-
+    if ((a.title || "").length > 30) { 
+      titleEl.classList.add('long-text');
+    }
 
     const favBtn = card.querySelector(".favorite");
     favBtn.addEventListener("click", async e => {
@@ -528,6 +537,7 @@ async function renderAnnonces(filtered) {
   renderPagination(Math.ceil(filtered.length / annoncesPerPage));
 }
 
+// --- Le reste du code (pagination, filtres, recherche, tri) reste identique ---
 function renderPagination(totalPages){
   let paginationContainer = document.getElementById("pagination");
   if(!paginationContainer){
@@ -674,7 +684,9 @@ function applyAllFilters() {
 
   if(sortOrder === "asc") filtered.sort((a,b)=>(a.price||0)-(b.price||0));
   else if(sortOrder === "desc") filtered.sort((a,b)=>(b.price||0)-(a.price||0));
-  renderAnnonces(filtered);}
-</script>  
+  renderAnnonces(filtered);
+}
+</script>
+
 </body>
 </html>
