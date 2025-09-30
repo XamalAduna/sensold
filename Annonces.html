@@ -336,59 +336,54 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     userFavorites = [];
   }
-  loadAnnonces();
+  loadAnnoncesRapide(); // <-- nouvelle fonction
 });
 
-async function loadAnnonces() {
+async function loadAnnoncesRapide() {
   annoncesContainer.innerHTML = "";
   document.getElementById("spinner").style.display = "flex";
 
   try {
-    const annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt","desc"));
-    const annoncesSnap = await getDocs(annoncesQuery);
+    const annoncesQuery = query(
+      collection(db, "annonces"),
+      orderBy("createdAt", "desc"),
+      limit(20) // charge seulement les 20 premières annonces
+    );
 
-    if(annoncesSnap.empty){ 
-      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
+    const snapshot = await getDocs(annoncesQuery);
+    if(snapshot.empty){
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
       document.getElementById("spinner").style.display = "none";
-      return; 
+      return;
     }
 
-    annoncesData = [];
-    annoncesSnap.forEach(docSnap => {
-      const data = docSnap.data();
-      data.id = docSnap.id;
-      annoncesData.push(data);
+    snapshot.forEach(docSnap => {
+      const a = docSnap.data();
+      a.id = docSnap.id;
+
+      const card = document.createElement("div");
+      card.className = "annonce-card";
+      card.innerHTML = `
+        <img src="https://via.placeholder.com/400x200?text=Chargement..." loading="lazy" alt="Annonce">
+        <p class="price">${a.price ? a.price + " FCFA" : "Prix sur demande"}</p>
+        <h3 class="title">${a.title || "Sans titre"}</h3>
+      `;
+      annoncesContainer.appendChild(card);
+
+      // Charger l'image réelle après que la carte est affichée
+      const img = card.querySelector("img");
+      img.src = a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce";
     });
 
-    if (!window.__usersCache) {
-      try {
-        const usersSnap = await getDocs(collection(db, "users"));
-        const byEmail = {};
-        const byId = {};
-        usersSnap.forEach(uDoc => {
-          const u = uDoc.data() || {};
-          byId[uDoc.id] = u;
-          const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-          if(email) byEmail[email] = u;
-        });
-        window.__usersCache = { byEmail, byId };
-      } catch(err) {
-        console.error("Erreur chargement users:", err);
-        window.__usersCache = { byEmail: {}, byId: {} };
-      }
-    }
-    setupCategoryFilters();
-    setupSearchAndSort();
-    setupFilterMenu();
-    applyAllFilters();
   } catch(err){
-    console.error("Erreur chargement annonces:", err);
-    annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
+    console.error(err);
+    annoncesContainer.innerHTML = "<p>⚠️ Erreur de chargement</p>";
   } finally {
-    document.getElementById("spinner").style.display = "none"; 
+    document.getElementById("spinner").style.display = "none";
   }
 }
-  
+
+
 function escapeHTML(str) {
   if (!str) return "";
   return str
