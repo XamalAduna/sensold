@@ -16,9 +16,9 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 .favorite { position:absolute; top:10px; right:10px; background:white; border-radius:50%; padding:5px; cursor:pointer; color:#00796B; box-shadow:0 2px 6px rgba(0,0,0,0.2); transition:color 0.3s; }
 .favorite.active { color:red; }
 .content { padding:0; flex:1; min-width:0; }
-.price { color:#00796B; font-weight:bold; font-size:18px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex-shrink:0; margin:0; line-height:1; }
-.title { font-size:16px; font-weight:bold; color:#333; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; white-space:normal; line-height:1.2em; margin:0; }
-.location, .date { font-size:13px; color:#555; margin:2px 0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.price { color:#00796B; font-weight:bold; font-size:18px; margin:0; line-height:1; }
+.title { font-size:16px; font-weight:bold; color:#333; margin:0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; line-height:1.2em; }
+.location, .date { font-size:13px; color:#555; margin:2px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .seller { display:flex; align-items:center; gap:8px; padding:2px 12px; border-top:1px solid #eee; background:#fafafa; }
 .seller img { width:30px; height:30px; border-radius:50%; object-fit:cover; }
 .seller-info { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; position:relative; padding-right:70px; }
@@ -49,16 +49,26 @@ const firebaseConfig = {
   appId: "1:662485613383:web:c1129a35c335cc95c0ea62",
   measurementId: "G-F3092DTNZY"
 };
+
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth();
 
 const annoncesContainer = document.getElementById("annonces");
 let currentUser = null;
-let userFavorites = [];
 
 function escapeHTML(str){ if(!str) return ""; return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;"); }
-function timeAgo(timestamp){ if(!timestamp) return "Date inconnue"; const seconds=(Date.now()-timestamp.toDate().getTime())/1000; if(seconds<60) return "à l’instant"; const minutes=Math.floor(seconds/60); if(minutes<60) return `il y a ${minutes} min`; const hours=Math.floor(minutes/60); if(hours<24) return `il y a ${hours} h`; const days=Math.floor(hours/24); return `il y a ${days} j`; }
+function timeAgo(timestamp){
+  if(!timestamp) return "Date inconnue";
+  const seconds=(Date.now()-timestamp.toDate().getTime())/1000;
+  if(seconds<60) return "à l’instant";
+  const minutes=Math.floor(seconds/60);
+  if(minutes<60) return `il y a ${minutes} min`;
+  const hours=Math.floor(minutes/60);
+  if(hours<24) return `il y a ${hours} h`;
+  const days=Math.floor(hours/24);
+  return `il y a ${days} j`;
+}
 
 onAuthStateChanged(auth, async (user)=>{
   currentUser = user;
@@ -69,18 +79,24 @@ onAuthStateChanged(auth, async (user)=>{
   }
 
   const userSnap = await getDoc(doc(db,"users",user.uid));
-  userFavorites = userSnap.data()?.favorites || [];
+  const favorites = userSnap.data()?.favorites || [];
 
-  // Récupération de toutes les annonces
+  if(favorites.length === 0){
+    annoncesContainer.innerHTML="<p style='text-align:center;color:#777;'>Aucun favori pour le moment.</p>";
+    document.getElementById("spinner").style.display="none";
+    return;
+  }
+
+  // Récupérer toutes les annonces
   const annoncesSnap = await getDocs(query(collection(db,"annonces"), orderBy("createdAt","desc")));
   const annoncesData = [];
   annoncesSnap.forEach(d=>{
     const data=d.data();
     data.id=d.id;
-    if(userFavorites.includes(d.id)) annoncesData.push(data);
+    if(favorites.includes(data.id)) annoncesData.push(data);
   });
 
-  // Récupération de tous les utilisateurs pour faire le mapping email -> user
+  // Récupérer tous les utilisateurs
   const usersSnap = await getDocs(collection(db,"users"));
   const usersMap = {};
   usersSnap.forEach(uDoc=>{
@@ -89,8 +105,8 @@ onAuthStateChanged(auth, async (user)=>{
   });
 
   annoncesContainer.innerHTML="";
-  for(const a of annoncesData){
-    const card=document.createElement("div");
+  annoncesData.forEach(a=>{
+    const card = document.createElement("div");
     card.className="annonce-card";
 
     const annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
@@ -121,10 +137,16 @@ onAuthStateChanged(auth, async (user)=>{
       card.remove();
     });
 
-    card.addEventListener("click", ()=>{ window.location.href=`Details.html?id=${encodeURIComponent(a.id)}`; });
+    card.addEventListener("click", ()=>{
+      if(!a.id){
+        console.error("Annonce sans ID :", a);
+        return;
+      }
+      window.location.href=`Details.html?id=${encodeURIComponent(a.id)}`;
+    });
 
     annoncesContainer.appendChild(card);
-  }
+  });
 
   document.getElementById("spinner").style.display="none";
 });
