@@ -340,50 +340,41 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 
-async function loadAnnonces() {
-  // Vérifier si on a déjà les annonces dans sessionStorage
+ async function loadAnnonces() {
+  annoncesContainer.innerHTML = "";
+  document.getElementById("spinner").style.display = "flex";
+
+  // Vérifier le cache
   const cachedAnnonces = sessionStorage.getItem("annoncesCache");
   if (cachedAnnonces) {
-    annoncesData = JSON.parse(cachedAnnonces);
+    try {
+      annoncesData = JSON.parse(cachedAnnonces);
+      console.log("Annonces chargées depuis le cache");
+    } catch(e) {
+      console.warn("Erreur parsing cache:", e);
+      annoncesData = [];
+    }
 
     // Charger les utilisateurs si pas déjà en cache
-    if (!window.__usersCache) {
-      try {
-        const usersSnap = await getDocs(collection(db, "users"));
-        const byEmail = {};
-        const byId = {};
-        usersSnap.forEach(uDoc => {
-          const u = uDoc.data() || {};
-          byId[uDoc.id] = u;
-          const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-          if(email) byEmail[email] = u;
-        });
-        window.__usersCache = { byEmail, byId };
-      } catch(err) {
-        console.error("Erreur chargement users:", err);
-        window.__usersCache = { byEmail: {}, byId: {} };
-      }
-    }
+    if (!window.__usersCache) await loadUsersCache();
 
     setupCategoryFilters();
     setupSearchAndSort();
     setupFilterMenu();
     applyAllFilters();
+
     document.getElementById("spinner").style.display = "none";
     return; // on ne recharge pas Firestore
   }
 
-  annoncesContainer.innerHTML = "";
-  document.getElementById("spinner").style.display = "flex";
-
+  // Sinon, charger depuis Firestore
   try {
-    const annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt","desc"));
+    const annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt", "desc"));
     const annoncesSnap = await getDocs(annoncesQuery);
 
-    if(annoncesSnap.empty){ 
-      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
-      document.getElementById("spinner").style.display = "none";
-      return; 
+    if (annoncesSnap.empty) {
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
+      return;
     }
 
     annoncesData = [];
@@ -393,33 +384,17 @@ async function loadAnnonces() {
       annoncesData.push(data);
     });
 
-    // Stocker les annonces dans sessionStorage
+    // Stocker dans sessionStorage
     sessionStorage.setItem("annoncesCache", JSON.stringify(annoncesData));
 
     // Charger les utilisateurs si pas déjà en cache
-    if (!window.__usersCache) {
-      try {
-        const usersSnap = await getDocs(collection(db, "users"));
-        const byEmail = {};
-        const byId = {};
-        usersSnap.forEach(uDoc => {
-          const u = uDoc.data() || {};
-          byId[uDoc.id] = u;
-          const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-          if(email) byEmail[email] = u;
-        });
-        window.__usersCache = { byEmail, byId };
-      } catch(err) {
-        console.error("Erreur chargement users:", err);
-        window.__usersCache = { byEmail: {}, byId: {} };
-      }
-    }
+    if (!window.__usersCache) await loadUsersCache();
 
     setupCategoryFilters();
     setupSearchAndSort();
     setupFilterMenu();
     applyAllFilters();
-  } catch(err){
+  } catch(err) {
     console.error("Erreur chargement annonces:", err);
     annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   } finally {
@@ -427,6 +402,27 @@ async function loadAnnonces() {
   }
 }
 
+// Fonction pour charger les utilisateurs dans un cache global
+async function loadUsersCache() {
+  try {
+    const usersSnap = await getDocs(collection(db, "users"));
+    const byEmail = {};
+    const byId = {};
+    usersSnap.forEach(uDoc => {
+      const u = uDoc.data() || {};
+      byId[uDoc.id] = u;
+      const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+      if(email) byEmail[email] = u;
+    });
+    window.__usersCache = { byEmail, byId };
+  } catch(err) {
+    console.error("Erreur chargement users:", err);
+    window.__usersCache = { byEmail: {}, byId: {} };
+  }
+}
+
+  
+     
 
   
 function escapeHTML(str) {
