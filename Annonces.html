@@ -690,6 +690,22 @@ function applyAllFilters() {
   if(sortOrder === "asc") filtered.sort((a,b)=>(a.price||0)-(b.price||0));
   else if(sortOrder === "desc") filtered.sort((a,b)=>(b.price||0)-(a.price||0));
   renderAnnonces(filtered);}
+
+
+  // Initialisation des filtres et recherche
+setupCategoryFilters();
+setupSearchAndSort();
+setupFilterMenu();
+
+// Affichage initial si annonces déjà en cache
+const cached = sessionStorage.getItem("annoncesCache");
+if(cached){
+  annoncesData = JSON.parse(cached);
+  applyAllFilters();
+} else {
+  loadAnnoncesFromFirestore();
+}
+
 </script>  
 </body>
 </html>
