@@ -367,9 +367,11 @@ async function loadUsersCache() {
   }
 }
 
+
 async function loadAnnoncesFromFirestore() {
-  annoncesContainer.innerHTML = "";
-  document.getElementById("spinner").style.display = "flex";
+  if(!sessionStorage.getItem("annoncesCache")) {
+    document.getElementById("spinner").style.display = "flex";
+  }
 
   try {
     const annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt","desc"));
@@ -383,8 +385,7 @@ async function loadAnnoncesFromFirestore() {
     });
 
     sessionStorage.setItem("annoncesCache", JSON.stringify(annoncesData));
-
-    applyAllFilters();  // appel unique ici
+    applyAllFilters();  
   } catch(err){
     console.error("Erreur chargement annonces:", err);
     annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
@@ -392,8 +393,6 @@ async function loadAnnoncesFromFirestore() {
     document.getElementById("spinner").style.display = "none"; 
   }
 }
-
-
 
 
   
@@ -677,13 +676,11 @@ setupCategoryFilters();
 setupSearchAndSort();
 setupFilterMenu();
 
-// Affichage initial si annonces déjà en cache
-const cached = sessionStorage.getItem("annoncesCache");
-if(cached){
-  annoncesData = JSON.parse(cached);
-  applyAllFilters();
-} else {
+if(!sessionStorage.getItem("annoncesCache")) {
   loadAnnoncesFromFirestore();
+} else {
+  annoncesData = JSON.parse(sessionStorage.getItem("annoncesCache"));
+  applyAllFilters();
 }
 
 </script>  
