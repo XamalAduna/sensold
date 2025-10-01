@@ -1,3 +1,4 @@
+
 <!DOCTYPE html> 
 <html lang="fr">
 <head>
@@ -22,7 +23,7 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 .seller { display:flex; align-items:center; gap:8px; padding:2px 12px; border-top:1px solid #eee; background:#fafafa; }
 .seller img { width:30px; height:30px; border-radius:50%; object-fit:cover; }
 .search-bar { display:flex; flex-direction:row; align-items:center; justify-content:center; gap:10px; margin-bottom:10px; width:100%; }
-.search-box { flex:0 1 auto; max-width:600px; }
+.search-box { flex:0 1 auto; max-width:250px; }
 #search-input { width:100%; padding:12px 50px 12px 16px; font-size:16px; border-radius:10px; border:1px solid #ccc; box-sizing:border-box; outline:none; transition:border 0.3s ease; }
 #search-input:focus { border-color:#009688; }
 .search-btn { position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; color:#009688; font-size:24px; transition:color 0.3s ease; }
@@ -68,15 +69,6 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 .annonce-card .price, .annonce-card .title { margin:0 5px; line-height:1.2; }
 .seller-info .boutique-pro { position:absolute; right:0; top:50%; transform:translateY(-50%); background:#00796B; color:white; font-size:10px; padding:2px 6px; border-radius:4px; white-space:nowrap; display:none; }
 
-.boost-badge {
-  background: gold;
-  color: black;
-  font-size: 12px;
-  font-weight: bold;
-  padding: 2px 6px;
-  border-radius: 8px;
-  margin-left: 6px;
-}
 
 </style>
 </head>
@@ -324,16 +316,6 @@ let sortOrder = "default";
 let currentPage = 1;
 const annoncesPerPage = 10;
 
-  
-function isBoostActive(annonce) {
-  if (!annonce.boost) return false;
-  if (!annonce.boostEnd) return false;
-  const now = new Date();
-  const boostEndDate = new Date(annonce.boostEnd);
-  return boostEndDate > now;
-}
-
-
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
@@ -493,41 +475,29 @@ async function renderAnnonces(filtered) {
     }
     sellerPhoto = escapeHTML(sellerPhoto);
     let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
-
-    // ✅ Préparer boostBadge avant d'insérer dans le template
-    let boostBadge = "";
-    if (isBoostActive(a)) {
-      boostBadge = `<span class="boost-badge">⭐ Boost</span>`;
-    }
-
     card.innerHTML = `
-      <img src="${annonceImage}" 
-           loading="lazy"
-           alt="${escapeHTML(a.title || 'Annonce')}"
-           onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
-      <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
-      <span class="material-icons favorite ${isFav ? 'active' : ''}">
-        ${isFav ? 'favorite' : 'favorite_border'}
-      </span>
-      <div class="content">
-        <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
-        <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
-        <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
-      </div>
-      <div class="seller">
-        <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
-        <div class="seller-info">
-          <strong>${fullName}</strong>
-          ${boostBadge}
-        </div>
-      </div>
-    `;
-
-    annoncesContainer.appendChild(card);
-  }
-}
-
-
+  <img src="${annonceImage}" 
+       loading="lazy"
+       alt="${escapeHTML(a.title || 'Annonce')}"
+       onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
+  <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
+  <span class="material-icons favorite ${isFav ? 'active' : ''}">
+    ${isFav ? 'favorite' : 'favorite_border'}
+  </span>
+  <div class="content">
+    <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
+    <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
+    <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
+  </div>
+  
+ <div class="seller">
+  <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
+  <div class="seller-info">
+    <strong>${fullName}</strong>
+    ${isBoostActive(a) ? '<span class="boutique-pro" style="display:block;">BOOST</span>' : ''}
+  </div>
+</div>
+`;
 
     const titleEl = card.querySelector('.title');
       if ((a.title || "").length > 30) { // tu peux ajuster 50 à 40 si tu veux
@@ -697,35 +667,35 @@ function setupFilterMenu(){
   });
 }
 
-function applyAllFilters() {
-  let filtered = annoncesData.filter(a => {
-    let matchCat = (selectedCategory === "all" || a.category === selectedCategory);
-    let matchSub = (!selectedSubcategory || a.subcategory === selectedSubcategory);
-    let matchText = (!searchText || (a.title && a.title.toLowerCase().includes(searchText.toLowerCase())));
-    return matchCat && matchSub && matchText;
-  });
-
-  // ✅ Mettre les boostés en premier
-  filtered.sort((a, b) => {
-    const aBoost = isBoostActive(a);
-    const bBoost = isBoostActive(b);
-    if (aBoost && !bBoost) return -1;
-    if (!aBoost && bBoost) return 1;
-
-    // ensuite trier par createdAt (desc)
-    return (b.createdAt?.toDate?.() || new Date()) - (a.createdAt?.toDate?.() || new Date());
-  });
-
-  // si filtre prix appliqué
-  if (sortOrder === "priceAsc") {
-    filtered.sort((a, b) => (a.price || 0) - (b.price || 0));
-  } else if (sortOrder === "priceDesc") {
-    filtered.sort((a, b) => (b.price || 0) - (a.price || 0));
-  }
-
-  renderAnnonces(filtered);
+function isBoostActive(annonce) {
+  if (!annonce.boost || !annonce.boostEnd) return false;
+  const now = new Date();
+  const boostEndDate = new Date(annonce.boostEnd.toDate ? annonce.boostEnd.toDate() : annonce.boostEnd);
+  return boostEndDate > now;
 }
 
+
+function applyAllFilters() {
+  let filtered = annoncesData;
+
+  if(selectedCategory && selectedCategory !== "all") filtered = filtered.filter(a => a.categorie === selectedCategory);
+  if(selectedSubcategory) filtered = filtered.filter(a => a.souscategorie === selectedSubcategory);
+  if(searchText) filtered = filtered.filter(a => 
+    (a.title?.toLowerCase().includes(searchText.toLowerCase())) || 
+    (a.city?.toLowerCase().includes(searchText.toLowerCase()))
+  );
+
+  if(sortOrder === "asc") filtered.sort((a,b)=>(a.price||0)-(b.price||0));
+  else if(sortOrder === "desc") filtered.sort((a,b)=>(b.price||0)-(a.price||0));
+
+  // Trier pour mettre les boost actifs en premier
+filtered.sort((a, b) => {
+  const aBoost = isBoostActive(a) ? 1 : 0;
+  const bBoost = isBoostActive(b) ? 1 : 0;
+  return bBoost - aBoost; // boost actif en premier
+});
+
+  renderAnnonces(filtered);}
 </script>  
 </body>
 </html>
