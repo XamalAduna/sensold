@@ -1,3 +1,4 @@
+
 <!DOCTYPE html> 
 <html lang="fr">
 <head>
@@ -22,7 +23,7 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 .seller { display:flex; align-items:center; gap:8px; padding:2px 12px; border-top:1px solid #eee; background:#fafafa; }
 .seller img { width:30px; height:30px; border-radius:50%; object-fit:cover; }
 .search-bar { display:flex; flex-direction:row; align-items:center; justify-content:center; gap:10px; margin-bottom:10px; width:100%; }
-.search-box { flex:0 1 auto; max-width:600px; }
+.search-box { flex:0 1 auto; max-width:250px; }
 #search-input { width:100%; padding:12px 50px 12px 16px; font-size:16px; border-radius:10px; border:1px solid #ccc; box-sizing:border-box; outline:none; transition:border 0.3s ease; }
 #search-input:focus { border-color:#009688; }
 .search-btn { position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; color:#009688; font-size:24px; transition:color 0.3s ease; }
@@ -315,6 +316,10 @@ let sortOrder = "default";
 let currentPage = 1;
 const annoncesPerPage = 10;
 
+let lastVisibleDoc = null; // pour le lot suivant
+const batchSize = 20;
+let loadingBatch = false;
+
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
@@ -329,7 +334,6 @@ function timeAgo(timestamp){
 
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
-
   if(user){
     const userRef = doc(db,"users",user.uid);
     const userSnap = await getDoc(userRef);
@@ -337,55 +341,55 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     userFavorites = [];
   }
-
-  const cached = sessionStorage.getItem("annoncesCache");
-  if(cached){
-    annoncesData = JSON.parse(cached);
-  }
-
-  await loadUsersCache();  // chargement unique de la cache utilisateurs
-  await loadAnnoncesFromFirestore();
+  loadAnnonces();
 });
 
-async function loadUsersCache() {
-  if (window.__usersCache) return; // déjà chargé
+
+
+async function loadAnnonces(batch = true) {
+  document.getElementById("spinner").style.display = "flex";
 
   try {
-    const usersSnap = await getDocs(collection(db, "users"));
-    const byEmail = {};
-    const byId = {};
-    usersSnap.forEach(uDoc => {
-      const u = uDoc.data() || {};
-      byId[uDoc.id] = u;
-      const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-      if(email) byEmail[email] = u;
-    });
-    window.__usersCache = { byEmail, byId };
-  } catch(err) {
-    console.error("Erreur chargement users:", err);
-    window.__usersCache = { byEmail: {}, byId: {} };
-  }
-}
+    if(batch && lastVisibleDoc && annoncesData.length > 0){
+      // charger le lot suivant
+      const annoncesQuery = query(
+        collection(db, "annonces"),
+        orderBy("createdAt","desc"),
+        startAfter(lastVisibleDoc),
+        limit(batchSize)
+      );
+      const snap = await getDocs(annoncesQuery);
+      if(snap.empty) return; // plus d'annonces
+      snap.forEach(docSnap=>{
+        const data = docSnap.data();
+        data.id = docSnap.id;
+        annoncesData.push(data);
+      });
+      lastVisibleDoc = snap.docs[snap.docs.length-1];
+    } else if(!batch || annoncesData.length === 0) {
+      // premier lot
+      const annoncesQuery = query(
+        collection(db, "annonces"),
+        orderBy("createdAt","desc"),
+        limit(batchSize)
+      );
+      const snap = await getDocs(annoncesQuery);
+      if(snap.empty){ 
+        annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
+        document.getElementById("spinner").style.display = "none";
+        return; 
+      }
+      annoncesData = [];
+      snap.forEach(docSnap=>{
+        const data = docSnap.data();
+        data.id = docSnap.id;
+        annoncesData.push(data);
+      });
+      lastVisibleDoc = snap.docs[snap.docs.length-1];
+    }
 
-
-async function loadAnnoncesFromFirestore() {
-  if(!sessionStorage.getItem("annoncesCache")) {
-    document.getElementById("spinner").style.display = "flex";
-  }
-
-  try {
-    const annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt","desc"));
-    const annoncesSnap = await getDocs(annoncesQuery);
-
-    annoncesData = [];
-    annoncesSnap.forEach(docSnap => {
-      const data = docSnap.data();
-      data.id = docSnap.id;
-      annoncesData.push(data);
-    });
-
-    sessionStorage.setItem("annoncesCache", JSON.stringify(annoncesData));
-    applyAllFilters();  
+    // appliquer filtres et pagination
+    applyAllFilters();
   } catch(err){
     console.error("Erreur chargement annonces:", err);
     annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
@@ -394,10 +398,7 @@ async function loadAnnoncesFromFirestore() {
   }
 }
 
-
   
-     
-
   
 function escapeHTML(str) {
   if (!str) return "";
@@ -423,7 +424,23 @@ async function renderAnnonces(filtered) {
   const end = start + annoncesPerPage;
   const pageItems = filtered.slice(start, end);
 
-  
+  if (!window.__usersCache) {
+    try {
+      const usersSnap = await getDocs(collection(db, "users"));
+      const byEmail = {};
+      const byId = {};
+      usersSnap.forEach(uDoc => {
+        const u = uDoc.data() || {};
+        byId[uDoc.id] = u;
+        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+        if (email) byEmail[email] = u;
+      });
+      window.__usersCache = { byEmail, byId };
+    } catch (err) {
+      console.error("Erreur chargement users:", err);
+      window.__usersCache = { byEmail: {}, byId: {} };
+    }
+  }
 
   for (const a of pageItems) {
     const docId = escapeHTML(a.id || "");
@@ -670,18 +687,14 @@ function applyAllFilters() {
   else if(sortOrder === "desc") filtered.sort((a,b)=>(b.price||0)-(a.price||0));
   renderAnnonces(filtered);}
 
-
-  // Initialisation des filtres et recherche
-setupCategoryFilters();
-setupSearchAndSort();
-setupFilterMenu();
-
-if(!sessionStorage.getItem("annoncesCache")) {
-  loadAnnoncesFromFirestore();
-} else {
-  annoncesData = JSON.parse(sessionStorage.getItem("annoncesCache"));
-  applyAllFilters();
-}
+  window.addEventListener('scroll', () => {
+  if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 300){
+    if(!loadingBatch){
+      loadingBatch = true;
+      loadAnnonces(true).finally(()=>{ loadingBatch=false; });
+    }
+  }
+});
 
 </script>  
 </body>
