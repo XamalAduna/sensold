@@ -344,8 +344,11 @@ async function loadAnnonces() {
   document.getElementById("spinner").style.display = "flex";
 
   try {
-    const annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt","desc"));
-    const annoncesSnap = await getDocs(annoncesQuery);
+    const annoncesQuery = query(
+    collection(db, "annonces"),
+    orderBy("createdAt", "desc"),
+    limit(20) );
+    const snapshot = await getDocs(annoncesQuery);
 
     if(annoncesSnap.empty){ 
       annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
