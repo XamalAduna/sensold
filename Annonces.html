@@ -315,10 +315,6 @@ let sortOrder = "default";
 let currentPage = 1;
 const annoncesPerPage = 10;
 
-let lastVisible = null; // garde en mémoire la dernière annonce chargée
-let hasMoreAnnonces = true; // pour arrêter quand il n’y a plus d’annonces
-
-
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
@@ -343,59 +339,55 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-async function loadAnnonces(initial = true) {
-  if (!hasMoreAnnonces) return;
-
-  if(initial){
-    annoncesContainer.innerHTML = "";
-    document.getElementById("spinner").style.display = "flex";
-    annoncesData = [];
-    lastVisible = null;
-    hasMoreAnnonces = true;
-  }
+async function loadAnnonces() {
+  annoncesContainer.innerHTML = "";
+  document.getElementById("spinner").style.display = "flex";
 
   try {
-    
-    let annoncesQueryRef;
+    const annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt","desc"));
+    const annoncesSnap = await getDocs(annoncesQuery);
 
-if(lastVisible){
-  annoncesQueryRef = query(
-    collection(db, "annonces"),
-    orderBy("createdAt","desc"),
-    startAfter(lastVisible),
-    limit(20)
-  );
-} else {
-  annoncesQueryRef = query(
-    collection(db, "annonces"),
-    orderBy("createdAt","desc"),
-    limit(20)
-  );
-}
-
-
-    const snap = await getDocs(annoncesQueryRef);
-    if(snap.empty){
-      hasMoreAnnonces = false;
-      return;
+    if(annoncesSnap.empty){ 
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
+      document.getElementById("spinner").style.display = "none";
+      return; 
     }
 
-    lastVisible = snap.docs[snap.docs.length - 1];
-
-    snap.forEach(docSnap => {
+    annoncesData = [];
+    annoncesSnap.forEach(docSnap => {
       const data = docSnap.data();
       data.id = docSnap.id;
       annoncesData.push(data);
     });
 
+    if (!window.__usersCache) {
+      try {
+        const usersSnap = await getDocs(collection(db, "users"));
+        const byEmail = {};
+        const byId = {};
+        usersSnap.forEach(uDoc => {
+          const u = uDoc.data() || {};
+          byId[uDoc.id] = u;
+          const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+          if(email) byEmail[email] = u;
+        });
+        window.__usersCache = { byEmail, byId };
+      } catch(err) {
+        console.error("Erreur chargement users:", err);
+        window.__usersCache = { byEmail: {}, byId: {} };
+      }
+    }
+    setupCategoryFilters();
+    setupSearchAndSort();
+    setupFilterMenu();
     applyAllFilters();
-  } catch(err) {
-    console.error("Erreur chargement annonces :", err);
+  } catch(err){
+    console.error("Erreur chargement annonces:", err);
+    annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   } finally {
-    document.getElementById("spinner").style.display = "none";
+    document.getElementById("spinner").style.display = "none"; 
   }
 }
-
   
 function escapeHTML(str) {
   if (!str) return "";
@@ -683,12 +675,6 @@ function applyAllFilters() {
   if(sortOrder === "asc") filtered.sort((a,b)=>(a.price||0)-(b.price||0));
   else if(sortOrder === "desc") filtered.sort((a,b)=>(b.price||0)-(a.price||0));
   renderAnnonces(filtered);}
-
-window.addEventListener("scroll", () => {
-  if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 300){
-    loadAnnonces(false);
-  }
-});
 </script>  
 </body>
 </html>
