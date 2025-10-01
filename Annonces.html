@@ -316,10 +316,6 @@ let sortOrder = "default";
 let currentPage = 1;
 const annoncesPerPage = 10;
 
-let lastVisibleDoc = null; // pour le lot suivant
-const batchSize = 20;
-let loadingBatch = false;
-
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
@@ -344,51 +340,47 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-
-
-async function loadAnnonces(batch = true) {
+async function loadAnnonces() {
+  annoncesContainer.innerHTML = "";
   document.getElementById("spinner").style.display = "flex";
 
   try {
-    if(batch && lastVisibleDoc && annoncesData.length > 0){
-      // charger le lot suivant
-      const annoncesQuery = query(
-        collection(db, "annonces"),
-        orderBy("createdAt","desc"),
-        startAfter(lastVisibleDoc),
-        limit(batchSize)
-      );
-      const snap = await getDocs(annoncesQuery);
-      if(snap.empty) return; // plus d'annonces
-      snap.forEach(docSnap=>{
-        const data = docSnap.data();
-        data.id = docSnap.id;
-        annoncesData.push(data);
-      });
-      lastVisibleDoc = snap.docs[snap.docs.length-1];
-    } else if(!batch || annoncesData.length === 0) {
-      // premier lot
-      const annoncesQuery = query(
-        collection(db, "annonces"),
-        orderBy("createdAt","desc"),
-        limit(batchSize)
-      );
-      const snap = await getDocs(annoncesQuery);
-      if(snap.empty){ 
-        annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
-        document.getElementById("spinner").style.display = "none";
-        return; 
-      }
-      annoncesData = [];
-      snap.forEach(docSnap=>{
-        const data = docSnap.data();
-        data.id = docSnap.id;
-        annoncesData.push(data);
-      });
-      lastVisibleDoc = snap.docs[snap.docs.length-1];
+    const annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt","desc"));
+    const annoncesSnap = await getDocs(annoncesQuery);
+
+    if(annoncesSnap.empty){ 
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
+      document.getElementById("spinner").style.display = "none";
+      return; 
     }
 
-    // appliquer filtres et pagination
+    annoncesData = [];
+    annoncesSnap.forEach(docSnap => {
+      const data = docSnap.data();
+      data.id = docSnap.id;
+      annoncesData.push(data);
+    });
+
+    if (!window.__usersCache) {
+      try {
+        const usersSnap = await getDocs(collection(db, "users"));
+        const byEmail = {};
+        const byId = {};
+        usersSnap.forEach(uDoc => {
+          const u = uDoc.data() || {};
+          byId[uDoc.id] = u;
+          const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+          if(email) byEmail[email] = u;
+        });
+        window.__usersCache = { byEmail, byId };
+      } catch(err) {
+        console.error("Erreur chargement users:", err);
+        window.__usersCache = { byEmail: {}, byId: {} };
+      }
+    }
+    setupCategoryFilters();
+    setupSearchAndSort();
+    setupFilterMenu();
     applyAllFilters();
   } catch(err){
     console.error("Erreur chargement annonces:", err);
@@ -397,8 +389,6 @@ async function loadAnnonces(batch = true) {
     document.getElementById("spinner").style.display = "none"; 
   }
 }
-
-  
   
 function escapeHTML(str) {
   if (!str) return "";
@@ -686,16 +676,6 @@ function applyAllFilters() {
   if(sortOrder === "asc") filtered.sort((a,b)=>(a.price||0)-(b.price||0));
   else if(sortOrder === "desc") filtered.sort((a,b)=>(b.price||0)-(a.price||0));
   renderAnnonces(filtered);}
-
-  window.addEventListener('scroll', () => {
-  if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 300){
-    if(!loadingBatch){
-      loadingBatch = true;
-      loadAnnonces(true).finally(()=>{ loadingBatch=false; });
-    }
-  }
-});
-
 </script>  
 </body>
 </html>
