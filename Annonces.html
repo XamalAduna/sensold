@@ -329,6 +329,7 @@ function timeAgo(timestamp){
 
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
+
   if(user){
     const userRef = doc(db,"users",user.uid);
     const userSnap = await getDoc(userRef);
@@ -336,21 +337,22 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     userFavorites = [];
   }
-  loadAnnonces();
+
+  // Charger annonces depuis sessionStorage si elles existent
+  const cached = sessionStorage.getItem("annoncesCache");
+  if(cached){
+    annoncesData = JSON.parse(cached);
+    applyAllFilters();
+  } else {
+    loadAnnoncesFromFirestore();
+  }
 });
 
-async function loadAnnonces() {
+async function loadAnnoncesFromFirestore() {
   annoncesContainer.innerHTML = "";
   document.getElementById("spinner").style.display = "flex";
 
   try {
-    // Vérifie si les annonces sont déjà en cache
-    if (sessionStorage.getItem("annoncesCache")) {
-      annoncesData = JSON.parse(sessionStorage.getItem("annoncesCache"));
-      applyAllFilters();
-      return; // ne recharge pas depuis Firestore
-    }
-
     const annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt","desc"));
     const annoncesSnap = await getDocs(annoncesQuery);
 
@@ -366,10 +368,9 @@ async function loadAnnonces() {
       annoncesData.push(data);
     });
 
-    // Sauvegarde les annonces dans le cache pour réutilisation
     sessionStorage.setItem("annoncesCache", JSON.stringify(annoncesData));
 
-    // Mise en cache des utilisateurs (tu peux garder ton code actuel)
+    // Mise en cache des utilisateurs (comme avant)
     if (!window.__usersCache) {
       try {
         const usersSnap = await getDocs(collection(db, "users"));
@@ -388,11 +389,7 @@ async function loadAnnonces() {
       }
     }
 
-    setupCategoryFilters();
-    setupSearchAndSort();
-    setupFilterMenu();
     applyAllFilters();
-    
   } catch(err){
     console.error("Erreur chargement annonces:", err);
     annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
@@ -400,6 +397,7 @@ async function loadAnnonces() {
     document.getElementById("spinner").style.display = "none"; 
   }
 }
+
 
 
   
