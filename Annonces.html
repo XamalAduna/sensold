@@ -1,4 +1,3 @@
-
 <!DOCTYPE html> 
 <html lang="fr">
 <head>
@@ -356,12 +355,24 @@ async function loadAnnonces(initial = true) {
   }
 
   try {
-    let annoncesQueryRef = query(
-      collection(db, "annonces"),
-      orderBy("createdAt","desc"),
-      lastVisible ? startAfter(lastVisible) : undefined,
-      limit(20)
-    );
+    
+    let annoncesQueryRef;
+
+if(lastVisible){
+  annoncesQueryRef = query(
+    collection(db, "annonces"),
+    orderBy("createdAt","desc"),
+    startAfter(lastVisible),
+    limit(20)
+  );
+} else {
+  annoncesQueryRef = query(
+    collection(db, "annonces"),
+    orderBy("createdAt","desc"),
+    limit(20)
+  );
+}
+
 
     const snap = await getDocs(annoncesQueryRef);
     if(snap.empty){
