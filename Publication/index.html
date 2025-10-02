@@ -463,12 +463,16 @@ function showAdditionalFields(category, subCategory) {
       field.type = fieldData.type;
     } else if (fieldData.type === 'select') {
       field = document.createElement('select');
+
+      // Placeholder qui sera considéré comme null
       const placeholder = document.createElement('option');
+      placeholder.value = ""; // important : valeur vide
       placeholder.disabled = true;
       placeholder.selected = true;
       placeholder.textContent = `-- Sélectionner ${fieldData.name} --`;
       field.appendChild(placeholder);
 
+      // Ajout des options
       fieldData.options.forEach(optText => {
         const opt = document.createElement('option');
         opt.value = optText;
@@ -476,6 +480,7 @@ function showAdditionalFields(category, subCategory) {
         field.appendChild(opt);
       });
 
+      // Initialisation Materialize
       setTimeout(() => { M.FormSelect.init(field); }, 50);
     }
 
@@ -487,6 +492,7 @@ function showAdditionalFields(category, subCategory) {
     additionalFieldsContainer.appendChild(fieldWrapper);
   });
 }
+
 
 function getAdditionalFieldsData() {
   const data = {};
