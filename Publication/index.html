@@ -523,15 +523,17 @@ function previewImage(input) {
 
       // Ajouter le bouton X
       const removeBtn = document.createElement('span');
+     
       removeBtn.textContent = '×';
       removeBtn.style.position = 'absolute';
       removeBtn.style.top = '2px';
       removeBtn.style.right = '2px';
-      removeBtn.style.background = 'rgba(0,0,0,0.5)';
+      removeBtn.style.background = 'red';
       removeBtn.style.color = 'white';
       removeBtn.style.padding = '2px 6px';
       removeBtn.style.borderRadius = '50%';
       removeBtn.style.cursor = 'pointer';
+      removeBtn.style.fontWeight = 'bold';
       removeBtn.addEventListener('click', () => {
         input.value = "";          // Réinitialiser le input
         img.remove();              // Supprimer l'image
