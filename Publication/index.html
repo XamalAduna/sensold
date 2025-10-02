@@ -706,14 +706,18 @@ adForm.addEventListener('submit', async (e)=>{
     M.toast({html: 'Annonce publiée avec succès !', classes: 'green darken-1'});
 
     adForm.reset();
-    resetDropdowns();
-    images.forEach(img => {
-      const parent = img.parentElement;
-      const preview = parent.querySelector('img');
-      const icon = parent.querySelector('.material-icons');
-      if (preview) preview.remove();
-      if (icon) icon.style.display = 'block';
-    });
+resetDropdowns();
+images.forEach(img => {
+  const parent = img.parentElement;
+  const preview = parent.querySelector('img');
+  const icon = parent.querySelector('.material-icons');
+  const removeBtn = parent.querySelector('span');
+
+  if (preview) preview.remove();         
+  if (icon) icon.style.display = 'block'; 
+  if (removeBtn) removeBtn.remove();   
+});
+
         
     document.getElementById("additionalFieldsContainer").innerHTML = "";
   } catch(err){
