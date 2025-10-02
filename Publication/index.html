@@ -487,6 +487,7 @@ function showAdditionalFields(category, subCategory) {
   });
 }
 
+ 
 function getAdditionalFieldsData() {
   const data = {};
 
@@ -494,10 +495,9 @@ function getAdditionalFieldsData() {
     const key = field.id;
     let value = field.value.trim();
 
-    // Pour les select, si la valeur est vide ou correspond au placeholder, mettre null
     if (field.tagName === 'SELECT') {
-      const placeholderText = field.querySelector('option:disabled')?.textContent.trim();
-      if (!value || value === placeholderText) value = null;
+      // Si la première option est sélectionnée, mettre null
+      if (field.selectedIndex === 0) value = null;
     }
 
     // Pour les inputs, si vide, mettre null
@@ -509,7 +509,7 @@ function getAdditionalFieldsData() {
   return data;
 }
 
-
+ 
 
 const additionalData = getAdditionalFieldsData();
 
