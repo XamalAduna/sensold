@@ -145,13 +145,13 @@ label p {font-size: 20px; margin: 0;}
   <div class="form-section">
     <div class="input-left-icon">
       <i class="fa-brands fa-whatsapp"></i>
-      <input type="tel" id="whatsapp" placeholder="7X XXX XX XX">
+      <input type="tel" id="whatsapp" placeholder="7X 123 45 67">
     </div>
     <div id="whatsappError" class="error-msg">Veuillez saisir un numéro WhatsApp valide.</div>
 
     <div class="input-left-icon">
       <i class="fa-solid fa-phone"></i>
-      <input type="tel" id="telephone" placeholder="7X XXX XX XX">
+      <input type="tel" id="telephone" placeholder="7X 123 45 67">
     </div>
     <div id="telephoneError" class="error-msg">Veuillez saisir un numéro de téléphone valide.</div>
   <div class="button-group">
@@ -524,20 +524,21 @@ function previewImage(input) {
       // Ajouter le bouton X
       const removeBtn = document.createElement('span');
      
-      removeBtn.textContent = '×';
-      removeBtn.style.position = 'absolute';
-      removeBtn.style.top = '2px';
-      removeBtn.style.right = '2px';
-      removeBtn.style.background = 'red';
-      removeBtn.style.color = 'white';
-      removeBtn.style.padding = '2px 6px';
-      removeBtn.style.borderRadius = '50%';
-      removeBtn.style.cursor = 'pointer';
-      removeBtn.style.fontWeight = 'bold';
-      removeBtn.addEventListener('click', () => {
-        input.value = "";          // Réinitialiser le input
-        img.remove();              // Supprimer l'image
-        removeBtn.remove();        // Supprimer le X
+     removeBtn.textContent = '×';
+     removeBtn.style.position = 'absolute';
+     removeBtn.style.top = '2px';
+     removeBtn.style.right = '2px';
+     removeBtn.style.background = 'red';
+     removeBtn.style.color = 'white';
+     removeBtn.style.padding = '4px 8px'; 
+     removeBtn.style.borderRadius = '50%';
+     removeBtn.style.cursor = 'pointer';
+     removeBtn.style.fontWeight = 'bold';
+     removeBtn.style.fontSize = '18px'; 
+     removeBtn.style.lineHeight = '1'; 
+        input.value = "";       
+        img.remove();              
+        removeBtn.remove();       
         if (icon) icon.style.display = 'block';
       });
       input.parentElement.appendChild(removeBtn);
