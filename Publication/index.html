@@ -1,7 +1,8 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8"> 
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Publier une annonce</title>
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
@@ -487,29 +488,15 @@ function showAdditionalFields(category, subCategory) {
   });
 }
 
- 
 function getAdditionalFieldsData() {
   const data = {};
-
   additionalFieldsContainer.querySelectorAll('input, select').forEach(field => {
     const key = field.id;
-    let value = field.value.trim();
-
-    if (field.tagName === 'SELECT') {
-      // Si la première option est sélectionnée, mettre null
-      if (field.selectedIndex === 0) value = null;
-    }
-
-    // Pour les inputs, si vide, mettre null
-    if (field.tagName === 'INPUT' && value === '') value = null;
-
-    data[key] = value;
+    let value = field.value ? field.value.trim() : null;
+    data[key] = value || null;
   });
-
   return data;
 }
-
- 
 
 const additionalData = getAdditionalFieldsData();
 
