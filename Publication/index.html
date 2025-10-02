@@ -508,15 +508,39 @@ const additionalData = getAdditionalFieldsData();
 
 function previewImage(input) {
   if (!input.files || !input.files[0]) return;
+
   const reader = new FileReader();
   reader.onload = e => {
     let icon = input.parentElement.querySelector('.material-icons');
     let img = input.parentElement.querySelector('img');
+
+    // Si l'image n'existe pas encore, créer l'élément img et le X
     if (!img) {
       img = document.createElement('img');
       input.parentElement.appendChild(img);
+
       if (icon) icon.style.display = 'none';
+
+      // Ajouter le bouton X
+      const removeBtn = document.createElement('span');
+      removeBtn.textContent = '×';
+      removeBtn.style.position = 'absolute';
+      removeBtn.style.top = '2px';
+      removeBtn.style.right = '2px';
+      removeBtn.style.background = 'rgba(0,0,0,0.5)';
+      removeBtn.style.color = 'white';
+      removeBtn.style.padding = '2px 6px';
+      removeBtn.style.borderRadius = '50%';
+      removeBtn.style.cursor = 'pointer';
+      removeBtn.addEventListener('click', () => {
+        input.value = "";          // Réinitialiser le input
+        img.remove();              // Supprimer l'image
+        removeBtn.remove();        // Supprimer le X
+        if (icon) icon.style.display = 'block';
+      });
+      input.parentElement.appendChild(removeBtn);
     }
+
     img.src = e.target.result;
   }
   reader.readAsDataURL(input.files[0]);
