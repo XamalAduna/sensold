@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -61,11 +60,8 @@ label p {font-size: 20px; margin: 0;}
 </style>
 </head>
 <body>
- 
-
 <div class="form-container">
 <h1>Publier une annonce</h1>
-
 <span class="material-icons closeBtnX" onclick="window.location.href='../index.html'" 
       style="position:absolute; top:15px; right:15px; font-size:28px; color:#333; cursor:pointer; transition:0.3s;">
   close
@@ -194,37 +190,9 @@ const quartierInput = document.getElementById('quartier');
 
 const additionalFieldsContainer = document.getElementById("additionalFieldsContainer");
 
-const categoryLabels = {
-  vehicules: 'Véhicules',
-  immobilier: 'Immobilier',
-  electronique: 'Électronique',
-  mode: 'Mode & Beauté',
-  electromenager: 'Électroménager',
-  maison: 'Pour la maison',
-  emplois: 'Emplois',
-  services: 'Services',
-  enfant: "Pour l'enfant",
-  sports_loisirs: 'Sports & Loisirs',
-  alimentation: 'Alimentation',
-  animaux: 'Animaux',
-  materiel_pro: 'Matériel Pro'
-};
+const categoryLabels = {vehicules: 'Véhicules',immobilier: 'Immobilier', electronique: 'Électronique',mode: 'Mode & Beauté',electromenager: 'Électroménager',maison: 'Pour la maison',emplois: 'Emplois',services: 'Services',enfant: "Pour l'enfant",sports_loisirs: 'Sports & Loisirs',alimentation: 'Alimentation',animaux: 'Animaux',materiel_pro: 'Matériel Pro' };
 
-const categoryIcons = {
-  vehicules: 'directions_car',
-  immobilier: 'apartment',
-  electronique: 'devices',
-  mode: 'checkroom',
-  electromenager: 'kitchen',
-  maison: 'king_bed',
-  emplois: 'work',
-  services: 'handshake',
-  enfant: 'child_friendly',
-  sports_loisirs: 'sports',
-  alimentation: 'restaurant',
-  animaux: 'pets',
-  materiel_pro: 'build'
-};
+const categoryIcons = {vehicules: 'directions_car',immobilier: 'apartment',electronique: 'devices',mode: 'checkroom',electromenager: 'kitchen', maison: 'king_bed',emplois: 'work',services: 'handshake',enfant: 'child_friendly', sports_loisirs: 'sports',alimentation: 'restaurant', animaux: 'pets',materiel_pro: 'build'};
 
 let categoriesMap = {};
 let quartiersDakar = [];
@@ -464,15 +432,13 @@ function showAdditionalFields(category, subCategory) {
     } else if (fieldData.type === 'select') {
       field = document.createElement('select');
 
-      // Placeholder qui sera considéré comme null
       const placeholder = document.createElement('option');
-      placeholder.value = ""; // important : valeur vide
+      placeholder.value = ""; 
       placeholder.disabled = true;
       placeholder.selected = true;
       placeholder.textContent = `-- Sélectionner ${fieldData.name} --`;
       field.appendChild(placeholder);
 
-      // Ajout des options
       fieldData.options.forEach(optText => {
         const opt = document.createElement('option');
         opt.value = optText;
@@ -480,7 +446,6 @@ function showAdditionalFields(category, subCategory) {
         field.appendChild(opt);
       });
 
-      // Initialisation Materialize
       setTimeout(() => { M.FormSelect.init(field); }, 50);
     }
 
@@ -493,7 +458,6 @@ function showAdditionalFields(category, subCategory) {
   });
 }
 
-
 function getAdditionalFieldsData() {
   const data = {};
   additionalFieldsContainer.querySelectorAll('input, select').forEach(field => {
@@ -505,23 +469,18 @@ function getAdditionalFieldsData() {
 }
 
 const additionalData = getAdditionalFieldsData();
-
 function previewImage(input) {
   if (!input.files || !input.files[0]) return;
-
   const reader = new FileReader();
   reader.onload = e => {
     let icon = input.parentElement.querySelector('.material-icons');
     let img = input.parentElement.querySelector('img');
-
-    // Si l'image n'existe pas encore, créer l'élément img et le X
     if (!img) {
       img = document.createElement('img');
       input.parentElement.appendChild(img);
 
       if (icon) icon.style.display = 'none';
 
-      // Ajouter le bouton X
       const removeBtn = document.createElement('span');
       removeBtn.textContent = '×';
       removeBtn.style.position = 'absolute';
@@ -646,13 +605,11 @@ function cleanAdditionalData(data) {
   }
   return cleaned;
 }
-
 const adForm = document.getElementById('adForm');
 const loader = document.getElementById('loader');
 adForm.addEventListener('submit', async (e)=>{
   e.preventDefault();
   let isValid = true;
-
   const images = adForm.querySelectorAll('input[type="file"]');
   let selectedImages = 0;
   images.forEach(img=>{ if(img.files.length>0) selectedImages++; });
@@ -699,7 +656,6 @@ adForm.addEventListener('submit', async (e)=>{
 
   try {
     loader.style.display = 'flex';
-
     const imageFiles = Array.from(images).filter(input=>input.files[0]).map(i=>i.files[0]);
     const imageUrls = [];
     const userId = auth.currentUser.uid;
@@ -768,8 +724,6 @@ adForm.addEventListener('submit', async (e)=>{
   }
 });
 </script>
-
-
 
 <script>
 const description = document.getElementById('description');
