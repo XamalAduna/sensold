@@ -316,6 +316,9 @@ let sortOrder = "default";
 let currentPage = 1;
 const annoncesPerPage = 10;
 
+
+
+
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
@@ -340,12 +343,26 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
+  
 async function loadAnnonces() {
   annoncesContainer.innerHTML = "";
   document.getElementById("spinner").style.display = "flex";
 
   try {
-    const annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt","desc"));
+    // Vérifier le cache
+    if (sessionStorage.getItem("annoncesCache")) {
+      annoncesData = JSON.parse(sessionStorage.getItem("annoncesCache"));
+      applyAllFilters();
+      document.getElementById("spinner").style.display = "none";
+      return;
+    }
+
+    const annoncesQuery = query(
+  collection(db, "annonces"),
+  orderBy("createdAt","desc"),
+  limit(50) // charge seulement les 50 dernières annonces
+);
+
     const annoncesSnap = await getDocs(annoncesQuery);
 
     if(annoncesSnap.empty){ 
@@ -361,27 +378,28 @@ async function loadAnnonces() {
       annoncesData.push(data);
     });
 
+    // Sauvegarder dans le cache
+    sessionStorage.setItem("annoncesCache", JSON.stringify(annoncesData));
+
+    // Charger users cache
     if (!window.__usersCache) {
-      try {
-        const usersSnap = await getDocs(collection(db, "users"));
-        const byEmail = {};
-        const byId = {};
-        usersSnap.forEach(uDoc => {
-          const u = uDoc.data() || {};
-          byId[uDoc.id] = u;
-          const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-          if(email) byEmail[email] = u;
-        });
-        window.__usersCache = { byEmail, byId };
-      } catch(err) {
-        console.error("Erreur chargement users:", err);
-        window.__usersCache = { byEmail: {}, byId: {} };
-      }
+      const usersSnap = await getDocs(collection(db, "users"));
+      const byEmail = {};
+      const byId = {};
+      usersSnap.forEach(uDoc => {
+        const u = uDoc.data() || {};
+        byId[uDoc.id] = u;
+        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+        if(email) byEmail[email] = u;
+      });
+      window.__usersCache = { byEmail, byId };
     }
+
     setupCategoryFilters();
     setupSearchAndSort();
     setupFilterMenu();
     applyAllFilters();
+
   } catch(err){
     console.error("Erreur chargement annonces:", err);
     annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
@@ -389,6 +407,11 @@ async function loadAnnonces() {
     document.getElementById("spinner").style.display = "none"; 
   }
 }
+
+
+
+
+  
   
 function escapeHTML(str) {
   if (!str) return "";
