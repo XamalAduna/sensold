@@ -489,13 +489,17 @@ function showAdditionalFields(category, subCategory) {
 
 function getAdditionalFieldsData() {
   const data = {};
+  
   additionalFieldsContainer.querySelectorAll('input, select').forEach(field => {
     const key = field.id;
-    let value = field.value ? field.value.trim() : null;
-    data[key] = value || null;
+    // si vide, mettre null
+    const value = field.value.trim();
+    data[key] = value === "" ? null : value;
   });
+
   return data;
 }
+
 
 const additionalData = getAdditionalFieldsData();
 
