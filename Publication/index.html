@@ -489,16 +489,26 @@ function showAdditionalFields(category, subCategory) {
 
 function getAdditionalFieldsData() {
   const data = {};
-  
+
   additionalFieldsContainer.querySelectorAll('input, select').forEach(field => {
     const key = field.id;
-    // si vide, mettre null
-    const value = field.value.trim();
-    data[key] = value === "" ? null : value;
+    let value = field.value.trim();
+
+    // Pour les select, si la valeur est vide ou correspond au placeholder, mettre null
+    if (field.tagName === 'SELECT') {
+      const placeholderText = field.querySelector('option:disabled')?.textContent.trim();
+      if (!value || value === placeholderText) value = null;
+    }
+
+    // Pour les inputs, si vide, mettre null
+    if (field.tagName === 'INPUT' && value === '') value = null;
+
+    data[key] = value;
   });
 
   return data;
 }
+
 
 
 const additionalData = getAdditionalFieldsData();
