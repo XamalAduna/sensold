@@ -106,7 +106,6 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
-    // ...
   const annoncesSnap = await getDocs(collection(db,"annonces"));
   const annonces = [];
   annoncesSnap.forEach(d=>{
@@ -117,17 +116,17 @@ onAuthStateChanged(auth, async (user) => {
     }
   });
 
+  // 🔹 Tri : les annonces les plus récentes en haut
+  annonces.sort((a, b) => {
+    if (!a.createdAt) return 1;
+    if (!b.createdAt) return -1;
+    return b.createdAt.toDate() - a.createdAt.toDate();
+  });
+
   if(annonces.length === 0){
     container.innerHTML = "<p>Vous n'avez publié aucune annonce.</p>";
     return;
   }
-
-  // ✅ TRIER les annonces : plus récentes d'abord
-  annonces.sort((a,b)=>{
-    if(!a.createdAt) return 1;
-    if(!b.createdAt) return -1;
-    return b.createdAt.toDate() - a.createdAt.toDate();
-  });
 
   container.innerHTML = "";
   annonces.forEach(a => {
@@ -135,18 +134,18 @@ onAuthStateChanged(auth, async (user) => {
     const card = document.createElement("div");
     card.className = "annonce-card";
     card.innerHTML = `
-      <img src="${a.images?.[0] || 'https://via.placeholder.com/400x200?text=Annonce'}" alt="${a.title || 'Annonce'}">
-      <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
-      <div class="content">
-        <p class="price">${a.price ? a.price + " FCFA" : "Prix sur demande"}</p>
-        <h3 class="title">${a.title || "Sans titre"}</h3>
-        <p class="location">📍 ${a.city || "Ville non précisée"}${quartier}</p>
-      </div>
-      <div class="actions">
-        <button class="edit">✏️ Modifier</button>
-        <button class="delete">🗑️ Supprimer</button>
-      </div>
-    `;
+  <img src="${a.images?.[0] || 'https://via.placeholder.com/400x200?text=Annonce'}" alt="${a.title || 'Annonce'}">
+  <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
+  <div class="content">
+    <p class="price">${a.price ? a.price + " FCFA" : "Prix sur demande"}</p>
+    <h3 class="title">${a.title || "Sans titre"}</h3>
+    <p class="location">📍 ${a.city || "Ville non précisée"}${quartier}</p>
+  </div>
+  <div class="actions">
+    <button class="edit">✏️ Modifier</button>
+    <button class="delete">🗑️ Supprimer</button>
+  </div>
+`;
 
     card.querySelector(".edit").addEventListener("click", e=>{
       e.stopPropagation();
@@ -161,7 +160,7 @@ onAuthStateChanged(auth, async (user) => {
 
     container.appendChild(card);
   });
-
+});
 
 confirmDeleteBtn.addEventListener("click", async ()=>{
   if(annonceToDelete){
