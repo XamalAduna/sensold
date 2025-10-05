@@ -5,82 +5,25 @@
   <title>Inscription</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <style>
-    
-    body {
-      font-family: Arial, sans-serif;
-      background: #f3f3f3;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      margin: 0;
-      padding: 0;
-    }
-    .form-container {
-      background: #fff;
-      padding: 25px;
-      border-radius: 10px;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-      width: 90%;
-      max-width: 400px;
-      position: relative;
-      box-sizing: border-box;
-      margin: 10px;
-    }
+    body {font-family: Arial, sans-serif;background: #f3f3f3;display: flex;justify-content: center;align-items: center;min-height: 100vh;margin: 0;padding: 0;}
+    .form-container { position: relative;background: #fff;padding: 25px;border-radius: 10px;box-shadow: 0 5px 15px rgba(0,0,0,0.2);width: 90%;max-width: 400px; position: relative;box-sizing: border-box; margin: 10px;}
     h2 { text-align: center; margin-bottom: 20px; }
     .form-group { margin-bottom: 15px; }
     label { display: block; font-weight: bold; margin-bottom: 5px; }
-    input[type="text"], input[type="email"], input[type="password"] {
-      width: 100%;
-      padding: 10px;
-      border-radius: 5px;
-      border: 1px solid #ccc;
-      box-sizing: border-box;
-      font-size: 16px; /* empêche le zoom forcé sur iOS */
-    }
+    input[type="text"], input[type="email"], input[type="password"] {width: 100%;padding: 10px; border-radius: 5px;border: 1px solid #ccc;box-sizing: border-box;font-size: 16px; }
     input:focus { border-color: #009688; outline: none; }
     .error { color: red; font-size: 13px; margin-top: 3px; }
     .success { color: green; font-size: 14px; margin-top: 10px; text-align: center; }
     .password-wrapper { position: relative; }
-    .toggle-password {
-      position: absolute;
-      right: 10px;
-      top: 50%;
-      transform: translateY(-50%);
-      cursor: pointer;
-      font-size: 18px;
-      color: #666;
-    }
-    button {
-      width: 100%;
-      padding: 12px;
-      background: #009688;
-      border: none;
-      color: white;
-      font-size: 16px;
-      border-radius: 5px;
-      cursor: pointer;
-    }
+    .toggle-password { position: absolute;right: 10px;top: 50%;transform: translateY(-50%);cursor: pointer;font-size: 18px;color: #666;}
+    button { width: 100%;padding: 12px;background: #009688;border: none;color: white;font-size: 16px;border-radius: 5px;cursor: pointer;}
     button:hover { background: #00796B; }
     .checkbox-group { margin-bottom: 15px; }
-
-    /* Loader */
-    .loader {
-      display: none;
-      border: 4px solid #f3f3f3;
-      border-top: 4px solid #009688;
-      border-radius: 50%;
-      width: 30px;
-      height: 30px;
-      animation: spin 1s linear infinite;
-      margin: 15px auto;
-    }
+    .loader {display: none;border: 4px solid #f3f3f3; border-top: 4px solid #009688;border-radius: 50%;width: 30px; height: 30px; animation: spin 1s linear infinite;margin: 15px auto;}
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
-
-    /* Responsive */
     @media (max-width: 600px) {
       .form-container {
         padding: 20px;
@@ -95,6 +38,7 @@
 </head>
 <body>
   <div class="form-container">
+    <div class="brand-text">SenSold</div>
     <h2>Inscription</h2>
     <form id="registerForm" novalidate>
       <div class="form-group">
@@ -102,13 +46,11 @@
         <input type="text" id="fullName" required>
         <div class="error" id="fullNameError"></div>
       </div>
-
       <div class="form-group">
         <label>Email</label>
         <input type="email" id="email" required>
         <div class="error" id="emailError"></div>
       </div>
-
       <div class="form-group password-wrapper">
         <label>Mot de passe</label>
         <input type="password" id="password" required>
@@ -122,7 +64,6 @@
         <span class="toggle-password" onclick="togglePassword('confirmPassword', this)">👁️</span>
         <div class="error" id="confirmPasswordError"></div>
       </div>
-
       <div class="checkbox-group">
         <input type="checkbox" id="acceptTerms" required>
         <label for="acceptTerms">
@@ -130,18 +71,15 @@
         </label>
         <div class="error" id="acceptTermsError"></div>
       </div>
-
       <div class="form-group">
         <div id="recaptcha"></div>
         <div class="error" id="recaptchaError"></div>
       </div>
-
       <button type="submit">S'inscrire</button>
       <div class="loader" id="loader"></div>
       <div id="globalMessage"></div>
     </form>
   </div>
-
   <script>
     function togglePassword(fieldId, el) {
       const field = document.getElementById(fieldId);
@@ -149,7 +87,6 @@
       el.textContent = field.type === "password" ? "👁️" : "🙈";
     }
   </script>
-
   <!-- reCAPTCHA -->
   <script src="https://www.google.com/recaptcha/api.js?onload=initRecaptcha&render=explicit&hl=fr" async defer></script>
   <script>
@@ -160,7 +97,6 @@
       });
     }
   </script>
-
   <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, sendEmailVerification, signOut } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
@@ -207,26 +143,17 @@ registerForm.addEventListener("submit", async (e) => {
   if (!recaptchaResponse) { document.getElementById("recaptchaError").textContent = "Veuillez valider le reCAPTCHA."; valid = false; }
 
   if (!valid) return;
-
   try {
     loader.style.display = "block";
-
     const userCredential = await createUserWithEmailAndPassword(auth, emailValue, passwordValue);
     const user = userCredential.user;
-
-    // Envoyer l'email de vérification
     await sendEmailVerification(user, {
       url: "https://xamaladuna.github.io/Autoparts/baba.html"
     });
-
-    // Enregistrer l'utilisateur dans Firestore
     await setDoc(doc(db, "users", user.uid), {
       fullName, email: emailValue, createdAt: new Date(), emailVerified: false
     });
-
-    // Déconnecter l'utilisateur immédiatement
     await signOut(auth);
-
     globalMessage.textContent = "✅ Inscription réussie ! Vérifiez votre boîte mail pour confirmer votre compte avant de vous connecter.";
     globalMessage.className = "success";
     registerForm.reset();
@@ -244,9 +171,5 @@ registerForm.addEventListener("submit", async (e) => {
   }
 });
 </script>
-
-
-
- 
 </body>
 </html>
