@@ -69,15 +69,21 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 
 .seller-info .boutique-pro {
   position: absolute;
-  right: 8px;
+  right: 6px;
   top: 50%;
   transform: translateY(-50%);
-  color: #00C853 !important;   /* Vert CoinAfrique */
-  font-size: 55px !important;  /* Flèche très grande */
+  color: #00C853;           /* vert vif */
+  font-size: clamp(35px, 4vw, 60px); /* s’adapte à la taille de l’écran */
+  font-weight: 900;         /* flèche dense et pleine */
   line-height: 1;
-  background: none !important; /* Aucun fond */
-  display: inline-block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  padding: 0;
+  overflow: visible;        /* évite qu’elle soit coupée */
 }
+
 
 
 </style>
