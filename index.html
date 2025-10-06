@@ -23,19 +23,15 @@
     .upload-btn { background-color:#009688 ; color: white; padding: 10px 20px; margin-top: 15px; cursor: pointer; font-weight: bold; border: none; border-radius: 5px; display: inline-block; }
     .upload-btn:hover { background-color: #00796B; }
     input[type="file"] { display: none; }
-
     .upload-loader { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 10; display: flex; justify-content: center; align-items: center; }
     .upload-loader div { border: 4px solid rgba(255, 255, 255, 0.3); border-top: 4px solid #ffffff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg);}}
-
     #mobile-nav { display: none; }
-
     #notLoggedMsg {display: none;position: fixed;top: 20%;left: 50%;transform: translateX(-50%);background: #f44336;color: white;padding: 20px;border-radius: 10px;z-index: 9999;text-align: center;}
     #notLoggedMsg a { color: #fff; font-weight: bold; text-decoration: underline; }
    .nav-wrapper {position: fixed;top: 0;left: 0;width: 100%;z-index: 1000;}
     #logoutModal { position: fixed !important;top: 50% !important;left: 50% !important;transform: translate(-50%, -50%) !important;z-index: 11000 !important;}
-    
-body {padding-top: 64px;}
+    body {padding-top: 64px;}
   @keyframes popIn {
   0% {
     transform: scale(0.95);
@@ -55,7 +51,6 @@ body {padding-top: 64px;}
 </style>
 </head>
 <body>
-
 <header>
   <nav class="nav-wrapper teal darken-2">
     <div class="container">
@@ -63,7 +58,6 @@ body {padding-top: 64px;}
       <a href="#" data-target="mobile-nav" class="sidenav-trigger right"><i class="material-icons">menu</i></a>
     </div>
   </nav>
-
   <ul class="sidenav" id="mobile-nav">
     <li class="close-menu">
       <span class="site-name">SenSold</span>
@@ -79,8 +73,6 @@ body {padding-top: 64px;}
        
         <label for="profileImageInput" class="upload-btn">Changer l'image</label>
         <input type="file" id="profileImageInput" accept="image/*">
-
-        
         <form id="editProfileForm" style="margin-top: 15px; text-align:center;">
           <input type="text" id="fullNameInput" placeholder="Prénom et Nom" style="margin-top: 10px; width: 80%; padding: 5px; border-radius: 5px;">
           <button type="submit" class="upload-btn" style="margin-top: 10px;">Mettre à jour</button>
@@ -94,7 +86,6 @@ body {padding-top: 64px;}
     <li><a href="#" id="logout"><i class="material-icons">logout</i> Se déconnecter</a></li>
   </ul>
 </header>
-
 
 <div id="notLoggedMsg">
   Vous devez être connecté pour accéder au menu. <br>
@@ -119,7 +110,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/fireba
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-storage.js";
-
 
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
@@ -163,7 +153,6 @@ document.addEventListener('DOMContentLoaded', function() {
     window.location.href = "index.html";
   });
 
-  
   const menuTrigger = document.querySelector('.sidenav-trigger');
   const userNameElem = document.getElementById("userName");
   const userEmailElem = document.getElementById("userEmail");
@@ -201,7 +190,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  
   showEditBtn.addEventListener("click", () => {
     editContainer.style.display = editContainer.style.display === "none" ? "block" : "none";
   });
@@ -281,7 +269,6 @@ document.addEventListener('DOMContentLoaded', function() {
       alert("Erreur lors de la mise à jour du profil.");
     }
   });
-
 });
 
 const publishBtnMain = document.getElementById("publishBtnMain");
@@ -302,27 +289,8 @@ publishBtnMain.addEventListener("click", () => {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js" defer></script>
 
 <div id="mainContent" style="margin-top:0; position: relative;">
-
   <div class="iframe-container"><iframe src="Annonces.html"></iframe></div>
-
-  <button id="publishBtnMain" style="
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background:#009688;
-    color:#fff;
-    border:none;
-    padding:14px 24px;
-    border-radius:50px;
-    cursor:pointer;
-    font-size:16px;
-    box-shadow:0 4px 8px rgba(0,0,0,0.2);
-    z-index:9999;
-    display: flex;
-    align-items: center;
-    gap:8px;
-  ">
+  <button id="publishBtnMain" style="position: fixed;bottom: 20px;left: 50%; transform: translateX(-50%);background:#009688;color:#fff;border:none;padding:14px 24px; border-radius:50px;cursor:pointer;font-size:16px; box-shadow:0 4px 8px rgba(0,0,0,0.2); z-index:9999;display: flex;align-items: center;gap:8px;">
     <span class="material-icons">post_add</span>
     Publier une annonce
   </button>
