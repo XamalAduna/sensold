@@ -155,6 +155,10 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
   <div class="loader"></div>
 </div>
 <div id="annonces" class="annonces-container"></div>
+<div id="notLoggedMsg" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; padding:20px 30px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.25); text-align:center; z-index:99999;">
+  <p>Veuillez vous connecter pour ajouter une annonce à vos favoris.</p>
+  <a href="login.html">Se connecter</a>
+</div>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getFirestore, collection, getDocs, query, orderBy, limit, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
