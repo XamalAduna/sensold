@@ -354,11 +354,35 @@ async function loadAnnonces() {
     }
 
     annoncesData = [];
-    annoncesSnap.forEach(docSnap => {
-      const data = docSnap.data();
-      data.id = docSnap.id;
-      annoncesData.push(data);
-    });
+annoncesSnap.forEach(docSnap => {
+  const data = docSnap.data();
+  data.id = docSnap.id;
+  annoncesData.push(data);
+});
+
+// 🔽 Ajoute ce bloc ici
+// Trier les annonces : boostées d'abord, puis par durée de boostEnd décroissante
+annoncesData.sort((a, b) => {
+  const aBoost = a.isBoosted === true;
+  const bBoost = b.isBoosted === true;
+
+  // Si les deux sont boostées, trier par boostEnd décroissant
+  if (aBoost && bBoost) {
+    const aEnd = a.boostEnd ? new Date(a.boostEnd.seconds * 1000).getTime() : 0;
+    const bEnd = b.boostEnd ? new Date(b.boostEnd.seconds * 1000).getTime() : 0;
+    return bEnd - aEnd;
+  }
+
+  // Si un seul est boosté → il passe avant
+  if (aBoost && !bBoost) return -1;
+  if (!aBoost && bBoost) return 1;
+
+  // Sinon trier par date de création (plus récentes en premier)
+  const aDate = a.createdAt ? new Date(a.createdAt.seconds * 1000).getTime() : 0;
+  const bDate = b.createdAt ? new Date(b.createdAt.seconds * 1000).getTime() : 0;
+  return bDate - aDate;
+});
+
 
     if (!window.__usersCache) {
       try {
