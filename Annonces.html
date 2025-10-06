@@ -67,7 +67,6 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 .location { line-height:1.2; }
 .annonce-card .price, .annonce-card .title { margin:0 5px; line-height:1.2; }
 .seller-info .boutique-pro { position:absolute; right:0; top:50%; transform:translateY(-50%); background:#00796B; color:white; font-size:10px; padding:2px 6px; border-radius:4px; white-space:nowrap; display:none; }
-
 </style>
 </head>
 <body>
@@ -95,7 +94,7 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 <section class="categories">
   <div class="categories-wrapper">
     <div class="categories-scroll">
-      <!-- Exemple : chaque catégorie a un attribut data-cat -->
+     
       <div class="category" data-cat="all">
          <i class="material-icons">apps</i>
         <p>Tous</p>
@@ -325,7 +324,6 @@ function timeAgo(timestamp){
   const days = Math.floor(hours/24);
   return `il y a ${days} j`;
 }
-
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
   if(user){
@@ -356,8 +354,6 @@ async function loadAnnonces() {
     const data = docSnap.data();
     data.id = docSnap.id;
     annoncesData.push(data);});
-
-
 
     if (!window.__usersCache) {
       try {
@@ -498,9 +494,8 @@ async function renderAnnonces(filtered) {
 `;
 
     const titleEl = card.querySelector('.title');
-      if ((a.title || "").length > 30) { // tu peux ajuster 50 à 40 si tu veux
+      if ((a.title || "").length > 30) {
       titleEl.classList.add('long-text');}
-
 
     const favBtn = card.querySelector(".favorite");
     favBtn.addEventListener("click", async e => {
@@ -638,7 +633,6 @@ function setupCategoryFilters() {
           });
         });
       }
-
       applyAllFilters();
     });
   });
@@ -686,33 +680,23 @@ function applyAllFilters() {
         (a.city?.toLowerCase().includes(searchText.toLowerCase()))
       );
 
-  // Tri : boost actif > boostEnd décroissant > prix (si tri choisi) > date création
   filtered.sort((a, b) => {
     const aBoost = isBoostActive(a);
     const bBoost = isBoostActive(b);
-
-    // Si un seul est boosté, il passe avant
     if(aBoost && !bBoost) return -1;
     if(!aBoost && bBoost) return 1;
-
-    // Si les deux sont boostés, trier par boostEnd décroissant
     if(aBoost && bBoost){
       const aEnd = a.boostEnd ? a.boostEnd.toDate ? a.boostEnd.toDate() : new Date(a.boostEnd) : 0;
       const bEnd = b.boostEnd ? b.boostEnd.toDate ? b.boostEnd.toDate() : new Date(b.boostEnd) : 0;
       return bEnd - aEnd;
     }
-
-    // Tri par prix si demandé
     if(sortOrder === "asc") return (a.price || 0) - (b.price || 0);
     if(sortOrder === "desc") return (b.price || 0) - (a.price || 0);
-
-    // Sinon trier par date de création (plus récentes en premier)
     const aDate = a.createdAt ? a.createdAt.seconds * 1000 : 0;
     const bDate = b.createdAt ? b.createdAt.seconds * 1000 : 0;
     return bDate - aDate;
   });
   renderAnnonces(filtered);}
-
 </script>  
 </body>
 </html>
