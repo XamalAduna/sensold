@@ -351,12 +351,12 @@ async function loadAnnonces() {
       document.getElementById("spinner").style.display = "none";
       return; 
     }
-
     annoncesData = [];
     annoncesSnap.forEach(docSnap => {
     const data = docSnap.data();
     data.id = docSnap.id;
     annoncesData.push(data);});
+
 
 
     if (!window.__usersCache) {
@@ -711,9 +711,7 @@ function applyAllFilters() {
     const bDate = b.createdAt ? b.createdAt.seconds * 1000 : 0;
     return bDate - aDate;
   });
-
-  renderAnnonces(filtered);
-}
+  renderAnnonces(filtered);}
 
 </script>  
 </body>
