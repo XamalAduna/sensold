@@ -68,18 +68,15 @@ const firebaseConfig = {
   appId: "1:662485613383:web:c1129a35c335cc95c0ea62",
   measurementId: "G-F3092DTNZY"
 };
-
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth();
 const container = document.getElementById("annonces-container");
-  
 const deleteModal = document.getElementById("deleteModal");
 const confirmDeleteBtn = document.getElementById("confirmDelete");
 const cancelDeleteBtn = document.getElementById("cancelDelete");
 const successMessage = document.getElementById("successMessage");
 let annonceToDelete = null;
-
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
@@ -91,13 +88,10 @@ function timeAgo(timestamp){
   const days = Math.floor(hours/24);
   return `il y a ${days} j`;
 }
-
 onAuthStateChanged(auth, async (user) => {
   if(!user){
     window.location.href = "../index.html";
-    return;
-  }
-
+    return;}
   const annoncesSnap = await getDocs(collection(db,"annonces"));
   const annonces = [];
   annoncesSnap.forEach(d=>{
@@ -107,19 +101,14 @@ onAuthStateChanged(auth, async (user) => {
       annonces.push(data);
     }
   });
-
-  // 🔹 Tri : les annonces les plus récentes en haut
   annonces.sort((a, b) => {
     if (!a.createdAt) return 1;
     if (!b.createdAt) return -1;
     return b.createdAt.toDate() - a.createdAt.toDate();
   });
-
   if(annonces.length === 0){
     container.innerHTML = "<p>Vous n'avez publié aucune annonce.</p>";
-    return;
-  }
-
+    return;}
   container.innerHTML = "";
   annonces.forEach(a => {
     const quartier = a.quartier ? ", " + a.quartier : "";
@@ -139,22 +128,18 @@ onAuthStateChanged(auth, async (user) => {
     <button class="delete">🗑️ Supprimer</button>
   </div>
 `;
-
     card.querySelector(".edit").addEventListener("click", e=>{
       e.stopPropagation();
       window.location.href = `../Edit.html?id=${a.id}`;
     });
-
     card.querySelector(".delete").addEventListener("click", e=>{
       e.stopPropagation();
       annonceToDelete = a;
       deleteModal.style.display = "flex";
     });
-
     container.appendChild(card);
   });
 });
-
 confirmDeleteBtn.addEventListener("click", async ()=>{
   if(annonceToDelete){
     await deleteDoc(doc(db,"annonces",annonceToDelete.id));
