@@ -453,7 +453,6 @@ async function renderAnnonces(filtered) {
           "Utilisateur"
         );
     }
-
     let sellerPhoto =
       (sellerData && (
         sellerData.profileImage ||
@@ -492,15 +491,20 @@ async function renderAnnonces(filtered) {
   </div>
 </div>
 `;
-
     const titleEl = card.querySelector('.title');
       if ((a.title || "").length > 30) {
       titleEl.classList.add('long-text');}
-
     const favBtn = card.querySelector(".favorite");
     favBtn.addEventListener("click", async e => {
       e.stopPropagation();
-      if (!currentUser) { alert("Connectez-vous !"); return; }
+
+      if (!currentUser) {
+      const msg = document.getElementById("notLoggedMsg");
+      msg.style.display = "block";
+      setTimeout(() => { msg.style.display = "none"; }, 3000);
+      return;}
+
+      
       const favRef = doc(db, "users", currentUser.uid);
       if (favBtn.classList.contains("active")) {
         favBtn.classList.remove("active");
