@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <style>
     body {font-family: Arial, sans-serif;display: flex;justify-content: center;align-items: center;min-height: 100vh;background: #f3f3f3;margin: 0;padding: 0;}
-    .container {background: #fff;padding: 30px 20px;border-radius: 10px;box-shadow: 0 5px 15px rgba(0,0,0,0.2);text-align: center;width: 90%;max-width: 400px;box-sizing: border-box;margin: 10px;}
+    .container { position: relative; background: #fff;padding: 30px 20px;border-radius: 10px;box-shadow: 0 5px 15px rgba(0,0,0,0.2);text-align: center;width: 90%;max-width: 400px;box-sizing: border-box;margin: 10px;}
     h1 {color: #009688;margin-bottom: 20px;font-size: 1.5em;}
     p {color: #333;font-size: 1em;}
     a, button {display: inline-block;margin-top: 15px;text-decoration: none;color: #fff;background: #009688;padding: 10px 20px;border-radius: 5px;border: none;cursor: pointer;font-size: 1em;box-sizing: border-box;}
@@ -27,22 +27,21 @@
         font-size: 1em;
       }
     }
+    .brand-text {position: absolute;top: 10px;left: 15px; font-weight: bold;font-size: 18px; color: #009688;}
   </style>
 </head>
 <body>
   <div class="container">
+    <div class="brand-text">SenSold</div>
     <h1 id="status">Vérification en cours...</h1>
     <p id="message">Merci de patienter.</p>
-
     <div class="password-wrapper" id="passwordWrapper" style="display:none;">
       <input type="password" id="newPassword" placeholder="Nouveau mot de passe" />
       <span class="toggle-password" id="togglePassword">👁️</span>
     </div>
-
     <button id="resetBtn" style="display:none;">Réinitialiser</button>
     <a href="https://xamaladuna.github.io/sensold/Connexion/" id="link" style="display:none;">Se connecter</a>
   </div>
-
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
     import { getAuth, applyActionCode, confirmPasswordReset } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
