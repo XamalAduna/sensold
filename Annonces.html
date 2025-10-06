@@ -71,16 +71,22 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
   position: absolute;
   right: 8px;
   top: 50%;
-  transform: translateY(-50%);
-  color: #009688;                /* Vert intense CoinAfrique */
-  font-size: clamp(60px, 10vw, 120px); /* Flèche adaptable et large */
-  font-weight: 1000;             /* Très dense */
+  transform: translateY(-50%) scale(1.2); /* Agrandir et densifier */
+  color: #009688;
+  font-size: clamp(80px, 12vw, 140px); /* plus grande encore */
+  font-weight: 900; 
   line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   background: none;
-  text-shadow: 0 2px 6px rgba(0,0,0,0.3); /* effet robuste, relief */
+  text-shadow: 
+     0 1px 0 #009688,
+     1px 0 0 #009688,
+    -1px 0 0 #009688,
+     0 -1px 0 #009688,
+     1px 1px 0 #009688,
+    -1px -1px 0 #009688; /* rend l’icône plus remplie */
   overflow: visible;
 }
 
