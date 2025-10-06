@@ -215,17 +215,14 @@ document.addEventListener('DOMContentLoaded', function() {
     loader.innerHTML = "<div></div>";
     document.getElementById("userProfile").appendChild(loader);
     loader.style.display = "flex";
-
     try {
       const timestamp = Date.now();
       const newImageName = `profile_${timestamp}.jpg`;
       const storageRef = ref(storage, `profile_images/${user.uid}/${newImageName}`);
       await uploadBytes(storageRef, file);
       const downloadURL = await getDownloadURL(storageRef);
-
       const userDocRef = doc(db, "users", user.uid);
       const userDoc = await getDoc(userDocRef);
-
       if (userDoc.exists()) {
         const oldImageURL = userDoc.data().profileImage || "";
         if (oldImageURL && !oldImageURL.includes("default-profile.jpg")) {
@@ -239,9 +236,7 @@ document.addEventListener('DOMContentLoaded', function() {
           }
         }
       }
-
       await updateDoc(userDocRef, { profileImage: downloadURL });
-
     } catch (err) {
       console.error(err);
       alert("Erreur lors de l'upload de l'image.");
@@ -249,37 +244,30 @@ document.addEventListener('DOMContentLoaded', function() {
       loader.remove();
     }
   });
-
   editProfileForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const user = auth.currentUser;
     if (!user) return alert("Utilisateur non connecté !");
     const fullName = fullNameInput.value.trim();
     if (!fullName) return alert("Veuillez saisir un prénom et nom valides !");
-
     try {
       const userDocRef = doc(db, "users", user.uid);
       await updateDoc(userDocRef, { fullName });
       userNameElem.textContent = fullName;
-
       editContainer.style.display = "none";
       showEditBtn.style.display = "inline-block";
       fullNameInput.value = "";
-
     } catch (err) {
       console.error(err);
       alert("Erreur lors de la mise à jour du profil.");
     }
   });
 });
-
 const publishBtnMain = document.getElementById("publishBtnMain");
 const notLoggedMsg = document.getElementById("notLoggedMsg");
-
 publishBtnMain.addEventListener("click", () => {
   const user = auth.currentUser;
   if(user){
-   
     window.location.href = "Publication/";
   } else {
     notLoggedMsg.style.display = "block";
@@ -287,9 +275,7 @@ publishBtnMain.addEventListener("click", () => {
   }
 });
 </script>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js" defer></script>
-
 <div id="mainContent" style="margin-top:0; position: relative;">
   <div class="iframe-container"><iframe src="Annonces.html"></iframe></div>
   <button id="publishBtnMain" style="position: fixed;bottom: 20px;left: 50%; transform: translateX(-50%);background:#009688;color:#fff;border:none;padding:14px 24px; border-radius:50px;cursor:pointer;font-size:16px; box-shadow:0 4px 8px rgba(0,0,0,0.2); z-index:9999;display: flex;align-items: center;gap:8px;">
