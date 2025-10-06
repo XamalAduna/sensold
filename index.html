@@ -42,12 +42,13 @@
     opacity: 1;
   }
 }
-.modal.open {
-  animation: popIn 0.25s ease-out;}
+.modal.open {animation: popIn 0.25s ease-out;}
 .modal.open {animation: popIn 0.3s ease-out;}
 .iframe-container {position: relative; width: 100%;height: 100vh;}
 .iframe-container iframe {width: 100%;height: 100%;border: none;}
 .sidenav {z-index: 10000 !important;}
+.boost-link { background: linear-gradient(135deg, #ff9800, #f44336); color: white !important; font-weight: bold; border-radius: 30px; margin: 10px 15px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.25); transition: all 0.3s ease; display: block; }
+.boost-link:hover { background: linear-gradient(135deg, #f44336, #ff9800); transform: scale(1.05); }
 </style>
 </head>
 <body>
@@ -83,6 +84,7 @@
     <li><a href="Mes_annonces/"><i class="material-icons">list_alt</i> Mes annonces</a></li>
     <li><a href="Favoris/"><i class="material-icons">favorite</i> Mes favoris</a></li>
     <li><a href="Publication/"><i class="material-icons">post_add</i> Publier une annonce</a></li>
+    <li><a href="Booster/" class="boost-link"><i class="material-icons">flash_on</i> Booster mes annonces</a></li>
     <li><a href="#" id="logout"><i class="material-icons">logout</i> Se déconnecter</a></li>
   </ul>
 </header>
