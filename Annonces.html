@@ -88,33 +88,19 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 }
 
 
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&icon_names=arrow_shape_up" />
 
-.seller {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  position: relative;
-  overflow: visible;
+.material-symbols-outlined {
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 24;
+  font-size: 30px;   /* taille de l’icône */
+  color: #1f1f1f;    /* couleur de l’icône */
 }
 
-.seller-info {
-  position: relative;
-  overflow: visible;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
 
-.seller-info .boutique-pro {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 34px;
-  color: #00796B;
-  padding: 4px;
-  line-height: 1;
-}
 
 </style>
 </head>
@@ -540,7 +526,7 @@ async function renderAnnonces(filtered) {
   <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
   <div class="seller-info">
     <strong>${fullName}</strong>
-    ${isBoostActive(a) ? '<span class="boutique-pro"><span class="material-icons">rocket_launch</span></span>' : ''}
+    ${isBoostActive(a) ? '<span class="boutique-pro"><span class="material-symbols-outlined">arrow_shape_up</span></span>' : ''}
   </div>
 </div>
 `;
