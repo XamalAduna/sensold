@@ -514,14 +514,17 @@ async function renderAnnonces(filtered) {
     sellerPhoto = escapeHTML(sellerPhoto);
     let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
     card.innerHTML = `
-  <img src="${annonceImage}" 
-       loading="lazy"
-       alt="${escapeHTML(a.title || 'Annonce')}"
-       onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
-  <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
-  <span class="material-icons favorite ${isFav ? 'active' : ''}">
-    ${isFav ? 'favorite' : 'favorite_border'}
-  </span>
+  <div class="image-container">
+    <img src="${annonceImage}" 
+         loading="lazy"
+         alt="${escapeHTML(a.title || 'Annonce')}"
+         onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
+    ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
+    <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
+    <span class="material-icons favorite ${isFav ? 'active' : ''}">
+      ${isFav ? 'favorite' : 'favorite_border'}
+    </span>
+  </div>
   <div class="content">
     <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
     <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
@@ -529,12 +532,11 @@ async function renderAnnonces(filtered) {
   </div>
 
   <div class="seller">
-  <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
-  <div class="seller-info">
-    <strong>${fullName}</strong>
-    ${isBoostActive(a) ? '<span class="boutique-pro"><span class="material-symbols-outlined">arrow_shape_up</span></span>' : ''}
+    <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
+    <div class="seller-info">
+      <strong>${fullName}</strong>
+    </div>
   </div>
-</div>
 `;
 
     const titleEl = card.querySelector('.title');
