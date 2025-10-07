@@ -116,17 +116,18 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
   position: absolute;
   bottom: 8px;
   right: 8px;
-  font-size: 40px;              /* ajustable selon la taille voulue */
-  color: green;                  /* couleur verte */
-  background: rgba(255, 255, 255, 0.8);
-  border-radius: 50%;
-  padding: 4px;
-  z-index: 20;                   /* plus haut que l'image et les badges */
-  display: flex;                 /* pour centrer le contenu */
+  font-size: 40px;         /* ajustable selon la taille voulue */
+  color: #00796B;          /* couleur verte */
+  background: transparent;  /* plus de fond blanc */
+  border-radius: 0;        /* pas de cercle car plus de fond */
+  padding: 0;              /* pas de padding pour ne pas cacher l'image */
+  z-index: 20;             /* au-dessus de l'image */
+  display: flex;           
   align-items: center;
   justify-content: center;
-  line-height: 1;                /* éviter le décalage vertical */
+  line-height: 1;          
 }
+
 
 
 
