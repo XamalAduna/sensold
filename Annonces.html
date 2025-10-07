@@ -69,12 +69,6 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 
 .seller-info .boutique-pro { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: #009688; /* Vert intense CoinAfrique */ font-size: clamp(60px, 10vw, 120px); /* Flèche adaptable et large */ font-weight: 1000; /* Très dense */ line-height: 1; display: flex; align-items: center; justify-content: center; background: none; text-shadow: 0 2px 6px rgba(0,0,0,0.3); /* effet robuste, relief */ overflow: visible; }
 
-.boutique-pro svg {
-  width: 32px;
-  height: 32px;
-  fill: #ff6600; /* couleur du boost */
-}
-
 </style>
 </head>
 <body>
@@ -509,7 +503,7 @@ async function renderAnnonces(filtered) {
         : ''
     }
   </div>
-</div>
+</div>;
 
     const titleEl = card.querySelector('.title');
       if ((a.title || "").length > 30) {
