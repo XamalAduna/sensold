@@ -42,21 +42,41 @@ h2 {position:fixed;top:0;left:0;right:0;background:#f7f7f7;z-index:1000;text-ali
 <button class="back-btn" onclick="window.history.back()">✖</button>
 <h2>⚡ Boostage</h2>
 <div id="annonces-container" class="annonces-container"></div>
+  
 <div id="boostModal">
   <div class="modal-content">
     <h3>Choisir un tarif pour booster</h3>
-    <select id="tarifSelect">
+
+    <p style="background:#e0f7fa;padding:10px;border-radius:8px;">
+      📱 Envoyez le paiement au numéro : <strong>+221 78 173 9814</strong><br>
+      (Disponible sur Wave et Orange Money)
+    </p>
+
+    <select id="tarifSelect" required>
       <option value="">-- Sélectionnez un tarif --</option>
       <option value="1000">1000 FCFA - 7 jours</option>
       <option value="2000">2000 FCFA - 14 jours</option>
       <option value="3000">3000 FCFA - 21 jours</option>
     </select>
-    <input type="text" id="clientPhone" placeholder="Votre numéro pour le paiement" />
-    <select id="paymentMethod">
+
+    <input type="text" id="clientPhone" placeholder="Votre numéro pour le paiement" required />
+
+    <select id="paymentMethod" required>
       <option value="">-- Choisir le mode de paiement --</option>
       <option value="Wave">Wave</option>
       <option value="Orange Money">Orange Money</option>
     </select>
+
+    <div style="text-align:left;margin-top:10px;">
+      <label>
+        <input type="checkbox" id="acceptRules" required>
+        J’ai lu et j’accepte les 
+        <a href="regles-paiement.html" target="_blank" style="color:#00796B;text-decoration:underline;">
+          règles de paiement
+        </a>.
+      </label>
+    </div>
+
     <button id="confirmBoost">Confirmer et ouvrir WhatsApp</button>
   </div>
 </div>
@@ -164,12 +184,13 @@ onAuthStateChanged(auth, async (user) => {
 confirmBoost.addEventListener("click", ()=>{
   if(!currentAnnonce) return;
 
-  const tarif = tarifSelect.value;
+  const tarif = tarifSelect.value.trim();
   const clientPhoneValue = document.getElementById("clientPhone").value.trim();
-  const paymentMethodValue = document.getElementById("paymentMethod").value;
+  const paymentMethodValue = document.getElementById("paymentMethod").value.trim();
+  const acceptRules = document.getElementById("acceptRules").checked;
 
-  if(!tarif || !clientPhoneValue || !paymentMethodValue){
-    alert("Veuillez remplir tous les champs : tarif, numéro et mode de paiement.");
+  if(!tarif || !clientPhoneValue || !paymentMethodValue || !acceptRules){
+    alert("Veuillez remplir tous les champs et accepter les règles de paiement avant de continuer.");
     return;
   }
 
@@ -180,12 +201,12 @@ confirmBoost.addEventListener("click", ()=>{
 
   const phone = "221781739814";
   const text = encodeURIComponent(
-    `Bonjour, je m'apprête à payer le boost de l'annonce "${currentAnnonce.title}" sur *Sensold*.\n` +
+    `Bonjour, je souhaite payer le boost de mon annonce "${currentAnnonce.title}" sur *Sensold*.\n\n` +
     `AnnonceID: ${currentAnnonce.id}\n` +
     `Tarif choisi: ${tarif} FCFA (${duree})\n` +
     `Numéro utilisé pour le paiement: ${clientPhoneValue}\n` +
     `Mode de paiement: ${paymentMethodValue}\n\n` +
-    `⚡ Après paiement, j'enverrai la capture d'écran pour activer le boost. Merci !`
+    `✅ J’ai lu et accepté les règles de paiement.`
   );
 
   window.open(`https://wa.me/${phone}?text=${text}`,"_blank");
@@ -193,7 +214,9 @@ confirmBoost.addEventListener("click", ()=>{
   tarifSelect.value = "";
   document.getElementById("clientPhone").value = "";
   document.getElementById("paymentMethod").value = "";
+  document.getElementById("acceptRules").checked = false;
 });
+
 
 boostModal.addEventListener("click", e=>{
   if(e.target === boostModal) boostModal.style.display = "none";
