@@ -69,11 +69,11 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 
 .seller-info .boutique-pro { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: #009688; /* Vert intense CoinAfrique */ font-size: clamp(60px, 10vw, 120px); /* Flèche adaptable et large */ font-weight: 1000; /* Très dense */ line-height: 1; display: flex; align-items: center; justify-content: center; background: none; text-shadow: 0 2px 6px rgba(0,0,0,0.3); /* effet robuste, relief */ overflow: visible; }
 
-
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&icon_names=arrow_shape_up" />
-
-.material-symbols-outlined {font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0, 'opsz' 24;font-size: 30px; color: #1f1f1f; }
-
+.boutique-pro svg {
+  width: 32px;
+  height: 32px;
+  fill: #ff6600; /* couleur du boost */
+}
 
 </style>
 </head>
@@ -494,17 +494,23 @@ async function renderAnnonces(filtered) {
     <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
     <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
   </div>
-  
- <div class="seller">
+
+  <div class="seller">
   <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
   <div class="seller-info">
     <strong>${fullName}</strong>
-    ${isBoostActive(a) ? '<span class="boutique-pro"><span class="material-symbols-outlined">arrow_shape_up</span></span>' : ''}
-
-   
+    ${
+      isBoostActive(a)
+        ? `<span class="boutique-pro">
+            <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#1f1f1f">
+              <path d="M320-120v-240H120l360-440 360 440H640v240H320Zm80-80h160v-240h111L480-674 289-440h111v240Zm80-240Z"/>
+            </svg>
+           </span>`
+        : ''
+    }
   </div>
 </div>
-`;
+
     const titleEl = card.querySelector('.title');
       if ((a.title || "").length > 30) {
       titleEl.classList.add('long-text');}
