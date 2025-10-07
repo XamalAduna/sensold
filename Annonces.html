@@ -69,16 +69,7 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 .location { line-height:1.2; }
 .annonce-card .price, .annonce-card .title { margin:0 5px; line-height:1.2; }
 
-.seller-info {
-  position: relative;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  padding-right: 70px;
-  min-height: 60px; /* ajoute de la hauteur */
-  display: flex;
-  align-items: center; /* centre verticalement le texte et l’icône */
-}
+.seller-info { position: relative;overflow: hidden;white-space: nowrap;text-overflow: ellipsis; padding-right: 70px;min-height: 45px; display: flex; align-items: center; }
 
 
 .seller-info .boutique-pro {
@@ -96,41 +87,10 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
   justify-content: center;
 }
 
-.material-symbols-outlined {
-  font-variation-settings:
-    'FILL' 0,
-    'wght' 400,
-    'GRAD' 0,
-    'opsz' 24;
-  font-size: 30px;   /* taille de l’icône */
-  color: #1f1f1f;    /* couleur de l’icône */
-}
+.material-symbols-outlined {font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0, 'opsz' 24; font-size: 30px; color: #1f1f1f; }
+.image-container {position: relative; display: block;}
 
-
-.image-container {
-  position: relative;   /* nécessaire pour positionner l'icône par rapport à l'image */
-  display: block;       /* mettre block pour que l'image occupe toute la largeur */
-}
-
-.boost-icon {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
-  font-size: 40px;         /* ajustable selon la taille voulue */
-  color: #00796B;          /* couleur verte */
-  background: transparent;  /* plus de fond blanc */
-  border-radius: 0;        /* pas de cercle car plus de fond */
-  padding: 0;              /* pas de padding pour ne pas cacher l'image */
-  z-index: 20;             /* au-dessus de l'image */
-  display: flex;           
-  align-items: center;
-  justify-content: center;
-  line-height: 1;          
-}
-
-
-
-
+.boost-icon {position: absolute;bottom: 8px;right: 8px;font-size: 40px;color: #00796B;background: transparent; border-radius: 0; padding: 0; z-index: 20;display: flex; align-items: center;justify-content: center; line-height: 1;}
 
 </style>
 </head>
