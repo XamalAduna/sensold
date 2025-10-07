@@ -71,11 +71,15 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 
 .seller-info {
   position: relative;
-  overflow: hidden; /* nécessaire pour les “...” */
+  overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  padding-right: 50px; /* espace pour l’icône à droite */
+  padding-right: 70px;
+  min-height: 40px; /* ajoute de la hauteur */
+  display: flex;
+  align-items: center; /* centre verticalement le texte et l’icône */
 }
+
 
 .seller-info .boutique-pro {
   position: absolute;
@@ -84,7 +88,7 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
   transform: translateY(-50%);
   background: white;
   color: #00796B;
-  font-size: 34px; /* tu peux ajuster */
+  font-size: 34px;
   padding: 6px;
   border-radius: 6px;
   display: flex;
