@@ -69,6 +69,14 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 .location { line-height:1.2; }
 .annonce-card .price, .annonce-card .title { margin:0 5px; line-height:1.2; }
 
+.seller-info {
+  position: relative;
+  overflow: hidden; /* nécessaire pour les “...” */
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding-right: 50px; /* espace pour l’icône à droite */
+}
+
 .seller-info .boutique-pro {
   position: absolute;
   right: 0;
@@ -76,19 +84,13 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
   transform: translateY(-50%);
   background: white;
   color: #00796B;
-  font-size: 34px; /* augmente si tu veux plus grand */
-  padding: 6px; /* ajoute un peu d’espace */
+  font-size: 34px; /* tu peux ajuster */
+  padding: 6px;
   border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: visible; /* empêche le rognage */
 }
-
-.seller-info {
-  overflow: visible !important;
-}
-
 
 .material-symbols-outlined {
   font-variation-settings:
