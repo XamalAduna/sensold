@@ -108,20 +108,24 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 
 
 .image-container {
-  position: relative;  /* nécessaire pour positionner l'icône par rapport à l'image */
-  display: inline-block;
+  position: relative;   /* nécessaire pour positionner l'icône par rapport à l'image */
+  display: block;       /* mettre block pour que l'image occupe toute la largeur */
 }
 
 .boost-icon {
-  position: absolute;  /* position absolue par rapport à .image-container */
-  bottom: 8px;          /* distance du bas de l'image */
-  right: 8px;           /* distance de la droite de l'image */
-  font-size: 36px;      /* taille de l'icône, ajuste si nécessaire */
-  color: green;         /* couleur verte */
-  background: rgba(255, 255, 255, 0.8); /* fond semi-transparent pour mieux voir l'icône */
-  border-radius: 50%;   /* coins arrondis */
-  padding: 4px;         /* espace autour de l'icône */
-  z-index: 10;          /* pour être au-dessus de l'image */
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  font-size: 40px;              /* ajustable selon la taille voulue */
+  color: green;                  /* couleur verte */
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  padding: 4px;
+  z-index: 20;                   /* plus haut que l'image et les badges */
+  display: flex;                 /* pour centrer le contenu */
+  align-items: center;
+  justify-content: center;
+  line-height: 1;                /* éviter le décalage vertical */
 }
 
 
