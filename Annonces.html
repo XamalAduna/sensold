@@ -446,6 +446,12 @@ async function renderAnnonces(filtered) {
     if (!sellerData && a.uid) sellerData = window.__usersCache.byId[a.uid];
     if (!sellerData && a.user && typeof a.user === "object") sellerData = a.user;
 
+    let isPro = false;
+    if (sellerData && sellerData.subscribe === true) {
+      const now = new Date();
+      const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
+      if (subEnd > now) isPro = true;}
+
     let fullName = "Utilisateur inconnu";
     if (sellerData) {
       fullName =
@@ -495,6 +501,7 @@ async function renderAnnonces(filtered) {
     <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
     <div class="seller-info">
       <strong>${fullName}</strong>
+      ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
     </div>
   </div>
 `;
