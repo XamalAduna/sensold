@@ -179,8 +179,7 @@ onAuthStateChanged(auth, async (user) => {
     container.appendChild(card);
   });
 });
-
-confirmBoost.addEventListener("click", ()=>{
+confirmBoost.addEventListener("click", ()=> {
   if(!currentAnnonce) return;
   const tarif = tarifSelect.value.trim();
   const clientPhoneValue = document.getElementById("clientPhone").value.trim();
@@ -191,30 +190,32 @@ confirmBoost.addEventListener("click", ()=>{
     alert("Veuillez remplir tous les champs et accepter les règles de paiement avant de continuer.");
     return;
   }
-
   let duree = "";
   if(tarif === "1000") duree = "7 jours";
   else if(tarif === "2000") duree = "14 jours";
   else if(tarif === "3000") duree = "21 jours";
 
-  const phone = "221781739814";
+  const phone = "221781739814"; // Numéro pour le paiement et la capture
   const text = encodeURIComponent(
-    `Bonjour, je souhaite payer le boost de mon annonce "${currentAnnonce.title}" sur *Sensold*.\n\n` +
+    `Bonjour, je souhaite booster mon annonce "${currentAnnonce.title}" sur *Sensold*.\n\n` +
     `AnnonceID: ${currentAnnonce.id}\n` +
     `Tarif choisi: ${tarif} FCFA (${duree})\n` +
     `Numéro utilisé pour le paiement: ${clientPhoneValue}\n` +
     `Mode de paiement: ${paymentMethodValue}\n\n` +
+    `⚠️ Instructions :\n` +
+    `1️⃣ Effectuez le paiement au numéro : +221 78 173 98 14\n` +
+    `2️⃣ Prenez une capture d'écran de votre paiement.\n` +
+    `3️⃣ Envoyez la capture sur ce même numéro WhatsApp.\n\n` +
     `✅ J’ai lu et accepté les règles de paiement.`
   );
 
-  window.open(`https://wa.me/${phone}?text=${text}`,"_blank");
+  window.open(`https://wa.me/${phone}?text=${text}`, "_blank");
   boostModal.style.display = "none";
   tarifSelect.value = "";
   document.getElementById("clientPhone").value = "";
   document.getElementById("paymentMethod").value = "";
   document.getElementById("acceptRules").checked = false;
 });
-
 boostModal.addEventListener("click", e=>{
   if(e.target === boostModal) boostModal.style.display = "none";
 });
