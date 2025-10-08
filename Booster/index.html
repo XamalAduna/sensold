@@ -69,7 +69,7 @@ h2 {position:fixed;top:0;left:0;right:0;background:#f7f7f7;z-index:1000;text-ali
     <h3>Choisir un tarif pour booster</h3>
 
     <p style="background:#e0f7fa;padding:10px;border-radius:8px;">
-      📱 Envoyez le paiement au numéro : <strong>+221 78 173 9814</strong><br>
+      📱 Envoyez le paiement au numéro : <strong>+221 78 173 98 14</strong><br>
       (Disponible sur Wave et Orange Money)
     </p>
 
@@ -80,7 +80,7 @@ h2 {position:fixed;top:0;left:0;right:0;background:#f7f7f7;z-index:1000;text-ali
       <option value="3000">3000 FCFA - 21 jours</option>
     </select>
 
-    <input type="text" id="clientPhone" placeholder="Votre numéro pour le paiement" required />
+    <input type="tel" id="clientPhone" placeholder="Votre numéro pour le paiement" required pattern="[0-9]{8,15}" title="Entrez uniquement des chiffres" />
 
     <select id="paymentMethod" required>
       <option value="">-- Choisir le mode de paiement --</option>
@@ -204,7 +204,6 @@ onAuthStateChanged(auth, async (user) => {
 
 confirmBoost.addEventListener("click", ()=>{
   if(!currentAnnonce) return;
-
   const tarif = tarifSelect.value.trim();
   const clientPhoneValue = document.getElementById("clientPhone").value.trim();
   const paymentMethodValue = document.getElementById("paymentMethod").value.trim();
@@ -238,9 +237,11 @@ confirmBoost.addEventListener("click", ()=>{
   document.getElementById("acceptRules").checked = false;
 });
 
-
 boostModal.addEventListener("click", e=>{
   if(e.target === boostModal) boostModal.style.display = "none";
+});
+document.getElementById('clientPhone').addEventListener('input', function(e){
+  this.value = this.value.replace(/\D/g,''); // supprime tout ce qui n'est pas un chiffre
 });
 </script>
 </body>
