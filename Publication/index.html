@@ -545,7 +545,7 @@ priceInput.addEventListener('focus', () => {
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
-import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, serverTimestamp, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-storage.js";
 
 const firebaseConfig = {
@@ -569,10 +569,39 @@ emailDisplay.style.fontWeight = 'bold';
 emailDisplay.style.marginTop = '15px';
 document.querySelector('.form-container').prepend(emailDisplay);
 
-onAuthStateChanged(auth, user => {
-  if(user) emailDisplay.textContent = "Connecté : " + user.email;
-  else window.location.href = "../index.html";
+onAuthStateChanged(auth, async user => { // async nécessaire ici
+  if(!user){
+    window.location.href = "../index.html";
+    return;
+  }
+
+  emailDisplay.textContent = "Connecté : " + user.email;
+
+  // Vérifie l'abonnement
+  const userDoc = await getDoc(doc(db, "users", user.uid));
+  const userData = userDoc.data();
+  let isSubscribed = false;
+
+  if(userData?.subscribe === true && userData?.subscribeEnd){
+    const now = new Date();
+    const end = new Date(userData.subscribeEnd.seconds * 1000);
+    if(end > now) isSubscribed = true;
+  }
+
+  // Limite des images
+  const imageLabels = document.querySelectorAll('.image-upload');
+  imageLabels.forEach((label, idx) => {
+    if(isSubscribed || idx < 3){
+      label.style.filter = "none";
+      label.style.pointerEvents = "auto";
+    } else {
+      label.style.filter = "blur(3px) grayscale(50%)";
+      label.style.pointerEvents = "none";
+    }
+  });
 });
+
+
 
 function escapeHTML(str) {
   if (!str) return '';
