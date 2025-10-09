@@ -58,14 +58,6 @@ label p {font-size: 20px; margin: 0;}
 .input-left-icon i.fa-phone {color: #2980b9;}
 .error-msg {width: 80%; margin: 0 auto 10px; color: #e74c3c; font-size: 14px; display: none;}
 @media(max-width: 400px) {input, textarea, .custom-dropdown {width: 95%;}}
-
-/* Style pour les champs désactivés */
-.image-disabled {
-  pointer-events: none; /* empêche le clic */
-  opacity: 0.4;        /* grisé */
-  filter: blur(1px);   /* léger flou */
-}
-
 </style>
 </head>
 <body>
@@ -553,7 +545,7 @@ priceInput.addEventListener('focus', () => {
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
-import { getFirestore, collection, addDoc, serverTimestamp, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-storage.js";
 
 const firebaseConfig = {
@@ -577,43 +569,11 @@ emailDisplay.style.fontWeight = 'bold';
 emailDisplay.style.marginTop = '15px';
 document.querySelector('.form-container').prepend(emailDisplay);
 
-// ===== Vérification utilisateur et abonnement =====
-onAuthStateChanged(auth, async user => {
-  if (!user) {
-    window.location.href = "../index.html";
-    return;
-  }
-
-  emailDisplay.textContent = "Connecté : " + user.email;
-
-  let maxImages = 3; // limite par défaut pour non-abonnés
-  try {
-    const userDoc = await getDoc(doc(db, "users", user.uid));
-    const userData = userDoc.data();
-
-    const now = new Date();
-    if (userData?.subscribe === true && userData?.subscribeEnd?.toDate && userData.subscribeEnd.toDate() > now) {
-      maxImages = 9; // abonné : jusqu'à 9 images
-    }
-
-    // Limiter le nombre d'images sélectionnables
-    const imageInputs = document.querySelectorAll('.image-upload input[type="file"]');
-    imageInputs.forEach(input => {
-      input.addEventListener('change', () => {
-        const selectedImages = Array.from(imageInputs).filter(i => i.files.length > 0).length;
-        if (selectedImages > maxImages) {
-          alert(`Vous pouvez sélectionner au maximum ${maxImages} images.`);
-          input.value = ''; // annule la sélection en trop
-        }
-      });
-    });
-
-  } catch (err) {
-    console.error("Erreur récupération user :", err);
-  }
+onAuthStateChanged(auth, user => {
+  if(user) emailDisplay.textContent = "Connecté : " + user.email;
+  else window.location.href = "../index.html";
 });
 
-// ===== Fonctions utilitaires =====
 function escapeHTML(str) {
   if (!str) return '';
   return str.replace(/&/g, "&amp;")
@@ -645,89 +605,87 @@ function cleanAdditionalData(data) {
   }
   return cleaned;
 }
-
-// ===== Soumission du formulaire =====
 const adForm = document.getElementById('adForm');
 const loader = document.getElementById('loader');
-
-adForm.addEventListener('submit', async (e) => {
+adForm.addEventListener('submit', async (e)=>{
   e.preventDefault();
   let isValid = true;
-
   const images = adForm.querySelectorAll('input[type="file"]');
   let selectedImages = 0;
-  images.forEach(img => { if (img.files.length > 0) selectedImages++; });
-  if (selectedImages < 3) { document.getElementById('imagesError').style.display = 'block'; isValid = false; }
-  else document.getElementById('imagesError').style.display = 'none';
+  images.forEach(img=>{ if(img.files.length>0) selectedImages++; });
+  if(selectedImages<3){ document.getElementById('imagesError').style.display='block'; isValid=false; }
+  else document.getElementById('imagesError').style.display='none';
 
   const title = document.getElementById('title');
-  if (title.value.trim() === '') { document.getElementById('titleError').style.display = 'block'; isValid = false; }
-  else document.getElementById('titleError').style.display = 'none';
+  if(title.value.trim()===''){ document.getElementById('titleError').style.display='block'; isValid=false; }
+  else document.getElementById('titleError').style.display='none';
 
   const categorieInput = document.getElementById('categorie');
-  if (categorieInput.value === '') { document.getElementById('categorieError').style.display = 'block'; isValid = false; }
-  else document.getElementById('categorieError').style.display = 'none';
+  if(categorieInput.value===''){ document.getElementById('categorieError').style.display='block'; isValid=false; }
+  else document.getElementById('categorieError').style.display='none';
 
   const sousInput = document.getElementById('souscategorie');
   const sousDropdown = document.getElementById('souscategorieDropdown');
-  if (sousDropdown.style.display !== 'none' && sousInput.value === '') { document.getElementById('souscategorieError').style.display = 'block'; isValid = false; }
-  else document.getElementById('souscategorieError').style.display = 'none';
+  if(sousDropdown.style.display!=='none' && sousInput.value===''){ document.getElementById('souscategorieError').style.display='block'; isValid=false; }
+  else document.getElementById('souscategorieError').style.display='none';
 
   const cityInput = document.getElementById('city');
-  if (cityInput.value === '') { document.getElementById('cityError').style.display = 'block'; isValid = false; }
-  else document.getElementById('cityError').style.display = 'none';
+  if(cityInput.value===''){ document.getElementById('cityError').style.display='block'; isValid=false; }
+  else document.getElementById('cityError').style.display='none';
 
   const quartierInput = document.getElementById('quartier');
   const quartierValue = quartierInput.value;
-  if (cityInput.value === 'Dakar' && quartierValue === '') { document.getElementById('quartierError').style.display = 'block'; isValid = false; }
-  else document.getElementById('quartierError').style.display = 'none';
+  if(cityInput.value === 'Dakar' && quartierValue === ''){
+    document.getElementById('quartierError').style.display = 'block';
+    isValid = false;
+  } else document.getElementById('quartierError').style.display = 'none';
 
   const description = document.getElementById('description');
-  if (description.value.trim() === '') { document.getElementById('descriptionError').style.display = 'block'; isValid = false; }
-  else document.getElementById('descriptionError').style.display = 'none';
+  if(description.value.trim()===''){ document.getElementById('descriptionError').style.display='block'; isValid=false; }
+  else document.getElementById('descriptionError').style.display='none';
 
   const whatsapp = document.getElementById('whatsapp');
-  if (!/^\d{9}$/.test(whatsapp.value.trim())) { document.getElementById('whatsappError').style.display = 'block'; isValid = false; }
-  else document.getElementById('whatsappError').style.display = 'none';
+  if(!/^\d{9}$/.test(whatsapp.value.trim())){ document.getElementById('whatsappError').style.display='block'; isValid=false; }
+  else document.getElementById('whatsappError').style.display='none';
 
   const telephone = document.getElementById('telephone');
-  if (!/^\d{9}$/.test(telephone.value.trim())) { document.getElementById('telephoneError').style.display = 'block'; isValid = false; }
-  else document.getElementById('telephoneError').style.display = 'none';
+  if(!/^\d{9}$/.test(telephone.value.trim())){ document.getElementById('telephoneError').style.display='block'; isValid=false; }
+  else document.getElementById('telephoneError').style.display='none';
 
-  if (!isValid) return;
+  if(!isValid) return;
 
   try {
     loader.style.display = 'flex';
-    const imageFiles = Array.from(images).filter(input => input.files[0]).map(i => i.files[0]);
+    const imageFiles = Array.from(images).filter(input=>input.files[0]).map(i=>i.files[0]);
     const imageUrls = [];
     const userId = auth.currentUser.uid;
 
-    for (const file of imageFiles) {
+    for(const file of imageFiles){
       const storageRef = ref(storage, `annonces/${userId}/${Date.now()}_${file.name}`);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
       imageUrls.push(url);
     }
 
-    let priceVal = document.getElementById('price').value.replace(/\s*FCFA$/i, '').trim();
+    let priceVal = document.getElementById('price').value.replace(/\s*FCFA$/i,'').trim();
 
     const additionalFieldsContainer = document.getElementById('additionalFieldsContainer');
     const additionalData = {};
-    if (additionalFieldsContainer) {
+    if(additionalFieldsContainer){
       additionalFieldsContainer.querySelectorAll('input, select').forEach(field => {
         const key = field.id;
         let value = field.value.trim();
-        if (value === '') value = null;
+        if(value === '') value = null;
         additionalData[key] = value;
       });
     }
     const cleanedAdditionalData = cleanAdditionalData(additionalData);
 
-    await addDoc(collection(db, 'annonces'), {
+    await addDoc(collection(db,'annonces'),{
       title: escapeHTML(title.value.trim()),
-      price: priceVal,
+      price: priceVal, 
       categorie: categorieInput.value,
-      souscategorie: sousInput.value,
+      souscategorie: sousInput.value,   
       city: escapeHTML(cityInput.value),
       quartier: escapeHTML(quartierInput.value.trim()),
       description: escapeHTML(description.value.trim()),
@@ -739,40 +697,40 @@ adForm.addEventListener('submit', async (e) => {
       createdAt: serverTimestamp(),
       userEmail: escapeHTML(auth.currentUser.email),
       ownerId: auth.currentUser.uid,
-      boost: false,
+      boost: false, 
       boostEnd: null,
-      ...Object.fromEntries(Object.entries(cleanedAdditionalData).map(([k, v]) => [escapeHTML(k), escapeHTML(v)]))
+      ...Object.fromEntries(Object.entries(cleanedAdditionalData).map(([k,v])=>[escapeHTML(k), escapeHTML(v)]))
     });
 
     loader.style.display = 'none';
-    M.toast({ html: 'Annonce publiée avec succès !', classes: 'green darken-1' });
+    M.toast({html: 'Annonce publiée avec succès !', classes: 'green darken-1'});
 
     adForm.reset();
-    resetDropdowns();
+resetDropdowns();
 
-    document.querySelectorAll('.image-upload').forEach(label => {
-      const inputFile = label.querySelector('input[type="file"]');
-      const preview = label.querySelector('img');
-      const icon = label.querySelector('.material-icons');
-      const removeBtn = label.querySelector('.remove-image-btn');
+document.querySelectorAll('.image-upload').forEach(label => {
+  const inputFile = label.querySelector('input[type="file"]');
+  const preview = label.querySelector('img');
+  const icon = label.querySelector('.material-icons');
+  const removeBtn = label.querySelector('.remove-image-btn'); // le X
 
-      if (preview) preview.remove();
-      if (removeBtn) removeBtn.remove();
-      if (icon) icon.style.display = 'block';
-      if (inputFile) inputFile.value = "";
-    });
+  if (preview) preview.remove();      // enlève l’image
+  if (removeBtn) removeBtn.remove();  // enlève le X
+  if (icon) icon.style.display = 'block'; // remet l’icône
+  if (inputFile) inputFile.value = "";    // vide le champ file
+});
 
+
+        
     document.getElementById("additionalFieldsContainer").innerHTML = "";
-
-  } catch (err) {
+  } catch(err){
     loader.style.display = 'none';
     console.error("Erreur Firestore :", err);
     alert("Erreur Firestore : " + err.message);
-    M.toast({ html: 'Erreur lors de l\'enregistrement de l\'annonce.', classes: 'red darken-1' });
+    M.toast({html: 'Erreur lors de l\'enregistrement de l\'annonce.', classes: 'red darken-1'});
   }
 });
 </script>
-
 
 <script>
 const description = document.getElementById('description');
