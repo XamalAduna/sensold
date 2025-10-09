@@ -58,6 +58,14 @@ label p {font-size: 20px; margin: 0;}
 .input-left-icon i.fa-phone {color: #2980b9;}
 .error-msg {width: 80%; margin: 0 auto 10px; color: #e74c3c; font-size: 14px; display: none;}
 @media(max-width: 400px) {input, textarea, .custom-dropdown {width: 95%;}}
+
+/* Style pour les champs désactivés */
+.image-disabled {
+  pointer-events: none; /* empêche le clic */
+  opacity: 0.4;        /* grisé */
+  filter: blur(1px);   /* léger flou */
+}
+
 </style>
 </head>
 <body>
@@ -764,6 +772,7 @@ adForm.addEventListener('submit', async (e) => {
   }
 });
 </script>
+
 
 <script>
 const description = document.getElementById('description');
