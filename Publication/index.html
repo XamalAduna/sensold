@@ -744,12 +744,13 @@ onAuthStateChanged(auth, async (user) => {
   let max = 3;
   if (snap.exists()) {
     const d = snap.data();
-    if (d.subscribe === true && new Date(d.subscribeEnd) > new Date()) max = 9;
+    if (d.subscribe === true && d.subscribeEnd.toDate() > new Date()) {
+      max = 9;
+    }
   }
 
   imageLabels.forEach((label, i) => label.style.display = i < max ? 'flex' : 'none');
 });
-
 </script>
 
 <script>
