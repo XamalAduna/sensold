@@ -729,6 +729,27 @@ document.querySelectorAll('.image-upload').forEach(label => {
     M.toast({html: 'Erreur lors de l\'enregistrement de l\'annonce.', classes: 'red darken-1'});
   }
 });
+
+
+
+// Vérifie l'abonnement de l'utilisateur connecté
+onAuthStateChanged(auth, async (user) => {
+  const imageLabels = document.querySelectorAll('.image-upload');
+  if (!user) {
+    imageLabels.forEach((label, i) => label.style.display = i < 3 ? 'flex' : 'none');
+    return;
+  }
+
+  const snap = await getDoc(doc(db, "users", user.uid));
+  let max = 3;
+  if (snap.exists()) {
+    const d = snap.data();
+    if (d.subscribe === true && new Date(d.subscribeEnd) > new Date()) max = 9;
+  }
+
+  imageLabels.forEach((label, i) => label.style.display = i < max ? 'flex' : 'none');
+});
+
 </script>
 
 <script>
