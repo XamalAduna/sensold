@@ -35,6 +35,7 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 #notLoggedMsg { display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; padding:20px 30px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.25); text-align:center; z-index:99999; }
 #notLoggedMsg a { display:inline-block; margin:8px 0; color:#009688; text-decoration:none; font-weight:bold; }
 #notLoggedMsg a:hover { text-decoration:underline; }
+#toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#00796B; color:white; padding:12px 20px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.2); display:none; z-index:10000; font-weight:bold; }
 </style>
 </head>
 <body>
@@ -47,6 +48,7 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
   <p>Veuillez vous connecter pour ajouter  cette annonce à vos favoris.</p>
   <a href="login.html">Se connecter</a>
 </div>
+<div id="toast">Annonce retirée de vos favoris</div>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getFirestore, collection, getDocs, doc, getDoc, updateDoc, arrayRemove, arrayUnion, query, orderBy } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
@@ -81,6 +83,13 @@ function timeAgo(timestamp){
   if(hours < 24) return `il y a ${hours} h`;
   const days = Math.floor(hours/24);
   return `il y a ${days} j`;
+}
+
+function showToast(message){
+  const toast = document.getElementById("toast");
+  toast.textContent = message;
+  toast.style.display = "block";
+  setTimeout(()=>{ toast.style.display = "none"; }, 2500);
 }
 
 onAuthStateChanged(auth, async user => {
@@ -222,7 +231,8 @@ async function renderFavorites(){
         favBtn.textContent = "favorite_border";
         userFavorites = userFavorites.filter(id=>id!==docId);
         await updateDoc(favRef,{favorites:arrayRemove(docId)});
-        card.remove(); // retire la carte du favoris
+        card.remove();
+        showToast("Annonce retirée de vos favoris");
       } else {
         favBtn.classList.add("active");
         favBtn.textContent = "favorite";
