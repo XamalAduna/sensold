@@ -15,8 +15,6 @@ body {font-family:Arial, sans-serif; background:#f7f7f7;margin:0; padding:20px;}
 .annonce-card img { width:100%; height:150px; object-fit:cover; border-radius:8px 8px 0 0; display:block; margin-bottom:2px; }
 .favorite { position:absolute; top:10px; right:10px; background:white; border-radius:50%; padding:5px; cursor:pointer; color:#00796B; box-shadow:0 2px 6px rgba(0,0,0,0.2); transition:color 0.3s; z-index:10; }
 .favorite.active { color:red; }
-.boost-icon { position:absolute; top:10px; right:50px; background:white; border-radius:50%; padding:5px; cursor:pointer; color:#fbc02d; box-shadow:0 2px 6px rgba(0,0,0,0.2); font-size:18px; display:flex; align-items:center; justify-content:center; }
-.shop-icon { position:absolute; top:10px; right:90px; background:white; border-radius:50%; padding:5px; cursor:pointer; color:#00796B; box-shadow:0 2px 6px rgba(0,0,0,0.2); font-size:18px; display:flex; align-items:center; justify-content:center; }
 .content {padding:0 5px;flex:1; min-width:0; }
 .price { color:#00796B; font-weight:bold; font-size:18px; margin:0; line-height:1; }
 .title { font-size:16px; font-weight:bold; color:#333; margin:0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; line-height:1.2em; }
@@ -88,10 +86,12 @@ onAuthStateChanged(auth, async (user)=>{
   const userSnap = await getDoc(doc(db,"users",user.uid));
   const favorites = userSnap.data()?.favorites || [];
   const isSubscribed = userSnap.data()?.subscribe || false; // abonné ?
+
   if(favorites.length === 0){
     annoncesContainer.innerHTML="<p style='text-align:center;color:#777;'>Aucun favori pour le moment.</p>";
     return;
   }
+
   const annoncesSnap = await getDocs(query(collection(db,"annonces"), orderBy("createdAt","desc")));
   const annoncesData = [];
   annoncesSnap.forEach(d=>{
@@ -99,25 +99,28 @@ onAuthStateChanged(auth, async (user)=>{
     data.id=d.id;
     if(favorites.includes(data.id)) annoncesData.push(data);
   });
+
   const usersSnap = await getDocs(collection(db,"users"));
   const usersMap = {};
   usersSnap.forEach(uDoc=>{
     const u=uDoc.data();
     if(u.email) usersMap[u.email.toLowerCase().trim()]=u;
   });
+
   annoncesContainer.innerHTML="";
   annoncesData.forEach(a=>{
     const card = document.createElement("div");
     card.className="annonce-card";
+
     const annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
     const sellerData = usersMap[(a.userEmail||"").toLowerCase().trim()] || {};
     const sellerPhoto = escapeHTML(sellerData.profileImage || "https://via.placeholder.com/40");
     const sellerName = escapeHTML(sellerData.fullName || "Utilisateur inconnu");
     const quartier = a.quartier ? ", "+escapeHTML(a.quartier) : "";
 
-    // Icônes boost et boutique si nécessaire
-    const boostIcon = a.boosted ? `<span class="material-icons boost-icon">bolt</span>` : '';
-    const shopIcon = isSubscribed ? `<span class="material-icons shop-icon">store</span>` : '';
+    // Icônes boost et boutique exactement comme le cœur
+    const boostIcon = a.boosted ? '<span class="material-icons favorite">arrow_upward</span>' : '';
+    const shopIcon = isSubscribed ? '<span class="material-icons favorite">store</span>' : '';
 
     card.innerHTML=`
       <img src="${annonceImage}" loading="lazy" alt="${escapeHTML(a.title||'Annonce')}">
@@ -136,7 +139,7 @@ onAuthStateChanged(auth, async (user)=>{
       </div>
     `;
 
-    const favBtn = card.querySelector(".favorite");
+    const favBtn = card.querySelector(".favorite.active");
     favBtn.addEventListener("click", async e=>{
       e.stopPropagation();
       await updateDoc(doc(db,"users",currentUser.uid), {favorites: arrayRemove(a.id)});
