@@ -246,7 +246,8 @@ async function renderFavorites(){
     });
     card.addEventListener("click", e=>{
       if(e.target.classList.contains("favorite")) return;
-      window.location.href=`Details.html?id=${encodeURIComponent(docId)}`;
+      if(!a.id) return console.error("Annonce sans ID :", a);
+      window.location.href=`../Details.html?id=${encodeURIComponent(a.id)}`;
     });
     annoncesContainer.appendChild(card);
   }
