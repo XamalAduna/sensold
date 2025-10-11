@@ -23,11 +23,31 @@ body {font-family:Arial, sans-serif; background:#f7f7f7;margin:0; padding:20px;}
 .seller img { width:30px; height:30px; border-radius:50%; object-fit:cover; }
 .seller-info { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; position:relative; padding-right:70px; }
 .seller-info strong { display:block; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-size:13px; }
-.badge-boost { position:absolute; top:10px; left:10px; background:#ffeb3b; color:#000; padding:4px 8px; border-radius:6px; font-size:12px; font-weight:bold; z-index:6; box-shadow:0 2px 4px rgba(0,0,0,0.2); }
-.badge-abonne { font-size:13px; color:#00796B; font-weight:bold; margin-left:5px; }
+
+/* Icônes boost et boutique */
+.boost-icon {
+  position:absolute;
+  top:10px;
+  left:10px;
+  background:#ffeb3b;
+  color:#000;
+  border-radius:50%;
+  padding:5px;
+  font-size:18px;
+  box-shadow:0 2px 4px rgba(0,0,0,0.2);
+}
+.shop-icon {
+  position:absolute;
+  bottom:8px;
+  right:12px;
+  color:#00796B;
+  font-size:20px;
+}
+
 .loader { border:6px solid #f3f3f3; border-top:6px solid #009688; border-radius:50%; width:50px; height:50px; animation:spin 1s linear infinite; }
 @keyframes spin { 0% { transform:rotate(0deg); } 100% { transform:rotate(360deg); } }
-.annonce-card .time-badge { position:absolute; top:10px; left:10px; background:rgba(0,0,0,0.6); color:#fff; padding:4px 8px; border-radius:6px; font-size:12px; font-weight:bold; z-index:5; }
+
+.annonce-card .time-badge { position:absolute; top:10px; left:40px; background:rgba(0,0,0,0.6); color:#fff; padding:4px 8px; border-radius:6px; font-size:12px; font-weight:bold; z-index:5; }
 
 .back-btn { position: fixed; top: 15px; right: 20px; background: #d32f2f; color: white; border: none; border-radius: 50%; width: 36px; height: 36px; font-size: 20px; cursor: pointer; z-index: 10000; display: flex; justify-content: center; align-items: center; }
 .back-btn:hover { background: #9a0007; }
@@ -38,6 +58,7 @@ body {font-family:Arial, sans-serif; background:#f7f7f7;margin:0; padding:20px;}
 <h2>Mes Favoris ❤️</h2>
 <div id="annonces" class="annonces-container"></div>
 <div id="toast" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#00796B;color:white;padding:12px 20px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.2);display:none;z-index:10000;font-weight:bold;">Annonce retirée de vos favoris</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getFirestore, collection, getDocs, query, orderBy, doc, getDoc, updateDoc, arrayRemove } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
@@ -91,7 +112,6 @@ onAuthStateChanged(auth, async (user)=>{
     annoncesContainer.innerHTML="<p style='text-align:center;color:#777;'>Aucun favori pour le moment.</p>";
     return;
   }
-
   const annoncesSnap = await getDocs(query(collection(db,"annonces"), orderBy("createdAt","desc")));
   const annoncesData = [];
   annoncesSnap.forEach(d=>{
@@ -99,14 +119,12 @@ onAuthStateChanged(auth, async (user)=>{
     data.id=d.id;
     if(favorites.includes(data.id)) annoncesData.push(data);
   });
-
   const usersSnap = await getDocs(collection(db,"users"));
   const usersMap = {};
   usersSnap.forEach(uDoc=>{
     const u=uDoc.data();
     if(u.email) usersMap[u.email.toLowerCase().trim()]=u;
   });
-
   annoncesContainer.innerHTML="";
   annoncesData.forEach(a=>{
     const card = document.createElement("div");
@@ -117,13 +135,9 @@ onAuthStateChanged(auth, async (user)=>{
     const sellerName = escapeHTML(sellerData.fullName || "Utilisateur inconnu");
     const quartier = a.quartier ? ", "+escapeHTML(a.quartier) : "";
 
-    // Déterminer les badges
-    const isBoosted = a.isBoosted === true;
-    const isSubscriber = sellerData.subscribe === true;
-
     card.innerHTML=`
       <img src="${annonceImage}" loading="lazy" alt="${escapeHTML(a.title||'Annonce')}">
-      ${isBoosted ? `<span class="badge-boost">⚡ Boost</span>` : ""}
+      ${a.boosted ? `<span class="material-icons boost-icon" title="Annonce boostée">trending_up</span>` : ""}
       <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
       <span class="material-icons favorite active">favorite</span>
       <div class="content">
@@ -134,7 +148,8 @@ onAuthStateChanged(auth, async (user)=>{
       <div class="seller">
         <img src="${sellerPhoto}" alt="profil vendeur">
         <div class="seller-info">
-          <strong>${sellerName}${isSubscriber ? ' <span class="badge-abonne">💎</span>' : ''}</strong>
+          <strong>${sellerName}</strong>
+          ${sellerData.subscribe === true ? `<span class="material-icons shop-icon" title="Boutique abonnée">storefront</span>` : ""}
         </div>
       </div>
     `;
@@ -146,13 +161,11 @@ onAuthStateChanged(auth, async (user)=>{
       card.remove();
       showToast("Annonce retirée de vos favoris");
     });
-
     card.addEventListener("click", e=>{
       if(e.target.classList.contains("favorite")) return;
       if(!a.id) return console.error("Annonce sans ID :", a);
       window.location.href=`../Details.html?id=${encodeURIComponent(a.id)}`;
     });
-
     annoncesContainer.appendChild(card);
   });
 });
