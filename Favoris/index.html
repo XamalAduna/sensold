@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head> 
@@ -111,23 +112,22 @@ onAuthStateChanged(auth, async (user)=>{
     const sellerPhoto = escapeHTML(sellerData.profileImage || "https://via.placeholder.com/40");
     const sellerName = escapeHTML(sellerData.fullName || "Utilisateur inconnu");
     const quartier = a.quartier ? ", "+escapeHTML(a.quartier) : "";
-
     card.innerHTML = `
-      <img src="${annonceImage}" loading="lazy" alt="${escapeHTML(a.title||'Annonce')}">
-      <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
-      <span class="material-icons favorite active">favorite</span>
-      ${a.boosted ? '<span class="material-icons" style="position:absolute; top:10px; right:50px; color:#FF9800;">arrow_upward</span>' : ''}
-      ${sellerData.isSubscriber ? '<span class="material-icons" style="position:absolute; top:10px; right:90px; color:#3F51B5;">storefront</span>' : ''}
-      <div class="content">
-        <p class="price">${escapeHTML(a.price? a.price+" FCFA":"Prix sur demande")}</p>
-        <h3 class="title">${escapeHTML(a.title||"Sans titre")}</h3>
-        <p class="location">📍 ${escapeHTML(a.city||"Ville non précisée")}${quartier}</p>
-      </div>
-      <div class="seller">
-        <img src="${sellerPhoto}" alt="profil vendeur">
-        <div class="seller-info"><strong>${sellerName}</strong></div>
-      </div>
-    `;
+  <img src="${annonceImage}" loading="lazy" alt="${escapeHTML(a.title||'Annonce')}">
+  <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
+  <span class="material-icons favorite active">favorite</span>
+  ${a.boosted ? '<span class="material-icons" style="position:absolute; top:10px; right:50px; color:#FF9800;">arrow_upward</span>' : ''}
+  ${sellerData.isSubscriber ? '<span class="material-icons" style="position:absolute; top:10px; right:90px; color:#3F51B5;">storefront</span>' : ''}
+  <div class="content">
+    <p class="price">${escapeHTML(a.price? a.price+" FCFA":"Prix sur demande")}</p>
+    <h3 class="title">${escapeHTML(a.title||"Sans titre")}</h3>
+    <p class="location">📍 ${escapeHTML(a.city||"Ville non précisée")}${quartier}</p>
+  </div>
+  <div class="seller">
+    <img src="${sellerPhoto}" alt="profil vendeur">
+    <div class="seller-info"><strong>${sellerName}</strong></div>
+  </div>
+`;
 
     const favBtn = card.querySelector(".favorite");
     favBtn.addEventListener("click", async e=>{
@@ -136,13 +136,11 @@ onAuthStateChanged(auth, async (user)=>{
       card.remove();
       showToast("Annonce retirée de vos favoris");
     });
-
     card.addEventListener("click", e=>{
       if(e.target.classList.contains("favorite")) return;
       if(!a.id) return console.error("Annonce sans ID :", a);
       window.location.href=`../Details.html?id=${encodeURIComponent(a.id)}`;
     });
-
     annoncesContainer.appendChild(card);
   });
 });
