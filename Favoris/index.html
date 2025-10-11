@@ -13,41 +13,21 @@ body {font-family:Arial, sans-serif; background:#f7f7f7;margin:0; padding:20px;}
 @media (max-width:600px){ .annonces-container { grid-template-columns:repeat(2,1fr); } }
 .annonce-card { background:white; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,0.1); overflow:hidden; display:flex; flex-direction:column; position:relative; cursor:pointer; }
 .annonce-card img { width:100%; height:150px; object-fit:cover; border-radius:8px 8px 0 0; display:block; margin-bottom:2px; }
-.favorite { position:absolute; top:10px; right:10px; background:white; border-radius:50%; padding:5px; cursor:pointer; color:#00796B; box-shadow:0 2px 6px rgba(0,0,0,0.2); transition:color 0.3s; }
+.favorite { position:absolute; top:10px; right:10px; background:white; border-radius:50%; padding:5px; cursor:pointer; color:#00796B; box-shadow:0 2px 6px rgba(0,0,0,0.2); transition:color 0.3s; z-index:10; }
 .favorite.active { color:red; }
+.boost-icon { position:absolute; top:10px; right:50px; background:white; border-radius:50%; padding:5px; cursor:pointer; color:#fbc02d; box-shadow:0 2px 6px rgba(0,0,0,0.2); font-size:18px; display:flex; align-items:center; justify-content:center; }
+.shop-icon { position:absolute; top:10px; right:90px; background:white; border-radius:50%; padding:5px; cursor:pointer; color:#00796B; box-shadow:0 2px 6px rgba(0,0,0,0.2); font-size:18px; display:flex; align-items:center; justify-content:center; }
 .content {padding:0 5px;flex:1; min-width:0; }
 .price { color:#00796B; font-weight:bold; font-size:18px; margin:0; line-height:1; }
 .title { font-size:16px; font-weight:bold; color:#333; margin:0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; line-height:1.2em; }
 .location, .date { font-size:13px; color:#555; margin:2px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.seller { display:flex; align-items:center; gap:8px; padding:2px 12px; border-top:1px solid #eee; background:#fafafa; position:relative; }
+.seller { display:flex; align-items:center; gap:8px; padding:2px 12px; border-top:1px solid #eee; background:#fafafa; }
 .seller img { width:30px; height:30px; border-radius:50%; object-fit:cover; }
 .seller-info { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; position:relative; padding-right:70px; }
 .seller-info strong { display:block; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-size:13px; }
-
-/* Icônes boost et boutique */
-.boost-icon {
-  position:absolute;
-  top:10px;
-  left:10px;
-  background:#ffeb3b;
-  color:#000;
-  border-radius:50%;
-  padding:5px;
-  font-size:18px;
-  box-shadow:0 2px 4px rgba(0,0,0,0.2);
-}
-.shop-icon {
-  position:absolute;
-  bottom:8px;
-  right:12px;
-  color:#00796B;
-  font-size:20px;
-}
-
 .loader { border:6px solid #f3f3f3; border-top:6px solid #009688; border-radius:50%; width:50px; height:50px; animation:spin 1s linear infinite; }
 @keyframes spin { 0% { transform:rotate(0deg); } 100% { transform:rotate(360deg); } }
-
-.annonce-card .time-badge { position:absolute; top:10px; left:40px; background:rgba(0,0,0,0.6); color:#fff; padding:4px 8px; border-radius:6px; font-size:12px; font-weight:bold; z-index:5; }
+.annonce-card .time-badge { position:absolute; top:10px; left:10px; background:rgba(0,0,0,0.6); color:#fff; padding:4px 8px; border-radius:6px; font-size:12px; font-weight:bold; z-index:5; }
 
 .back-btn { position: fixed; top: 15px; right: 20px; background: #d32f2f; color: white; border: none; border-radius: 50%; width: 36px; height: 36px; font-size: 20px; cursor: pointer; z-index: 10000; display: flex; justify-content: center; align-items: center; }
 .back-btn:hover { background: #9a0007; }
@@ -58,7 +38,6 @@ body {font-family:Arial, sans-serif; background:#f7f7f7;margin:0; padding:20px;}
 <h2>Mes Favoris ❤️</h2>
 <div id="annonces" class="annonces-container"></div>
 <div id="toast" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#00796B;color:white;padding:12px 20px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.2);display:none;z-index:10000;font-weight:bold;">Annonce retirée de vos favoris</div>
-
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getFirestore, collection, getDocs, query, orderBy, doc, getDoc, updateDoc, arrayRemove } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
@@ -108,6 +87,7 @@ onAuthStateChanged(auth, async (user)=>{
 
   const userSnap = await getDoc(doc(db,"users",user.uid));
   const favorites = userSnap.data()?.favorites || [];
+  const isSubscribed = userSnap.data()?.subscribe || false; // abonné ?
   if(favorites.length === 0){
     annoncesContainer.innerHTML="<p style='text-align:center;color:#777;'>Aucun favori pour le moment.</p>";
     return;
@@ -135,10 +115,15 @@ onAuthStateChanged(auth, async (user)=>{
     const sellerName = escapeHTML(sellerData.fullName || "Utilisateur inconnu");
     const quartier = a.quartier ? ", "+escapeHTML(a.quartier) : "";
 
+    // Icônes boost et boutique si nécessaire
+    const boostIcon = a.boosted ? `<span class="material-icons boost-icon">bolt</span>` : '';
+    const shopIcon = isSubscribed ? `<span class="material-icons shop-icon">store</span>` : '';
+
     card.innerHTML=`
       <img src="${annonceImage}" loading="lazy" alt="${escapeHTML(a.title||'Annonce')}">
-      ${a.boosted ? `<span class="material-icons boost-icon" title="Annonce boostée">trending_up</span>` : ""}
       <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
+      ${boostIcon}
+      ${shopIcon}
       <span class="material-icons favorite active">favorite</span>
       <div class="content">
         <p class="price">${escapeHTML(a.price? a.price+" FCFA":"Prix sur demande")}</p>
@@ -147,10 +132,7 @@ onAuthStateChanged(auth, async (user)=>{
       </div>
       <div class="seller">
         <img src="${sellerPhoto}" alt="profil vendeur">
-        <div class="seller-info">
-          <strong>${sellerName}</strong>
-          ${sellerData.subscribe === true ? `<span class="material-icons shop-icon" title="Boutique abonnée">storefront</span>` : ""}
-        </div>
+        <div class="seller-info"><strong>${sellerName}</strong></div>
       </div>
     `;
 
@@ -161,11 +143,13 @@ onAuthStateChanged(auth, async (user)=>{
       card.remove();
       showToast("Annonce retirée de vos favoris");
     });
+
     card.addEventListener("click", e=>{
       if(e.target.classList.contains("favorite")) return;
       if(!a.id) return console.error("Annonce sans ID :", a);
       window.location.href=`../Details.html?id=${encodeURIComponent(a.id)}`;
     });
+
     annoncesContainer.appendChild(card);
   });
 });
