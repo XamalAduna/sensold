@@ -342,7 +342,7 @@ publishBtnMain.addEventListener("click", () => {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  if(window.M){
+  if (window.M) {
     M.FormSelect.init(document.querySelectorAll('select'));
   }
 
@@ -352,8 +352,8 @@ document.addEventListener('DOMContentLoaded', function() {
   const closeModal = document.getElementById("closeModal");
 
   const abonnerLink = document.querySelector('a[href="Abonnement/"]');
-  if(abonnerLink){
-    abonnerLink.addEventListener("click", function(e){
+  if (abonnerLink) {
+    abonnerLink.addEventListener("click", function(e) {
       e.preventDefault();
       subscribeModal.style.display = "flex";
     });
@@ -362,11 +362,11 @@ document.addEventListener('DOMContentLoaded', function() {
   closeModal.addEventListener("click", () => subscribeModal.style.display = "none");
 
   subscribeModal.addEventListener("click", e => {
-    if(e.target === subscribeModal) subscribeModal.style.display = "none";
+    if (e.target === subscribeModal) subscribeModal.style.display = "none";
   });
 
-  document.getElementById('subscriptionPhone').addEventListener('input', function(){ 
-    this.value = this.value.replace(/\D/g,''); 
+  document.getElementById('subscriptionPhone').addEventListener('input', function() {
+    this.value = this.value.replace(/\D/g, '');
   });
 
   confirmSubscription.addEventListener("mouseover", () => {
@@ -383,11 +383,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const phoneValue = document.getElementById("subscriptionPhone").value.trim();
     const paymentMethodValue = document.getElementById("subscriptionMethod").value.trim();
     const acceptRules = document.getElementById("acceptSubscriptionRules").checked;
-    const user = auth ? auth.currentUser : null; // Si Firebase est utilisé
-    const ownerId = user ? user.uid : "Non connecté";
+
+    // ✅ Empêche erreur si Firebase non défini
+    let ownerId = "Non connecté";
+    if (typeof auth !== "undefined" && auth.currentUser) {
+      ownerId = auth.currentUser.uid;
+    }
 
     // Vérification obligatoire
-    if(!abonnement || !phoneValue || !paymentMethodValue || !acceptRules){
+    if (!abonnement || !phoneValue || !paymentMethodValue || !acceptRules) {
       alert("Veuillez remplir tous les champs et accepter les règles de paiement.");
       return;
     }
@@ -407,6 +411,7 @@ document.addEventListener('DOMContentLoaded', function() {
       `3️⃣ Envoyez la capture sur ce même numéro WhatsApp.`
     );
 
+    // ✅ Redirection vers WhatsApp
     window.open(`https://wa.me/${waNumber}?text=${text}`, "_blank");
 
     // Reset champs
@@ -415,7 +420,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById("subscriptionMethod").value = "";
     document.getElementById("acceptSubscriptionRules").checked = false;
 
-    if(window.M){
+    if (window.M) {
       M.FormSelect.init(subscriptionSelect);
       M.FormSelect.init(document.getElementById("subscriptionMethod"));
     }
@@ -424,6 +429,7 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 </script>
+
 
 </body>
 </html>
