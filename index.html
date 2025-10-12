@@ -297,79 +297,101 @@ publishBtnMain.addEventListener("click", () => {
       <strong>+221 78 173 98 14</strong><br>
       (Disponible sur Wave et Orange Money)
     </p>
-    <select id="subscriptionSelect" required style="width:100%; padding:11px 12px; margin:8px 0 2px; border-radius:8px; border:1px solid #d1d1d1; background:#fafafa; font-size:15px;">
-      <option value="">-- Sélectionnez un abonnement --</option>
-      <option value="1000">1000 FCFA - 1 mois</option>
-      <option value="2000">2000 FCFA - 2 mois</option>
-      <option value="3000">3000 FCFA - 3 mois</option>
-    </select>
-    <input type="tel" id="subscriptionPhone" placeholder="Votre numéro pour le paiement" required pattern="[0-9]{8,15}" title="Entrez uniquement des chiffres" style="width:100%; padding:11px 12px; margin:8px 0 2px; border-radius:8px; border:1px solid #d1d1d1; background:#fafafa; font-size:15px;">
-    <select id="subscriptionMethod" required style="width:100%; padding:11px 12px; margin:8px 0 2px; border-radius:8px; border:1px solid #d1d1d1; background:#fafafa; font-size:15px;">
-      <option value="">-- Choisir le mode de paiement --</option>
-      <option value="Wave">Wave</option>
-      <option value="Orange Money">Orange Money</option>
-    </select>
-    <div style="text-align:left;margin-top:10px;">
-      <label>
-        <input type="checkbox" id="acceptSubscriptionRules" required style="accent-color:#00b050;">
-        J’ai lu et j’accepte les 
-        <a href="../Règles/index.html" target="_blank" style="color:#00796B;text-decoration:underline;">règles de paiement</a>.
-      </label>
+
+    <div class="input-field" style="margin-top:10px;">
+      <select id="subscriptionSelect" required>
+        <option value="" disabled selected>-- Sélectionnez un abonnement --</option>
+        <option value="1000">1000 FCFA - 1 mois</option>
+        <option value="2000">2000 FCFA - 2 mois</option>
+        <option value="3000">3000 FCFA - 3 mois</option>
+      </select>
+      <label>Abonnement</label>
     </div>
+
+    <div class="input-field" style="margin-top:10px;">
+      <input type="tel" id="subscriptionPhone" placeholder="Votre numéro pour le paiement" required pattern="[0-9]{8,15}" title="Entrez uniquement des chiffres">
+    </div>
+
+    <div class="input-field" style="margin-top:10px;">
+      <select id="subscriptionMethod" required>
+        <option value="" disabled selected>-- Choisir le mode de paiement --</option>
+        <option value="Wave">Wave</option>
+        <option value="Orange Money">Orange Money</option>
+      </select>
+      <label>Mode de paiement</label>
+    </div>
+
+    <p style="text-align:left; margin-top:10px;">
+      <label>
+        <input type="checkbox" id="acceptSubscriptionRules" required />
+        <span>J’ai lu et j’accepte les <a href="../Règles/index.html" target="_blank" style="color:#00796B;text-decoration:underline;">règles de paiement</a>.</span>
+      </label>
+    </p>
+
     <button id="confirmSubscription" style="margin-top:15px; width:100%; background:linear-gradient(90deg,#00b050,#009c46); color:white; border:none; padding:12px; border-radius:8px; cursor:pointer; font-size:16px; font-weight:600; letter-spacing:0.3px;">
       Confirmer et ouvrir WhatsApp
     </button>
   </div>
 </div>
 
-
-
 <script>
-const subscribeModal = document.getElementById("subscribeModal");
-const confirmSubscription = document.getElementById("confirmSubscription");
-const subscriptionSelect = document.getElementById("subscriptionSelect");
+document.addEventListener('DOMContentLoaded', function() {
+  // Initialiser tous les selects Materialize
+  var elems = document.querySelectorAll('select');
+  M.FormSelect.init(elems);
 
-// Ouvrir le modal depuis le lien S’abonner
-document.querySelector('a[href="Abonnement/"]').addEventListener("click", function(e){
-  e.preventDefault();
-  subscribeModal.style.display = "flex";
+  const subscribeModal = document.getElementById("subscribeModal");
+  const confirmSubscription = document.getElementById("confirmSubscription");
+  const subscriptionSelect = document.getElementById("subscriptionSelect");
+
+  // Ouvrir le modal depuis le lien S’abonner
+  document.querySelector('a[href="Abonnement/"]').addEventListener("click", function(e){
+    e.preventDefault();
+    subscribeModal.style.display = "flex";
+  });
+
+  // Confirmer abonnement
+  confirmSubscription.addEventListener("click", () => {
+    const abonnement = subscriptionSelect.value.trim();
+    const phoneValue = document.getElementById("subscriptionPhone").value.trim();
+    const paymentMethodValue = document.getElementById("subscriptionMethod").value.trim();
+    const acceptRules = document.getElementById("acceptSubscriptionRules").checked;
+
+    if(!abonnement || !phoneValue || !paymentMethodValue || !acceptRules){
+      alert("Veuillez remplir tous les champs et accepter les règles de paiement.");
+      return;
+    }
+
+    const duree = abonnement === "1000" ? "1 mois" : abonnement === "2000" ? "2 mois" : "3 mois";
+    const waNumber = "221781739814";
+    const text = encodeURIComponent(
+      `Bonjour, je souhaite m'abonner sur *SenSold*.\n\n` +
+      `Abonnement choisi: ${abonnement} FCFA (${duree})\n` +
+      `Numéro utilisé pour le paiement: ${phoneValue}\n` +
+      `Mode de paiement: ${paymentMethodValue}`
+    );
+    window.open(`https://wa.me/${waNumber}?text=${text}`, "_blank");
+    subscribeModal.style.display = "none";
+    subscriptionSelect.value = "";
+    document.getElementById("subscriptionPhone").value = "";
+    document.getElementById("subscriptionMethod").value = "";
+    document.getElementById("acceptSubscriptionRules").checked = false;
+
+    // Réinitialiser les selects Materialize
+    M.FormSelect.init(subscriptionSelect);
+    M.FormSelect.init(document.getElementById("subscriptionMethod"));
+  });
+
+  // Fermer modal en cliquant en dehors
+  subscribeModal.addEventListener("click", e => {
+    if(e.target === subscribeModal) subscribeModal.style.display = "none";
+  });
+
+  // Filtrer input pour numéro uniquement
+  document.getElementById('subscriptionPhone').addEventListener('input', function(){ 
+    this.value = this.value.replace(/\D/g,''); 
+  });
 });
-
-// Confirmer abonnement
-confirmSubscription.addEventListener("click", () => {
-  const abonnement = subscriptionSelect.value.trim();
-  const phoneValue = document.getElementById("subscriptionPhone").value.trim();
-  const paymentMethodValue = document.getElementById("subscriptionMethod").value.trim();
-  const acceptRules = document.getElementById("acceptSubscriptionRules").checked;
-
-  if(!abonnement || !phoneValue || !paymentMethodValue || !acceptRules){
-    alert("Veuillez remplir tous les champs et accepter les règles de paiement.");
-    return;
-  }
-
-  const duree = abonnement === "1000" ? "1 mois" : abonnement === "2000" ? "2 mois" : "3 mois";
-  const waNumber = "221781739814";
-  const text = encodeURIComponent(
-    `Bonjour, je souhaite m'abonner sur *SenSold*.\n\n` +
-    `Abonnement choisi: ${abonnement} FCFA (${duree})\n` +
-    `Numéro utilisé pour le paiement: ${phoneValue}\n` +
-    `Mode de paiement: ${paymentMethodValue}`
-  );
-  window.open(`https://wa.me/${waNumber}?text=${text}`, "_blank");
-  subscribeModal.style.display = "none";
-  subscriptionSelect.value = "";
-  document.getElementById("subscriptionPhone").value = "";
-  document.getElementById("subscriptionMethod").value = "";
-  document.getElementById("acceptSubscriptionRules").checked = false;
-});
-
-// Fermer modal en cliquant en dehors
-subscribeModal.addEventListener("click", e => {
-  if(e.target === subscribeModal) subscribeModal.style.display = "none";
-});
-
-// Filtrer input pour numéro uniquement
-document.getElementById('subscriptionPhone').addEventListener('input', function(){ this.value = this.value.replace(/\D/g,''); });
 </script>
 
 </body>
