@@ -107,7 +107,6 @@
   </div>
 </div>
 
-
 <!-- MODAL ABONNEMENT -->
 <div id="subscriptionModal">
   <div class="modal-content">
@@ -122,8 +121,8 @@
     <select id="subscriptionPlan" required>
       <option value="">-- Choisir un plan d’abonnement --</option>
       <option value="1000">1000 FCFA / 1 mois</option>
-      <option value="2500">2500 FCFA / 3 mois</option>
-      <option value="5000">5000 FCFA / 1 an</option>
+      <option value="2000">2000 FCFA / 2 mois</option>
+      <option value="3000">3000 FCFA / 3 mois</option>
     </select>
 
     <input type="tel" id="subscriberPhone" placeholder="Votre numéro pour le paiement" required pattern="[0-9]{8,15}" title="Entrez uniquement des chiffres" />
@@ -165,30 +164,30 @@
 <script type="module">
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 
-const subscriptionModal = document.getElementById("subscriptionModal");
-const confirmSubscription = document.getElementById("confirmSubscription");
+const modalAbonnement = document.getElementById("subscriptionModal");
+const btnConfirmerAbonnement = document.getElementById("confirmSubscription");
 
-// bouton pour ouvrir le modal (ex: depuis ton menu)
-const subscribeBtn = document.querySelector('a[href="Abonnement/"]');
-if (subscribeBtn) {
-  subscribeBtn.addEventListener("click", (e) => {
+// Ouvrir le modal depuis le menu
+const btnSAbonner = document.querySelector('a[href="Abonnement/"]');
+if (btnSAbonner) {
+  btnSAbonner.addEventListener("click", (e) => {
     e.preventDefault();
-    subscriptionModal.style.display = "flex";
+    modalAbonnement.style.display = "flex";
   });
 }
 
-// fermer en cliquant à l’extérieur
-subscriptionModal.addEventListener("click", (e) => {
-  if (e.target === subscriptionModal) subscriptionModal.style.display = "none";
+// fermer modal en cliquant à l'extérieur
+modalAbonnement.addEventListener("click", (e) => {
+  if (e.target === modalAbonnement) modalAbonnement.style.display = "none";
 });
 
-// champ numéro
+// champ numéro : uniquement chiffres
 document.getElementById("subscriberPhone").addEventListener("input", function () {
   this.value = this.value.replace(/\D/g, '');
 });
 
 // confirmation abonnement
-confirmSubscription.addEventListener("click", async () => {
+btnConfirmerAbonnement.addEventListener("click", async () => {
   const auth = getAuth();
   const user = auth.currentUser;
   if (!user) return alert("Veuillez vous connecter avant de vous abonner.");
@@ -204,7 +203,7 @@ confirmSubscription.addEventListener("click", async () => {
   }
 
   const ownerId = user.uid;
-  const text = encodeURIComponent(
+  const messageWhatsApp = encodeURIComponent(
     `Bonjour, je souhaite souscrire à un abonnement *Sensold*.\n\n` +
     `👤 OwnerID : ${ownerId}\n` +
     `💰 Plan choisi : ${plan} FCFA\n` +
@@ -212,17 +211,17 @@ confirmSubscription.addEventListener("click", async () => {
     `📞 Numéro utilisé : ${phone}\n\n` +
     `⚠️ Étapes :\n1️⃣ Envoyez le paiement au numéro +221 78 173 98 14.\n2️⃣ Prenez une capture d'écran du paiement.\n3️⃣ Envoyez-la ici sur WhatsApp pour validation.`
   );
-  window.open(`https://wa.me/221781739814?text=${text}`, "_blank");
-  subscriptionModal.style.display = "none";
 
-  // reset
+  window.open(`https://wa.me/221781739814?text=${messageWhatsApp}`, "_blank");
+  modalAbonnement.style.display = "none";
+
+  // reset formulaire
   document.getElementById("subscriptionPlan").value = "";
   document.getElementById("subscriberPhone").value = "";
   document.getElementById("subscriptionPayment").value = "";
   document.getElementById("acceptSubscriptionRules").checked = false;
 });
 </script>
-
 
 
 <script type="module">
