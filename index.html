@@ -288,7 +288,7 @@ publishBtnMain.addEventListener("click", () => {
 
 
 <!-- Modal Abonnement -->
-<div id="subscribeModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.55); z-index:9999; justify-content:center; align-items:center; backdrop-filter:blur(4px);">
+<div id="subscribeModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.55); z-index:20000; justify-content:center; align-items:center; backdrop-filter:blur(4px);">
   <div class="modal-content" style="position:relative; background:#ffffff; padding:30px 35px; border-radius:16px; max-width:420px; width:90%; box-shadow:0 6px 30px rgba(0,0,0,0.25); text-align:center; font-family:Arial, sans-serif;">
     <span class="brand" style="position:absolute; top:12px; left:18px;color: #009688; font-weight:700; font-size:18px; letter-spacing:0.5px;">SenSold</span>
     <h3 style="margin-top:5px; margin-bottom:10px; font-size:22px; font-weight:600; color:#222;">Choisir votre abonnement</h3>
@@ -336,7 +336,6 @@ publishBtnMain.addEventListener("click", () => {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  // Initialiser tous les selects Materialize
   var elems = document.querySelectorAll('select');
   M.FormSelect.init(elems);
 
@@ -351,11 +350,17 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // Confirmer abonnement
-  confirmSubscription.addEventListener("click", () => {
+  confirmSubscription.addEventListener("click", async () => {
     const abonnement = subscriptionSelect.value.trim();
     const phoneValue = document.getElementById("subscriptionPhone").value.trim();
     const paymentMethodValue = document.getElementById("subscriptionMethod").value.trim();
     const acceptRules = document.getElementById("acceptSubscriptionRules").checked;
+    const user = auth.currentUser;
+
+    if(!user){
+      alert("Utilisateur non connecté !");
+      return;
+    }
 
     if(!abonnement || !phoneValue || !paymentMethodValue || !acceptRules){
       alert("Veuillez remplir tous les champs et accepter les règles de paiement.");
@@ -364,12 +369,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const duree = abonnement === "1000" ? "1 mois" : abonnement === "2000" ? "2 mois" : "3 mois";
     const waNumber = "221781739814";
+    const ownerId = user.uid;
+
     const text = encodeURIComponent(
       `Bonjour, je souhaite m'abonner sur *SenSold*.\n\n` +
       `Abonnement choisi: ${abonnement} FCFA (${duree})\n` +
       `Numéro utilisé pour le paiement: ${phoneValue}\n` +
-      `Mode de paiement: ${paymentMethodValue}`
+      `Mode de paiement: ${paymentMethodValue}\n` +
+      `Owner ID: ${ownerId}`
     );
+
     window.open(`https://wa.me/${waNumber}?text=${text}`, "_blank");
     subscribeModal.style.display = "none";
     subscriptionSelect.value = "";
@@ -377,7 +386,6 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById("subscriptionMethod").value = "";
     document.getElementById("acceptSubscriptionRules").checked = false;
 
-    // Réinitialiser les selects Materialize
     M.FormSelect.init(subscriptionSelect);
     M.FormSelect.init(document.getElementById("subscriptionMethod"));
   });
@@ -393,6 +401,7 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 </script>
+
 
 </body>
 </html>
