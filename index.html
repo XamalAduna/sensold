@@ -290,6 +290,10 @@ publishBtnMain.addEventListener("click", () => {
 <!-- Modal Abonnement -->
 <div id="subscribeModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.55); z-index:20000; justify-content:center; align-items:center; backdrop-filter:blur(4px);">
   <div class="modal-content" style="position:relative; background:#ffffff; padding:30px 35px; border-radius:16px; max-width:420px; width:90%; box-shadow:0 6px 30px rgba(0,0,0,0.25); text-align:center; font-family:Arial, sans-serif;">
+    
+    <!-- Bouton X pour fermer -->
+    <span id="closeModal" style="position:absolute; top:10px; right:15px; font-size:22px; font-weight:bold; cursor:pointer;">&times;</span>
+
     <span class="brand" style="position:absolute; top:12px; left:18px;color: #009688; font-weight:700; font-size:18px; letter-spacing:0.5px;">SenSold</span>
     <h3 style="margin-top:5px; margin-bottom:10px; font-size:22px; font-weight:600; color:#222;">Choisir votre abonnement</h3>
     <p style="background:#e0f7fa;padding:10px;border-radius:8px;">
@@ -346,31 +350,45 @@ publishBtnMain.addEventListener("click", () => {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  var elems = document.querySelectorAll('select');
-  M.FormSelect.init(elems);
+  // Initialisation select Materialize si tu l'utilises
+  if(window.M){
+    var elems = document.querySelectorAll('select');
+    M.FormSelect.init(elems);
+  }
 
   const subscribeModal = document.getElementById("subscribeModal");
   const confirmSubscription = document.getElementById("confirmSubscription");
   const subscriptionSelect = document.getElementById("subscriptionSelect");
+  const closeModal = document.getElementById("closeModal");
 
   // Ouvrir le modal depuis le lien S’abonner
-  document.querySelector('a[href="Abonnement/"]').addEventListener("click", function(e){
-    e.preventDefault();
-    subscribeModal.style.display = "flex";
+  const abonnerLink = document.querySelector('a[href="Abonnement/"]');
+  if(abonnerLink){
+    abonnerLink.addEventListener("click", function(e){
+      e.preventDefault();
+      subscribeModal.style.display = "flex";
+    });
+  }
+
+  // Fermer modal avec X
+  closeModal.addEventListener("click", () => subscribeModal.style.display = "none");
+
+  // Fermer modal en cliquant en dehors
+  subscribeModal.addEventListener("click", e => {
+    if(e.target === subscribeModal) subscribeModal.style.display = "none";
+  });
+
+  // Filtrer input pour numéro uniquement
+  document.getElementById('subscriptionPhone').addEventListener('input', function(){ 
+    this.value = this.value.replace(/\D/g,''); 
   });
 
   // Confirmer abonnement
-  confirmSubscription.addEventListener("click", async () => {
+  confirmSubscription.addEventListener("click", () => {
     const abonnement = subscriptionSelect.value.trim();
     const phoneValue = document.getElementById("subscriptionPhone").value.trim();
     const paymentMethodValue = document.getElementById("subscriptionMethod").value.trim();
     const acceptRules = document.getElementById("acceptSubscriptionRules").checked;
-    const user = auth.currentUser;
-
-    if(!user){
-      alert("Utilisateur non connecté !");
-      return;
-    }
 
     if(!abonnement || !phoneValue || !paymentMethodValue || !acceptRules){
       alert("Veuillez remplir tous les champs et accepter les règles de paiement.");
@@ -379,35 +397,30 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const duree = abonnement === "1000" ? "1 mois" : abonnement === "2000" ? "2 mois" : "3 mois";
     const waNumber = "221781739814";
-    const ownerId = user.uid;
 
     const text = encodeURIComponent(
       `Bonjour, je souhaite m'abonner sur *SenSold*.\n\n` +
       `Abonnement choisi: ${abonnement} FCFA (${duree})\n` +
       `Numéro utilisé pour le paiement: ${phoneValue}\n` +
-      `Mode de paiement: ${paymentMethodValue}\n` +
-      `Owner ID: ${ownerId}`
+      `Mode de paiement: ${paymentMethodValue}`
     );
+
     window.open(`https://wa.me/${waNumber}?text=${text}`, "_blank");
-    subscribeModal.style.display = "none";
+
+    // Reset champs
     subscriptionSelect.value = "";
     document.getElementById("subscriptionPhone").value = "";
     document.getElementById("subscriptionMethod").value = "";
     document.getElementById("acceptSubscriptionRules").checked = false;
 
-    M.FormSelect.init(subscriptionSelect);
-    M.FormSelect.init(document.getElementById("subscriptionMethod"));
-  });
-  // Fermer modal en cliquant en dehors
-  subscribeModal.addEventListener("click", e => {
-    if(e.target === subscribeModal) subscribeModal.style.display = "none";
-  });
-  // Filtrer input pour numéro uniquement
-  document.getElementById('subscriptionPhone').addEventListener('input', function(){ 
-    this.value = this.value.replace(/\D/g,''); 
+    if(window.M){
+      M.FormSelect.init(subscriptionSelect);
+      M.FormSelect.init(document.getElementById("subscriptionMethod"));
+    }
+
+    subscribeModal.style.display = "none";
   });
 });
 </script>
-
 </body>
 </html>
