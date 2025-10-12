@@ -290,10 +290,8 @@ publishBtnMain.addEventListener("click", () => {
 <!-- Modal Abonnement -->
 <div id="subscribeModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.55); z-index:20000; justify-content:center; align-items:center; backdrop-filter:blur(4px);">
   <div class="modal-content" style="position:relative; background:#ffffff; padding:30px 35px; border-radius:16px; max-width:420px; width:90%; box-shadow:0 6px 30px rgba(0,0,0,0.25); text-align:center; font-family:Arial, sans-serif;">
-    
     <!-- Bouton X pour fermer -->
     <span id="closeModal" style="position:absolute; top:10px; right:15px; font-size:22px; font-weight:bold; cursor:pointer;">&times;</span>
-
     <span class="brand" style="position:absolute; top:12px; left:18px;color: #009688; font-weight:700; font-size:18px; letter-spacing:0.5px;">SenSold</span>
     <h3 style="margin-top:5px; margin-bottom:10px; font-size:22px; font-weight:600; color:#222;">Choisir votre abonnement</h3>
     <p style="background:#e0f7fa;padding:10px;border-radius:8px;">
@@ -301,7 +299,6 @@ publishBtnMain.addEventListener("click", () => {
       <strong>+221 78 173 98 14</strong><br>
       (Disponible sur Wave et Orange Money)
     </p>
-
     <!-- Bienfaits abonnement -->
     <div style="text-align:left; background:#f1f8e9; padding:12px; border-radius:8px; margin-bottom:10px; font-size:14px; line-height:1.5;">
       <strong>Avantages de l'abonnement :</strong>
@@ -311,7 +308,6 @@ publishBtnMain.addEventListener("click", () => {
         <li>Visibilité et crédibilité accrues pour vos annonces</li>
       </ul>
     </div>
-
     <div class="input-field" style="margin-top:10px;">
       <select id="subscriptionSelect" required>
         <option value="" disabled selected>-- Sélectionnez un abonnement --</option>
@@ -321,11 +317,9 @@ publishBtnMain.addEventListener("click", () => {
       </select>
       <label>Abonnement</label>
     </div>
-
     <div class="input-field" style="margin-top:10px;">
       <input type="tel" id="subscriptionPhone" placeholder="Votre numéro pour le paiement" required pattern="[0-9]{8,15}" title="Entrez uniquement des chiffres">
     </div>
-
     <div class="input-field" style="margin-top:10px;">
       <select id="subscriptionMethod" required>
         <option value="" disabled selected>-- Choisir le mode de paiement --</option>
@@ -334,14 +328,12 @@ publishBtnMain.addEventListener("click", () => {
       </select>
       <label>Mode de paiement</label>
     </div>
-
     <p style="text-align:left; margin-top:10px;">
       <label>
         <input type="checkbox" id="acceptSubscriptionRules" required />
         <span>J’ai lu et j’accepte les <a href="../Règles/index.html" target="_blank" style="color:#00796B;text-decoration:underline;">règles de paiement</a>.</span>
       </label>
     </p>
-
     <button id="confirmSubscription" style="margin-top:15px; width:100%; background:linear-gradient(90deg,#00b050,#009c46); color:white; border:none; padding:12px; border-radius:8px; cursor:pointer; font-size:16px; font-weight:600; letter-spacing:0.3px; transition: transform 0.2s, box-shadow 0.2s;">
       Confirmer et ouvrir WhatsApp
     </button>
@@ -377,7 +369,6 @@ document.addEventListener('DOMContentLoaded', function() {
     this.value = this.value.replace(/\D/g,''); 
   });
 
-  // Animation bouton hover
   confirmSubscription.addEventListener("mouseover", () => {
     confirmSubscription.style.transform = "scale(1.05)";
     confirmSubscription.style.boxShadow = "0 6px 15px rgba(0,0,0,0.3)";
@@ -395,13 +386,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const user = auth ? auth.currentUser : null; // Si Firebase est utilisé
     const ownerId = user ? user.uid : "Non connecté";
 
+    // Vérification obligatoire
     if(!abonnement || !phoneValue || !paymentMethodValue || !acceptRules){
       alert("Veuillez remplir tous les champs et accepter les règles de paiement.");
       return;
     }
 
     const duree = abonnement === "1000" ? "1 mois" : abonnement === "2000" ? "2 mois" : "3 mois";
-    const waNumber = "221781739814";
+    const waNumber = "221781739814"; // Numéro fixe
 
     const text = encodeURIComponent(
       `Bonjour, je souhaite m'abonner sur *SenSold*.\n\n` +
