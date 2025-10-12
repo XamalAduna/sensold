@@ -298,6 +298,16 @@ publishBtnMain.addEventListener("click", () => {
       (Disponible sur Wave et Orange Money)
     </p>
 
+    <!-- Bienfaits abonnement -->
+    <div style="text-align:left; background:#f1f8e9; padding:12px; border-radius:8px; margin-bottom:10px; font-size:14px; line-height:1.5;">
+      <strong>Avantages de l'abonnement :</strong>
+      <ul style="padding-left:20px; margin-top:5px;">
+        <li>Toutes vos annonces auront une <strong>icône de boutique professionnelle</strong></li>
+        <li>Vous pouvez publier jusqu'à <strong>9 images</strong> par annonce au lieu de 3</li>
+        <li>Visibilité et crédibilité accrues pour vos annonces</li>
+      </ul>
+    </div>
+
     <div class="input-field" style="margin-top:10px;">
       <select id="subscriptionSelect" required>
         <option value="" disabled selected>-- Sélectionnez un abonnement --</option>
@@ -378,7 +388,6 @@ document.addEventListener('DOMContentLoaded', function() {
       `Mode de paiement: ${paymentMethodValue}\n` +
       `Owner ID: ${ownerId}`
     );
-
     window.open(`https://wa.me/${waNumber}?text=${text}`, "_blank");
     subscribeModal.style.display = "none";
     subscriptionSelect.value = "";
@@ -389,19 +398,16 @@ document.addEventListener('DOMContentLoaded', function() {
     M.FormSelect.init(subscriptionSelect);
     M.FormSelect.init(document.getElementById("subscriptionMethod"));
   });
-
   // Fermer modal en cliquant en dehors
   subscribeModal.addEventListener("click", e => {
     if(e.target === subscribeModal) subscribeModal.style.display = "none";
   });
-
   // Filtrer input pour numéro uniquement
   document.getElementById('subscriptionPhone').addEventListener('input', function(){ 
     this.value = this.value.replace(/\D/g,''); 
   });
 });
 </script>
-
 
 </body>
 </html>
