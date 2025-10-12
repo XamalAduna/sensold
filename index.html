@@ -108,6 +108,123 @@
 </div>
 
 
+<!-- MODAL ABONNEMENT -->
+<div id="subscriptionModal">
+  <div class="modal-content">
+    <span class="brand">SenSold</span>
+    <h3>S’abonner à Sensold</h3>
+    <p style="background:#e0f7fa;padding:10px;border-radius:8px;">
+      📱 Envoyez le paiement au numéro :<br>
+      <strong>+221 78 173 98 14</strong><br>
+      (Disponible sur Wave et Orange Money)
+    </p>
+
+    <select id="subscriptionPlan" required>
+      <option value="">-- Choisir un plan d’abonnement --</option>
+      <option value="1000">1000 FCFA / 1 mois</option>
+      <option value="2500">2500 FCFA / 3 mois</option>
+      <option value="5000">5000 FCFA / 1 an</option>
+    </select>
+
+    <input type="tel" id="subscriberPhone" placeholder="Votre numéro pour le paiement" required pattern="[0-9]{8,15}" title="Entrez uniquement des chiffres" />
+
+    <select id="subscriptionPayment" required>
+      <option value="">-- Choisir le mode de paiement --</option>
+      <option value="Wave">Wave</option>
+      <option value="Orange Money">Orange Money</option>
+    </select>
+
+    <div style="text-align:left;margin-top:10px;">
+      <label>
+        <input type="checkbox" id="acceptSubscriptionRules" required>
+        J’ai lu et j’accepte les 
+        <a href="../Règles/index.html" target="_blank" style="color:#00796B;text-decoration:underline;">
+          règles d’abonnement
+        </a>.
+      </label>
+    </div>
+
+    <button id="confirmSubscription">Confirmer et ouvrir WhatsApp</button>
+  </div>
+</div>
+
+<style>
+#subscriptionModal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.55); z-index:9999; justify-content:center; align-items:center; backdrop-filter:blur(4px); }
+#subscriptionModal .modal-content { position:relative; background:#ffffff; padding:30px 35px; border-radius:16px; max-width:420px; width:90%; box-shadow:0 6px 30px rgba(0,0,0,0.25); text-align:center; animation:modalFade .35s ease; font-family:"Poppins", Arial, sans-serif; }
+#subscriptionModal .brand { position:absolute; top:12px; left:18px;color: #009688; font-weight:700; font-size:18px; letter-spacing:0.5px; }
+#subscriptionModal h3 { margin-top:5px; margin-bottom:10px; font-size:22px; font-weight:600; color:#222; }
+#subscriptionModal select, #subscriptionModal input { width:100%; padding:11px 12px; margin:8px 0 2px; border-radius:8px; border:1px solid #d1d1d1; background:#fafafa; font-size:15px; transition:all 0.2s ease-in-out; }
+#subscriptionModal select:focus, #subscriptionModal input:focus { border-color:#00b050; background:#fff; outline:none; box-shadow:0 0 0 3px rgba(0,176,80,0.15); }
+#subscriptionModal input[type="checkbox"] { accent-color:#00b050; }
+#subscriptionModal button { margin-top:15px; width:100%; background:linear-gradient(90deg,#00b050,#009c46); color:white; border:none; padding:12px; border-radius:8px; cursor:pointer; font-size:16px; font-weight:600; letter-spacing:0.3px; transition:background 0.25s ease, transform 0.15s; }
+#subscriptionModal button:hover { background:linear-gradient(90deg,#009643,#00b050); transform:translateY(-2px); }
+#subscriptionModal button:active { transform:translateY(0); }
+@keyframes modalFade { from {opacity:0; transform:translateY(-10px) scale(0.95);} to {opacity:1; transform:translateY(0) scale(1);} }
+</style>
+
+<script type="module">
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
+
+const subscriptionModal = document.getElementById("subscriptionModal");
+const confirmSubscription = document.getElementById("confirmSubscription");
+
+// bouton pour ouvrir le modal (ex: depuis ton menu)
+const subscribeBtn = document.querySelector('a[href="Abonnement/"]');
+if (subscribeBtn) {
+  subscribeBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    subscriptionModal.style.display = "flex";
+  });
+}
+
+// fermer en cliquant à l’extérieur
+subscriptionModal.addEventListener("click", (e) => {
+  if (e.target === subscriptionModal) subscriptionModal.style.display = "none";
+});
+
+// champ numéro
+document.getElementById("subscriberPhone").addEventListener("input", function () {
+  this.value = this.value.replace(/\D/g, '');
+});
+
+// confirmation abonnement
+confirmSubscription.addEventListener("click", async () => {
+  const auth = getAuth();
+  const user = auth.currentUser;
+  if (!user) return alert("Veuillez vous connecter avant de vous abonner.");
+
+  const plan = document.getElementById("subscriptionPlan").value.trim();
+  const phone = document.getElementById("subscriberPhone").value.trim();
+  const payment = document.getElementById("subscriptionPayment").value.trim();
+  const accept = document.getElementById("acceptSubscriptionRules").checked;
+
+  if (!plan || !phone || !payment || !accept) {
+    alert("Veuillez remplir tous les champs et accepter les règles avant de continuer.");
+    return;
+  }
+
+  const ownerId = user.uid;
+  const text = encodeURIComponent(
+    `Bonjour, je souhaite souscrire à un abonnement *Sensold*.\n\n` +
+    `👤 OwnerID : ${ownerId}\n` +
+    `💰 Plan choisi : ${plan} FCFA\n` +
+    `💳 Paiement via : ${payment}\n` +
+    `📞 Numéro utilisé : ${phone}\n\n` +
+    `⚠️ Étapes :\n1️⃣ Envoyez le paiement au numéro +221 78 173 98 14.\n2️⃣ Prenez une capture d'écran du paiement.\n3️⃣ Envoyez-la ici sur WhatsApp pour validation.`
+  );
+  window.open(`https://wa.me/221781739814?text=${text}`, "_blank");
+  subscriptionModal.style.display = "none";
+
+  // reset
+  document.getElementById("subscriptionPlan").value = "";
+  document.getElementById("subscriberPhone").value = "";
+  document.getElementById("subscriptionPayment").value = "";
+  document.getElementById("acceptSubscriptionRules").checked = false;
+});
+</script>
+
+
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
