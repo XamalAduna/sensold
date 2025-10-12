@@ -342,7 +342,7 @@ publishBtnMain.addEventListener("click", () => {
       </label>
     </p>
 
-    <button id="confirmSubscription" style="margin-top:15px; width:100%; background:linear-gradient(90deg,#00b050,#009c46); color:white; border:none; padding:12px; border-radius:8px; cursor:pointer; font-size:16px; font-weight:600; letter-spacing:0.3px;">
+    <button id="confirmSubscription" style="margin-top:15px; width:100%; background:linear-gradient(90deg,#00b050,#009c46); color:white; border:none; padding:12px; border-radius:8px; cursor:pointer; font-size:16px; font-weight:600; letter-spacing:0.3px; transition: transform 0.2s, box-shadow 0.2s;">
       Confirmer et ouvrir WhatsApp
     </button>
   </div>
@@ -350,10 +350,8 @@ publishBtnMain.addEventListener("click", () => {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  // Initialisation select Materialize si tu l'utilises
   if(window.M){
-    var elems = document.querySelectorAll('select');
-    M.FormSelect.init(elems);
+    M.FormSelect.init(document.querySelectorAll('select'));
   }
 
   const subscribeModal = document.getElementById("subscribeModal");
@@ -361,7 +359,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const subscriptionSelect = document.getElementById("subscriptionSelect");
   const closeModal = document.getElementById("closeModal");
 
-  // Ouvrir le modal depuis le lien S’abonner
   const abonnerLink = document.querySelector('a[href="Abonnement/"]');
   if(abonnerLink){
     abonnerLink.addEventListener("click", function(e){
@@ -370,25 +367,33 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Fermer modal avec X
   closeModal.addEventListener("click", () => subscribeModal.style.display = "none");
 
-  // Fermer modal en cliquant en dehors
   subscribeModal.addEventListener("click", e => {
     if(e.target === subscribeModal) subscribeModal.style.display = "none";
   });
 
-  // Filtrer input pour numéro uniquement
   document.getElementById('subscriptionPhone').addEventListener('input', function(){ 
     this.value = this.value.replace(/\D/g,''); 
   });
 
-  // Confirmer abonnement
+  // Animation bouton hover
+  confirmSubscription.addEventListener("mouseover", () => {
+    confirmSubscription.style.transform = "scale(1.05)";
+    confirmSubscription.style.boxShadow = "0 6px 15px rgba(0,0,0,0.3)";
+  });
+  confirmSubscription.addEventListener("mouseout", () => {
+    confirmSubscription.style.transform = "scale(1)";
+    confirmSubscription.style.boxShadow = "none";
+  });
+
   confirmSubscription.addEventListener("click", () => {
     const abonnement = subscriptionSelect.value.trim();
     const phoneValue = document.getElementById("subscriptionPhone").value.trim();
     const paymentMethodValue = document.getElementById("subscriptionMethod").value.trim();
     const acceptRules = document.getElementById("acceptSubscriptionRules").checked;
+    const user = auth ? auth.currentUser : null; // Si Firebase est utilisé
+    const ownerId = user ? user.uid : "Non connecté";
 
     if(!abonnement || !phoneValue || !paymentMethodValue || !acceptRules){
       alert("Veuillez remplir tous les champs et accepter les règles de paiement.");
@@ -402,7 +407,12 @@ document.addEventListener('DOMContentLoaded', function() {
       `Bonjour, je souhaite m'abonner sur *SenSold*.\n\n` +
       `Abonnement choisi: ${abonnement} FCFA (${duree})\n` +
       `Numéro utilisé pour le paiement: ${phoneValue}\n` +
-      `Mode de paiement: ${paymentMethodValue}`
+      `Mode de paiement: ${paymentMethodValue}\n` +
+      `Owner ID: ${ownerId}\n\n` +
+      `⚠️ Instructions :\n` +
+      `1️⃣ Effectuez le paiement au numéro : +221 78 173 98 14\n` +
+      `2️⃣ Prenez une capture d'écran de votre paiement.\n` +
+      `3️⃣ Envoyez la capture sur ce même numéro WhatsApp.`
     );
 
     window.open(`https://wa.me/${waNumber}?text=${text}`, "_blank");
@@ -422,5 +432,6 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 </script>
+
 </body>
 </html>
