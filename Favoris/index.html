@@ -30,8 +30,6 @@ h2 {position:fixed;top:0;left:0;right:0;background:#f7f7f7;z-index:1000;text-ali
 .boost-icon { position:absolute; bottom:8px; right:8px; font-size:40px; color:#00796B; background:transparent; border-radius:0; padding:0; z-index:20; display:flex; align-items:center; justify-content:center; line-height:1; }
 .time-badge { position:absolute; top:10px; left:10px; background:rgba(0,0,0,0.6); color:#fff; padding:4px 8px; border-radius:6px; font-size:12px; font-weight:bold; z-index:5; }
 .long-text { font-size:14px; }
-.loader { border:6px solid #f3f3f3; border-top:6px solid #009688; border-radius:50%; width:50px; height:50px; animation:spin 1s linear infinite; }
-@keyframes spin { 0% { transform:rotate(0deg); } 100% { transform:rotate(360deg); } }
 #notLoggedMsg { display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; padding:20px 30px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.25); text-align:center; z-index:99999; }
 #notLoggedMsg a { display:inline-block; margin:8px 0; color:#009688; text-decoration:none; font-weight:bold; }
 #notLoggedMsg a:hover { text-decoration:underline; }
@@ -43,12 +41,9 @@ h2 {position:fixed;top:0;left:0;right:0;background:#f7f7f7;z-index:1000;text-ali
 <body>
 <button class="back-btn" onclick="window.history.back()">✖</button>
 <h2>Mes Favoris ❤️</h2>
-<div id="spinner" style="display:flex; justify-content:center; align-items:center; height:200px;">
-  <div class="loader"></div>
-</div>
 <div id="annonces" class="annonces-container"></div>
 <div id="notLoggedMsg">
-  <p>Veuillez vous connecter pour ajouter  cette annonce à vos favoris.</p>
+  <p>Veuillez vous connecter pour ajouter  cette annonce à vos favoris.</p>
   <a href="login.html">Se connecter</a>
 </div>
 <div id="toast">Annonce retirée de vos favoris</div>
@@ -108,7 +103,6 @@ onAuthStateChanged(auth, async user => {
   currentUser = user;
   if(!user){
     annoncesContainer.innerHTML = "<p>Veuillez vous connecter pour voir vos favoris.</p>";
-    document.getElementById("spinner").style.display = "none";
     return;
   }
   const userRef = doc(db,"users",user.uid);
@@ -119,7 +113,6 @@ onAuthStateChanged(auth, async user => {
 
 async function loadFavorites() {
   annoncesContainer.innerHTML = "";
-  document.getElementById("spinner").style.display = "flex";
 
   try {
     const annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt","desc"));
@@ -132,7 +125,6 @@ async function loadFavorites() {
     });
     if (annoncesData.length === 0){
       annoncesContainer.innerHTML = "<p>Vous n'avez aucune annonce en favoris.</p>";
-      document.getElementById("spinner").style.display = "none";
       return;
     }
     if (!window.__usersCache) {
@@ -150,8 +142,6 @@ async function loadFavorites() {
   } catch(err){
     console.error(err);
     annoncesContainer.innerHTML = "<p>Erreur de chargement des favoris.</p>";
-  } finally {
-    document.getElementById("spinner").style.display = "none";
   }
 }
 
