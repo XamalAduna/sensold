@@ -127,6 +127,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+window.auth = auth; // ✅ Rend la variable globale
 const db = getFirestore(app);
 const storage = getStorage(app);
 
@@ -429,7 +430,6 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 </script>
-
 
 </body>
 </html>
