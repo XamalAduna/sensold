@@ -152,7 +152,7 @@ registerForm.addEventListener("submit", async (e) => {
     });
     await setDoc(doc(db, "users", user.uid), {
       fullName, email: emailValue, createdAt: new Date(),subscribe: false, 
-      subscribeEnd: null, emailVerified: false
+     subscribeEnd: "", emailVerified: false
     });
     await signOut(auth);
     globalMessage.textContent = "✅ Inscription réussie ! Vérifiez votre boîte mail pour confirmer votre compte avant de vous connecter.";
