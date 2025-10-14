@@ -202,11 +202,12 @@ confirmBoost.addEventListener("click", ()=> {
   document.getElementById("acceptRules").checked = false;
 });
 boostModal.addEventListener("click", e=>{
-  if(e.target === boostModal) boostModal.style.display = "none";
-});
+  if(e.target === boostModal) boostModal.style.display = "none";});
+  const closeModalBtn = document.getElementById("closeModal");
+  closeModalBtn.addEventListener("click", () => {
+  boostModal.style.display = "none";});
 document.getElementById('clientPhone').addEventListener('input', function(e){
-  this.value = this.value.replace(/\D/g,''); 
-});
+  this.value = this.value.replace(/\D/g,'');});
 </script>
 </body>
 </html>
