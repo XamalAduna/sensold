@@ -157,6 +157,16 @@ document.addEventListener('DOMContentLoaded', function() {
         userNameElem.textContent = userData.fullName || "Utilisateur";
         userEmailElem.textContent = user.email || "";
         if (userData.profileImage) profileImageElem.src = userData.profileImage;
+      
+        const abonnerLink = document.querySelector('a[href="Abonnement/"]');
+        if (abonnerLink && userData.subscribe) {
+          const now = new Date();
+          const subscribeEnd = userData.subscribeEnd ? userData.subscribeEnd.toDate() : null;
+          if (subscribeEnd && subscribeEnd > now) {
+          abonnerLink.style.pointerEvents = "none"; 
+          abonnerLink.style.opacity = "0.5";       
+          abonnerLink.style.filter = "blur(1px)";  
+          abonnerLink.title = "Vous êtes déjà abonné";}} 
       }
     } else {
       isLoggedIn = false;
