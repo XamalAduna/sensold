@@ -280,8 +280,8 @@ publishBtnMain.addEventListener("click", () => {
       <select id="subscriptionSelect" required>
         <option value="" disabled selected>-- Sélectionnez un abonnement --</option>
         <option value="1000">1000 FCFA - 1 mois</option>
-        <option value="2000">1800 FCFA - 2 mois</option>
-        <option value="3000">2500 FCFA - 3 mois</option>
+        <option value="1800">1800 FCFA - 2 mois</option>
+        <option value="2500">2500 FCFA - 3 mois</option>
       </select>
       <label>Abonnement</label>
     </div>
@@ -351,7 +351,7 @@ document.addEventListener('DOMContentLoaded', function() {
       alert("Veuillez remplir tous les champs et accepter les règles de paiement.");
       return;
     }
-    const duree = abonnement === "1000" ? "1 mois" : abonnement === "2000" ? "2 mois" : "3 mois";
+    const duree = abonnement === "1000" ? "1 mois" : abonnement === "1800" ? "2 mois" : "3 mois";
     const waNumber = "221781739814";
     const text = encodeURIComponent(
       `Bonjour, je souhaite m'abonner sur *SenSold*.\n\n` +
