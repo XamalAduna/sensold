@@ -50,6 +50,7 @@ h2 {position:fixed;top:0;left:0;right:0;background:#f7f7f7;z-index:1000;text-ali
 <div id="boostModal">
   <div class="modal-content">
     <span class="brand">SenSold</span>
+    <span id="closeModal" style="position:absolute; top:10px; right:15px; font-size:22px; font-weight:bold; cursor:pointer;">&times;</span> 
     <h3>Choisir un tarif pour booster</h3>
     <p style="background:#e0f7fa;padding:10px;border-radius:8px;">
       📱 Envoyez le paiement au numéro :<br>
@@ -58,9 +59,9 @@ h2 {position:fixed;top:0;left:0;right:0;background:#f7f7f7;z-index:1000;text-ali
     </p>
     <select id="tarifSelect" required>
       <option value="">-- Sélectionnez un tarif --</option>
-      <option value="1000">1000 FCFA - 7 jours</option>
-      <option value="2000">2000 FCFA - 14 jours</option>
-      <option value="3000">3000 FCFA - 21 jours</option>
+      <option value="500">500 FCFA - 7 jours</option>
+      <option value="900">900 FCFA - 14 jours</option>
+      <option value="1200">1200 FCFA - 21 jours</option>
     </select>
     <input type="tel" id="clientPhone" placeholder="Votre numéro pour le paiement" required pattern="[0-9]{8,15}" title="Entrez uniquement des chiffres" />
     <select id="paymentMethod" required>
@@ -99,13 +100,10 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth();
 const container = document.getElementById("annonces-container");
-
 const boostModal = document.getElementById("boostModal");
 const tarifSelect = document.getElementById("tarifSelect");
 const confirmBoost = document.getElementById("confirmBoost");
-
 let currentAnnonce = null;
-
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
@@ -117,13 +115,11 @@ function timeAgo(timestamp){
   const days = Math.floor(hours/24);
   return `il y a ${days} j`;
 }
-
 onAuthStateChanged(auth, async (user) => {
   if(!user){
     window.location.href = "../index.html";
     return;
   }
-
   const annoncesSnap = await getDocs(collection(db,"annonces"));
   const annonces = [];
   annoncesSnap.forEach(d=>{
@@ -133,27 +129,22 @@ onAuthStateChanged(auth, async (user) => {
       annonces.push(data);
     }
   });
-
   if(annonces.length === 0){
     container.innerHTML = "<p>Vous n'avez publié aucune annonce.</p>";
     return;
   }
-
   annonces.sort((a,b)=>{
     if(!a.createdAt || !b.createdAt) return 0;
     return b.createdAt.toDate() - a.createdAt.toDate();
   });
-
   container.innerHTML = "";
   annonces.forEach(a => {
     const quartier = a.quartier ? ", " + a.quartier : "";
     const card = document.createElement("div");
     card.className = "annonce-card";
-
     const now = new Date();
     const boostEnd = a.boostEnd ? a.boostEnd.toDate() : null;
     const isBoosted = a.boost === true && boostEnd && boostEnd > now;
-
     card.innerHTML = `
       <img src="${a.images?.[0] || 'https://via.placeholder.com/400x200?text=Annonce'}" alt="${a.title || 'Annonce'}">
       <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
@@ -166,7 +157,6 @@ onAuthStateChanged(auth, async (user) => {
         <button class="boost" ${isBoosted ? "disabled style='background:#ccc; cursor:not-allowed;'" : ""}>⚡ Booster</button>
       </div>
     `;
-
     const boostBtn = card.querySelector(".boost");
     if(!isBoosted){
       boostBtn.addEventListener("click", e=>{
@@ -175,7 +165,6 @@ onAuthStateChanged(auth, async (user) => {
         boostModal.style.display = "flex";
       });
     }
-
     container.appendChild(card);
   });
 });
@@ -185,7 +174,6 @@ confirmBoost.addEventListener("click", ()=> {
   const clientPhoneValue = document.getElementById("clientPhone").value.trim();
   const paymentMethodValue = document.getElementById("paymentMethod").value.trim();
   const acceptRules = document.getElementById("acceptRules").checked;
-
   if(!tarif || !clientPhoneValue || !paymentMethodValue || !acceptRules){
     alert("Veuillez remplir tous les champs et accepter les règles de paiement avant de continuer.");
     return;
@@ -194,7 +182,6 @@ confirmBoost.addEventListener("click", ()=> {
   if(tarif === "1000") duree = "7 jours";
   else if(tarif === "2000") duree = "14 jours";
   else if(tarif === "3000") duree = "21 jours";
-
   const phone = "221781739814"; 
   const text = encodeURIComponent(
     `Bonjour, je souhaite booster mon annonce "${currentAnnonce.title}" sur *Sensold*.\n\n` +
@@ -207,7 +194,6 @@ confirmBoost.addEventListener("click", ()=> {
     `2️⃣ Prenez une capture d'écran de votre paiement.\n` +
     `3️⃣ Envoyez la capture sur ce même numéro WhatsApp.` 
   );
-
   window.open(`https://wa.me/${phone}?text=${text}`, "_blank");
   boostModal.style.display = "none";
   tarifSelect.value = "";
