@@ -79,7 +79,7 @@ label p {font-size: 20px; margin: 0;}
       <label class="image-upload"><input type="file" name="image8" accept="image/*" onchange="previewImage(this)"><span class="material-icons">add_a_photo</span></label>
       <label class="image-upload"><input type="file" name="image9" accept="image/*" onchange="previewImage(this)"><span class="material-icons">add_a_photo</span></label>
     </div>
-    <div id="imagesError" class="error-msg">Veuillez sélectionner au moins 3 images.</div>
+    <div id="imagesError" class="error-msg">Veuillez sélectionner au moins 1 image.</div>
   </div>
 
   <div class="form-section">
@@ -133,9 +133,7 @@ label p {font-size: 20px; margin: 0;}
       <textarea id="description" maxlength="650" placeholder="Description du produit (max 650 caractères)" style="width: 95%; padding-bottom:25px;  height:250px;"></textarea>
       <span id="descCount" style="position:absolute; bottom:8%; right:6%; font-size:12px; color:#555;">0 / 650</span>
     </div>
-
     <div id="descriptionError" class="error-msg">Veuillez saisir une description.</div>
-
   </div>
   <div class="form-section">
     <div class="input-left-icon">
@@ -143,7 +141,6 @@ label p {font-size: 20px; margin: 0;}
       <input type="tel" id="whatsapp" placeholder="7X 123 45 67">
     </div>
     <div id="whatsappError" class="error-msg">Veuillez saisir un numéro WhatsApp valide.</div>
-
     <div class="input-left-icon">
       <i class="fa-solid fa-phone"></i>
       <input type="tel" id="telephone" placeholder="7X 123 45 67">
@@ -154,18 +151,15 @@ label p {font-size: 20px; margin: 0;}
     <button type="submit" class="btn-submit">Publier gratuitement</button>
   </div>
 </form>
-
 <div id="loader" style="display:none;position:fixed;top:0; left:0; right:0; bottom:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;">
   <div style="background:white;padding:30px;border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:10px;">
     <span class="material-icons" style="font-size:48px; animation:spin 1s linear infinite;">autorenew</span>
     <p>Publication en cours...</p>
   </div>
 </div>
-
 <style>
 @keyframes spin { from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
 </style>
-
 <script>
 const categorieDropdown = document.getElementById('categorieDropdown');
 const categorieSelected = categorieDropdown.querySelector('.selected');
@@ -195,7 +189,6 @@ const categoryIcons = {vehicules: 'directions_car',immobilier: 'apartment',elect
 
 let categoriesMap = {};
 let quartiersDakar = [];
-
 const additionalFields = {
   vehicules: {
     "Voitures & utilitaires": [
@@ -301,8 +294,7 @@ const additionalFields = {
      ]
 }
 };
-
-
+  
 function fetchJSON(url, callback) {
   fetch(url)
     .then(res => {
@@ -451,7 +443,6 @@ function showAdditionalFields(category, subCategory) {
     field.id = fieldId;
     field.placeholder = fieldData.name;
     field.style.width = "100%";
-
     fieldWrapper.appendChild(field);
     additionalFieldsContainer.appendChild(fieldWrapper);
   });
@@ -568,7 +559,6 @@ emailDisplay.style.fontWeight = 'bold';
 emailDisplay.style.marginTop = '15px';
 document.querySelector('.form-container').prepend(emailDisplay);
 
-
 onAuthStateChanged(auth, async user => {
   if(!user){
     window.location.href = "../index.html";
@@ -577,7 +567,6 @@ onAuthStateChanged(auth, async user => {
 
   emailDisplay.textContent = "Connecté : " + user.email;
 
-  // Vérifie l'abonnement
   const userDoc = await getDoc(doc(db, "users", user.uid));
   const userData = userDoc.data();
   let isSubscribed = false;
@@ -588,7 +577,6 @@ onAuthStateChanged(auth, async user => {
     if(end > now) isSubscribed = true;
   }
 
-  // Limite des images
   const imageLabels = document.querySelectorAll('.image-upload');
   imageLabels.forEach((label, idx) => {
     if(isSubscribed || idx < 3){
@@ -596,19 +584,15 @@ onAuthStateChanged(auth, async user => {
       label.style.pointerEvents = "auto";
     } else {
       label.style.filter = "blur(3px) grayscale(50%)";
-      label.style.pointerEvents = "auto"; // On laisse cliquable pour afficher la modale
-
-      // Ajoute un click pour les non abonnés
+      label.style.pointerEvents = "auto"; 
       label.addEventListener('click', (e) => {
-        e.preventDefault(); // empêche le champ file de s'ouvrir
-        // Affiche la modale
+        e.preventDefault(); 
         showSubscribeModal();
       });
     }
   });
 });
 
-// Fonction pour afficher la modale
 function showSubscribeModal() {
   const modalHTML = `
     <div id="subscribeModal" style="
@@ -628,16 +612,13 @@ function showSubscribeModal() {
   });
 }
 
-
-
 function escapeHTML(str) {
   if (!str) return '';
   return str.replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;")
             .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-}
+            .replace(/'/g, "&#039;");}
 
 function resetDropdowns() {
   categorieSelected.innerHTML = 'Sélectionnez une catégorie';
@@ -649,8 +630,7 @@ function resetDropdowns() {
   cityInput.value = '';
   quartierSelected.innerHTML = 'Sélectionnez un quartier';
   quartierInput.value = '';
-  quartierDropdown.style.display = 'none';
-}
+  quartierDropdown.style.display = 'none';}
 
 function cleanAdditionalData(data) {
   const cleaned = {};
@@ -669,7 +649,7 @@ adForm.addEventListener('submit', async (e)=>{
   const images = adForm.querySelectorAll('input[type="file"]');
   let selectedImages = 0;
   images.forEach(img=>{ if(img.files.length>0) selectedImages++; });
-  if(selectedImages<3){ document.getElementById('imagesError').style.display='block'; isValid=false; }
+  if(selectedImages<1){ document.getElementById('imagesError').style.display='block'; isValid=false; }
   else document.getElementById('imagesError').style.display='none';
 
   const title = document.getElementById('title');
@@ -736,7 +716,6 @@ adForm.addEventListener('submit', async (e)=>{
       });
     }
     const cleanedAdditionalData = cleanAdditionalData(additionalData);
-
     await addDoc(collection(db,'annonces'),{
       title: escapeHTML(title.value.trim()),
       price: priceVal, 
@@ -770,14 +749,11 @@ document.querySelectorAll('.image-upload').forEach(label => {
   const icon = label.querySelector('.material-icons');
   const removeBtn = label.querySelector('.remove-image-btn'); // le X
 
-  if (preview) preview.remove();      // enlève l’image
-  if (removeBtn) removeBtn.remove();  // enlève le X
-  if (icon) icon.style.display = 'block'; // remet l’icône
-  if (inputFile) inputFile.value = "";    // vide le champ file
+  if (preview) preview.remove();  
+  if (removeBtn) removeBtn.remove(); 
+  if (icon) icon.style.display = 'block'; 
+  if (inputFile) inputFile.value = "";   
 });
-
-
-        
     document.getElementById("additionalFieldsContainer").innerHTML = "";
   } catch(err){
     loader.style.display = 'none';
@@ -787,7 +763,6 @@ document.querySelectorAll('.image-upload').forEach(label => {
   }
 });
 </script>
-
 <script>
 const description = document.getElementById('description');
 const descCount = document.getElementById('descCount');
