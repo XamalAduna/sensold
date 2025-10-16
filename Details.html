@@ -30,17 +30,7 @@ h2 { text-align:center; color:#00796B; margin-bottom:20px; }
 .seller img { width:50px; height:50px; border-radius:50%; object-fit:cover; flex-shrink:0; }
 .seller div { flex:1 1 auto; min-width:0; }
 .seller div strong { display:block; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
-.seller div span { display:block; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
-
-.seller div span {
-  flex-shrink: 0;       /* ne pas rétrécir */
-  display: inline-flex;  /* garder la largeur nécessaire à l’icône */
-  color: #00796B;
-  font-size: 36px;
-  overflow: visible;    /* autorise le dépassement si besoin */
-}
-
-
+.seller div span {flex-shrink: 0; display: inline-flex; color: #00796B; font-size: 36px; overflow: visible; }
 .buttons { display:flex; gap:10px; margin-top:20px; flex-wrap:wrap; }
 .button { flex:1; text-align:center; padding:10px; border:none; border-radius:8px; font-size:16px; cursor:pointer; color:white; text-decoration:none; }
 .button.whatsapp { background:#25D366; }
@@ -90,16 +80,13 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const params = new URLSearchParams(window.location.search);
 const id = params.get('id');
-
 let images = [];
 let currentIndex = 0;
-
 function updateActiveThumbnail() {
   document.querySelectorAll('.thumbnails img').forEach((img, i) => {
     img.classList.toggle('active', i === currentIndex);
   });
 }
-
 function escapeHTML(str) {
   return str
     ? str.replace(/&/g, "&amp;")
@@ -109,7 +96,6 @@ function escapeHTML(str) {
          .replace(/'/g, "&#039;")
     : "";
 }
-
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
@@ -121,30 +107,24 @@ function timeAgo(timestamp){
   const days = Math.floor(hours/24);
   return `il y a ${days} j`;
 }
-
 function isValidImageURL(url) {
   return /^https?:\/\//i.test(url);
 }
-
 function showSecurityModal(callback) {
   const modal = document.createElement('div');
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;';
-  
   const box = document.createElement('div');
   box.style.cssText = 'background:white;padding:20px;border-radius:12px;max-width:400px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,0.2);position:relative;';
-  
   const closeBtn = document.createElement('button');
   closeBtn.textContent = '×';
   closeBtn.style.cssText = 'position:absolute;top:10px;right:10px;background:transparent;border:none;font-size:24px;cursor:pointer;color:#00796B;';
   closeBtn.addEventListener('click', () => document.body.removeChild(modal));
   box.appendChild(closeBtn);
-
   const msg = document.createElement('p');
   msg.textContent = "⚠️ Conseils de sécurité :\n1 - Ne pas envoyer de paiements sans vérifier le produit.\n2 - Ne pas envoyer d'argent par virement ou transfert.\n3 - Rencontrer le vendeur dans un lieu public.";
   msg.style.whiteSpace = 'pre-line';
   msg.style.marginBottom = '20px';
   box.appendChild(msg);
-
   const okBtn = document.createElement('button');
   okBtn.textContent = 'OK';
   okBtn.style.cssText = 'padding:10px 20px;background:#00796B;color:white;border:none;border-radius:8px;cursor:pointer;';
@@ -153,48 +133,39 @@ function showSecurityModal(callback) {
     callback();
   });
   box.appendChild(okBtn);
-
   modal.appendChild(box);
   document.body.appendChild(modal);
 }
-
 async function loadDetails() {
   try {
     const docRef = doc(db, "annonces", id);
     const docSnap = await getDoc(docRef);
-
     if (!docSnap.exists()) {
       document.getElementById('details').textContent = "Produit non trouvé.";
       return;
     }
     const data = docSnap.data();
-
     const mainImage = document.getElementById('main-image');
     const thumbnails = document.getElementById('thumbnails');
     thumbnails.innerHTML = '';
-
     const spinner = document.createElement('div');
     spinner.className = 'spinner';
     mainImage.parentElement.style.position = 'relative';
     mainImage.parentElement.appendChild(spinner);
-
     images = Array.isArray(data.images) && data.images.length > 0
       ? data.images.filter(isValidImageURL)
       : ["https://via.placeholder.com/400x300?text=Pas+d'image"];
     currentIndex = 0;
-
     function updateMainImage() {
       spinner.style.display = 'block';
       mainImage.style.opacity = '0.3';
       mainImage.src = images[currentIndex];
     }
-
     mainImage.addEventListener('load', () => {
       spinner.style.display = 'none';
       mainImage.style.opacity = '1';
     });
     updateMainImage();
-
     images.forEach((url, index) => {
   const thumb = document.createElement('img');
   thumb.src = url;
@@ -208,11 +179,9 @@ async function loadDetails() {
   });
   thumbnails.appendChild(thumb);
 });
-
     document.getElementById('product-price').textContent = data.price ? escapeHTML(data.price + " FCFA") : "Prix sur demande";
     document.getElementById('product-title').textContent = escapeHTML(data.title || "Sans titre");
     document.getElementById('product-location').innerHTML = `<i class="material-icons" style="color:#E91E63;">location_on</i> ${escapeHTML(data.city || "")}${data.quartier ? " - " + escapeHTML(data.quartier) : ""}`;
-
     if (data.createdAt) {
       const timeElem = document.createElement('p');
       timeElem.style.fontSize = "14px";
@@ -220,13 +189,10 @@ async function loadDetails() {
       timeElem.innerHTML = `<i class="material-icons" style="font-size:16px;vertical-align:middle;">schedule</i> ${timeAgo(data.createdAt)}`;
       document.querySelector('.product-header').appendChild(timeElem);
     }
-
     const order = ["categorie","souscategorie","Marque","Modèle","Année","Kilométrage","Carburant","Transmission","Nombredeportes","Surface(m²)","Nombredechambres","Nombredesallesdebain","Nombredepièces","Nombred’appartements","Nombred’étages","Annéedeconstruction","Typedeculture","Étatgénéral","Option","produitNeuf","livraison","description"];
     const iconsMap = { categorie:"category", souscategorie:"category", Marque:"branding_watermark", Modèle:"build", Année:"calendar_today", Kilométrage:"speed", Carburant:"local_gas_station", Transmission:"settings", Nombredeportes:"door_front", "Surface(m²)":"square_foot", Nombredechambres:"bed", Nombredesallesdebain:"bathtub", Nombredepièces:"meeting_room", "Nombred’appartements":"apartment", "Nombred’étages":"stairs", Annéedeconstruction:"history", Typedeculture:"agriculture", Étatgénéral:"construction", Option:"done", produitNeuf:"new_releases", livraison:"local_shipping", description:"description"};
-
     const detailsDiv = document.getElementById('details');
     detailsDiv.innerHTML = "";
-
     order.forEach(key => {
       if (data[key] !== undefined && data[key] !== false) {
         const icon = iconsMap[key] || "info";
@@ -237,7 +203,6 @@ async function loadDetails() {
         detailsDiv.appendChild(div);
       }
     });
-
     let seller = {};
     if (data.ownerId) {
       const sellerRef = doc(db, "users", data.ownerId);
@@ -247,10 +212,8 @@ async function loadDetails() {
         seller.uid = sellerSnap.id;
       }
     }
-
     const sellerDiv = document.getElementById('seller-info');
 let isPro = seller.subscribe === true && seller.subscribeEnd && seller.subscribeEnd.toDate() > new Date();
-
 sellerDiv.innerHTML = `
   <a href="Profil.html?uid=${encodeURIComponent(seller.uid || '')}" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
     <img src="${isValidImageURL(seller.profileImage) ? seller.profileImage : 'https://via.placeholder.com/50'}" alt="Profil" loading="lazy" style="width:50px;height:50px;border-radius:50%;object-fit:cover;">
@@ -260,11 +223,8 @@ sellerDiv.innerHTML = `
     </div>
   </a>
 `;
- 
-
     const contactDiv = document.getElementById('contact-buttons');
     contactDiv.innerHTML = "";
-    
     const wa = document.createElement('a');
     wa.className = "button whatsapp";
     if(data.whatsapp){
@@ -279,7 +239,6 @@ sellerDiv.innerHTML = `
       });
     } else wa.classList.add("disabled");
     contactDiv.appendChild(wa);
-
     const phone = document.createElement('a');
 phone.className = "button phone";
 if(data.telephone){
@@ -287,30 +246,24 @@ if(data.telephone){
   phone.innerHTML = `<i class="material-icons">call</i>`;
   phone.addEventListener('click', e => {
     e.preventDefault();
-
     const modal = document.createElement('div');
     modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;';
-
     const box = document.createElement('div');
     box.style.cssText = 'background:white;padding:20px;border-radius:12px;max-width:400px;text-align:center;position:relative;';
-
     const closeBtn = document.createElement('button');
     closeBtn.textContent = '×';
     closeBtn.style.cssText = 'position:absolute;top:10px;right:10px;background:transparent;border:none;font-size:24px;cursor:pointer;color:#00796B;';
     closeBtn.addEventListener('click', () => document.body.removeChild(modal));
     box.appendChild(closeBtn);
-
     const warning = document.createElement('p');
     warning.textContent = "⚠️ Conseils de sécurité :\n1 - Ne pas envoyer de paiements sans vérifier le produit.\n2 - Ne pas envoyer d'argent par virement ou transfert.\n3 - Rencontrer le vendeur dans un lieu public.";
     warning.style.whiteSpace = 'pre-line';
     warning.style.marginBottom = '20px';
     box.appendChild(warning);
-
     const number = document.createElement('p');
     number.innerHTML = `📞 Numéro du vendeur : <strong>${escapeHTML(data.telephone)}</strong>`;
     number.style.fontSize = '18px';
     box.appendChild(number);
-
     modal.appendChild(box);
     document.body.appendChild(modal);
   });
