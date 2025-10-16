@@ -239,13 +239,18 @@ async function loadDetails() {
     }
 
     const sellerDiv = document.getElementById('seller-info');
-    let isSubscribed = seller.subscribe === true && seller.subscribeEnd && seller.subscribeEnd.toDate() > new Date();
-    sellerDiv.innerHTML = `
+let isPro = seller.subscribe === true && seller.subscribeEnd && seller.subscribeEnd.toDate() > new Date();
+
+sellerDiv.innerHTML = `
   <a href="Profil.html?uid=${encodeURIComponent(seller.uid || '')}" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
-    <img src="${isValidImageURL(seller.profileImage) ? seller.profileImage : 'https://via.placeholder.com/50'}" alt="Profil">
-    <strong>${escapeHTML(seller.fullName || "Inconnu")}${isSubscribed ? ' <i class="material-icons" style="color:#00796B;font-size:20px;vertical-align:middle;">store</i>' : ''}</strong><br>
+    <img src="${isValidImageURL(seller.profileImage) ? seller.profileImage : 'https://via.placeholder.com/50'}" alt="Profil" loading="lazy" style="width:50px;height:50px;border-radius:50%;object-fit:cover;">
+    <div class="seller-info" style="display:flex;align-items:center;gap:6px;">
+      <strong>${escapeHTML(seller.fullName || "Inconnu")}</strong>
+      ${isPro ? '<span class="material-symbols-outlined" title="Boutique Pro" style="color:#00796B;font-size:22px;">storefront</span>' : ''}
+    </div>
   </a>
 `;
+ 
 
     const contactDiv = document.getElementById('contact-buttons');
     contactDiv.innerHTML = "";
