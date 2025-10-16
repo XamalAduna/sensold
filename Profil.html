@@ -62,15 +62,12 @@ async function loadSellerProfile() {
     const sellerSnap = await getDoc(sellerRef);
     const seller = sellerSnap.exists() ? sellerSnap.data() : {};
 
-    const isPro = seller.subscribe === true && seller.subscribeEnd && seller.subscribeEnd.toDate() > new Date();
-    const sellerDiv = document.getElementById('seller-info');
-sellerDiv.innerHTML = `
-  <img src="${isValidImageURL(seller.profileImage) ? seller.profileImage : 'https://via.placeholder.com/80'}" alt="Profil">
-  <div style="display:flex; align-items:center; gap:6px;">
-    <strong>${escapeHTML(seller.fullName) || "Inconnu"}</strong>
-    ${isPro ? '<span class="material-symbols-outlined" title="Boutique Pro" style="color:#00796B;font-size:28px;">storefront</span>' : ''}
-  </div>
-`;
+     const sellerDiv = document.getElementById('seller-info');
+    sellerDiv.innerHTML = `
+      <img src="${escapeHTML(seller.profileImage) || 'https://via.placeholder.com/80'}" alt="Profil">
+      <div><strong>${escapeHTML(seller.fullName) || "Inconnu"}</strong></div>
+    `;
+
 
 
     const annoncesSnap = await getDocs(query(collection(db,"annonces"), where("ownerId","==",uid)));
