@@ -238,13 +238,19 @@ async function loadDetails() {
     }
 
     const sellerDiv = document.getElementById('seller-info');
-    sellerDiv.innerHTML = `
-      <a href="Profil.html?uid=${encodeURIComponent(seller.uid || '')}" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
-        <img src="${isValidImageURL(seller.profileImage) ? seller.profileImage : 'https://via.placeholder.com/50'}" alt="Profil">
-        <strong>${escapeHTML(seller.fullName || "Inconnu")}</strong><br>
-      </a>
-    `;
-
+let proIcon = '';
+if(seller.isPro) { // supposons que ton champ pour l’abonnement s’appelle isPro
+  proIcon = ' <i class="fa-solid fa-store" title="Vendeur Pro" style="color:#FF9800;"></i>';
+}
+sellerDiv.innerHTML = `
+  <a href="Profil.html?uid=${encodeURIComponent(seller.uid || '')}" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
+    <img src="${isValidImageURL(seller.profileImage) ? seller.profileImage : 'https://via.placeholder.com/50'}" alt="Profil">
+    <div>
+      <strong>${escapeHTML(seller.fullName || "Inconnu")}${proIcon}</strong>
+    </div>
+  </a>
+`;
+ 
     const contactDiv = document.getElementById('contact-buttons');
     contactDiv.innerHTML = "";
     
