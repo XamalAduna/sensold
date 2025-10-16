@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -29,11 +28,9 @@ body { font-family: Arial, sans-serif; background:#f7f7f7; margin:0; padding:20p
   <h2>Les annonces de ce vendeur</h2>
   <div class="annonces" id="seller-annonces"></div>
 </div>
-  
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getFirestore, doc, getDoc, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
-
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
   authDomain: "diallo-ee5aa.firebaseapp.com",
@@ -43,10 +40,8 @@ const firebaseConfig = {
   appId: "1:662485613383:web:c1129a35c335cc95c0ea62",
   measurementId: "G-F3092DTNZY"
 };
-
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-
 function escapeHTML(str) {
   return str
     ? str.replace(/&/g, "&amp;")
@@ -56,66 +51,56 @@ function escapeHTML(str) {
          .replace(/'/g, "&#039;")
     : "";
 }
-
 const params = new URLSearchParams(window.location.search);
 const uid = params.get('uid');
 
 async function loadSellerProfile() {
   try {
-    // Récupération du profil vendeur
     const sellerRef = doc(db, "users", uid);
     const sellerSnap = await getDoc(sellerRef);
     const seller = sellerSnap.exists() ? sellerSnap.data() : {};
 
     const sellerDiv = document.getElementById('seller-info');
+    let isPro = seller.subscribe === true && seller.subscribeEnd && seller.subscribeEnd.toDate() > new Date();
     sellerDiv.innerHTML = `
-      <img src="${escapeHTML(seller.profileImage) || 'https://via.placeholder.com/80'}" alt="Profil">
-      <div><strong>${escapeHTML(seller.fullName) || "Inconnu"}</strong></div>
-    `;
-
-    // Récupération des annonces du vendeur
+  <img src="${escapeHTML(seller.profileImage) || 'https://via.placeholder.com/80'}" alt="Profil">
+  <div style="display:flex; align-items:center; gap:6px;">
+    <strong>${escapeHTML(seller.fullName) || "Inconnu"}</strong>
+    ${isPro ? '<span class="material-symbols-outlined" title="Boutique Pro" style="color:#00796B;font-size:36px;">storefront</span>' : ''}
+  </div>
+`;
     const annoncesSnap = await getDocs(query(collection(db,"annonces"), where("ownerId","==",uid)));
     const annoncesDiv = document.getElementById('seller-annonces');
     annoncesDiv.innerHTML = '';
-
     if(annoncesSnap.empty){
       annoncesDiv.innerHTML = `<div class="message">Ce vendeur n’a publié aucune annonce.</div>`;
       return;
     }
-
     annoncesSnap.forEach(doc => {
       try {
         const data = doc.data();
         if(!data) return;
-
         const mainImage = Array.isArray(data.images) && data.images.length > 0 
           ? data.images[0] 
           : 'https://via.placeholder.com/120x90?text=Pas+d\'image';
-
         const annonceElem = document.createElement('div');
         annonceElem.className = 'annonce';
-
         const imgElem = document.createElement('img');
         imgElem.src = mainImage;
         imgElem.alt = "Image annonce";
         imgElem.loading = "lazy";
-
         const infoDiv = document.createElement('div');
         infoDiv.className = 'annonce-info';
         infoDiv.innerHTML = `
           <h3>${escapeHTML(data.title || 'Sans titre')}</h3>
           <p>Prix: ${data.price ? escapeHTML(data.price) + " FCFA" : "Prix sur demande"}</p>
         `;
-
         annonceElem.appendChild(imgElem);
         annonceElem.appendChild(infoDiv);
-
         annonceElem.addEventListener('click', () => {
           window.location.href = `Details.html?id=${encodeURIComponent(doc.id)}`;
         });
-
         annoncesDiv.appendChild(annonceElem);
-
       } catch(e) {
         console.warn("Annonce ignorée à cause d'une erreur:", e);
       }
@@ -126,7 +111,6 @@ async function loadSellerProfile() {
     document.getElementById('seller-annonces').innerHTML = `<div class="message">Erreur lors du chargement des annonces.</div>`;
   }
 }
-
 loadSellerProfile();
 </script>
 </body>
