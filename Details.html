@@ -31,6 +31,16 @@ h2 { text-align:center; color:#00796B; margin-bottom:20px; }
 .seller div { flex:1 1 auto; min-width:0; }
 .seller div strong { display:block; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
 .seller div span { display:block; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+
+.seller div span {
+  flex-shrink: 0;       /* ne pas rétrécir */
+  display: inline-flex;  /* garder la largeur nécessaire à l’icône */
+  color: #00796B;
+  font-size: 36px;
+  overflow: visible;    /* autorise le dépassement si besoin */
+}
+
+
 .buttons { display:flex; gap:10px; margin-top:20px; flex-wrap:wrap; }
 .button { flex:1; text-align:center; padding:10px; border:none; border-radius:8px; font-size:16px; cursor:pointer; color:white; text-decoration:none; }
 .button.whatsapp { background:#25D366; }
