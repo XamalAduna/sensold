@@ -246,7 +246,7 @@ sellerDiv.innerHTML = `
     <img src="${isValidImageURL(seller.profileImage) ? seller.profileImage : 'https://via.placeholder.com/50'}" alt="Profil" loading="lazy" style="width:50px;height:50px;border-radius:50%;object-fit:cover;">
     <div class="seller-info" style="display:flex;align-items:center;gap:6px;">
       <strong>${escapeHTML(seller.fullName || "Inconnu")}</strong>
-      ${isPro ? '<span class="material-symbols-outlined" title="Boutique Pro" style="color:#00796B;font-size:22px;">storefront</span>' : ''}
+      ${isPro ? '<span class="material-symbols-outlined" title="Boutique Pro" style="color:#00796B;font-size:36px;">storefront</span>' : ''}
     </div>
   </a>
 `;
