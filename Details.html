@@ -12,6 +12,15 @@ body { font-family: Arial, sans-serif; background:#f7f7f7; margin:0; padding:20p
 .container { max-width:800px; margin:0 auto; background:white; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.1); padding-bottom: 75px;}
 h2 { text-align:center; color:#00796B; margin-bottom:20px; }
 .image-wrapper { position: relative; }
+
+.image-wrapper { 
+  position: relative; 
+  width: 100%; 
+  height: 400px; 
+  overflow: hidden; 
+  border-radius: 12px; 
+  margin-bottom: 15px; 
+}
 .main-image { width: 100%; max-height: 400px; object-fit: contain; border-radius: 12px; background: #00796B; margin-bottom: 15px; }
 .arrow { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); color: #fff; border: none; font-size: 28px; padding: 8px 12px; cursor: pointer; border-radius: 50%; }
 .arrow.left { left: 10px; }
@@ -46,11 +55,17 @@ h2 { text-align:center; color:#00796B; margin-bottom:20px; }
 #notLoggedMsg { display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; padding:20px 30px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.25); text-align:center; z-index:99999; }
 #notLoggedMsg a { display:inline-block; margin:8px 0; color:#009688; text-decoration:none; font-weight:bold; }
 #notLoggedMsg a:hover { text-decoration:underline; }
+
 .favorite {
   font-size: 48px;
   color: #777;
   cursor: pointer;
   transition: color 0.3s, transform 0.3s;
+
+  position: absolute; /* important */
+  top: 15px;
+  right: 15px;
+  z-index: 10; /* au-dessus de l'image */
 }
 
 .favorite.active {color: #e91e63; transform: scale(1.2); }
@@ -58,11 +73,11 @@ h2 { text-align:center; color:#00796B; margin-bottom:20px; }
 </head>
 <body>
 <button class="back-btn" onclick="window.history.back()">✖</button>
-<span class="material-icons favorite" id="fav-btn">favorite_border</span>
 <h2>Détails du produit</h2>
 <div class="container">
   <div class="image-wrapper">
     <img id="main-image" class="main-image" src="https://via.placeholder.com/400x300?text=Chargement...">
+    <span class="material-icons favorite" id="fav-btn">favorite_border</span>
     <button class="arrow left" onclick="prevImage()">&#10094;</button>
     <button class="arrow right" onclick="nextImage()">&#10095;</button>
   </div>
