@@ -77,7 +77,10 @@ h2 { text-align:center; color:#00796B; margin-bottom:20px; }
   <div class="seller" id="seller-info"></div>
   <div class="buttons" id="contact-buttons"></div>
 </div>
-  
+<div id="notLoggedMsg" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; padding:20px 30px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.25); text-align:center; z-index:99999;">
+  <p>Veuillez vous connecter pour ajouter  cette annonce à vos favoris.</p>
+  <a href="login.html">Se connecter</a>
+</div>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getFirestore, doc, getDoc, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
@@ -348,8 +351,6 @@ async function loadDetails() {
     document.getElementById('details').textContent = "⚠️ Erreur de chargement : " + escapeHTML(err.message);
   }
 }
-
-// FLÈCHES IMAGE
 window.prevImage = function() {
   currentIndex = (currentIndex - 1 + images.length) % images.length;
   document.getElementById('main-image').src = images[currentIndex];
@@ -361,13 +362,7 @@ window.nextImage = function() {
   updateActiveThumbnail();
 }
 
-// CHARGEMENT INITIAL
 loadDetails();
 </script>
-
-<div id="notLoggedMsg" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; padding:20px 30px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.25); text-align:center; z-index:99999;">
-  <p>Veuillez vous connecter pour ajouter  ce produit à vos favoris.</p>
-  <a href="login.html">Se connecter</a>
-</div>
 </body>
 </html>
