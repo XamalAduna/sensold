@@ -93,7 +93,6 @@ function escapeHTML(str) {
          .replace(/</g, "&lt;")
          .replace(/>/g, "&gt;")
          .replace(/"/g, "&quot;")
-         .replace(/'/g, "&#039;")
     : "";
 }
 function timeAgo(timestamp){
@@ -180,9 +179,7 @@ async function loadDetails() {
   thumbnails.appendChild(thumb);
 });
     document.getElementById('product-price').textContent = data.price ? escapeHTML(data.price + " FCFA") : "Prix sur demande";
-    document.getElementById('product-title').innerHTML = data.title || "Sans titre";
-
-   
+    document.getElementById('product-title').innerHTML = escapeHTML(data.title || "Sans titre");   
     document.getElementById('product-location').innerHTML = `<i class="material-icons" style="color:#E91E63;">location_on</i> ${escapeHTML(data.city || "")}${data.quartier ? " - " + escapeHTML(data.quartier) : ""}`;
     if (data.createdAt) {
       const timeElem = document.createElement('p');
