@@ -43,23 +43,6 @@ h2 { text-align:center; color:#00796B; margin-bottom:20px; }
 .spinner { position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; margin: -20px 0 0 -20px; border: 4px solid #ccc; border-top: 4px solid #00796B; border-radius: 50%; animation: spin 1s linear infinite; z-index: 10; } @keyframes spin { 100% { transform: rotate(360deg); } }
 .back-btn { position: fixed; top: 15px; right: 20px; background: #d32f2f; color: white; border: none; border-radius: 50%; width: 36px; height: 36px; font-size: 20px; cursor: pointer; z-index: 10000; display: flex; justify-content: center; align-items: center; }
 .back-btn:hover { background: #9a0007; }
-#notLoggedMsg { display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; padding:20px 30px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.25); text-align:center; z-index:99999; }
-#notLoggedMsg a { display:inline-block; margin:8px 0; color:#009688; text-decoration:none; font-weight:bold; }
-#notLoggedMsg a:hover { text-decoration:underline; }
-
-.favorite {
-  font-size: 48px;
-  color: #777;
-  cursor: pointer;
-  transition: color 0.3s, transform 0.3s;
-
-  position: absolute; /* important */
-  top: 15px;
-  right: 15px;
-  z-index: 10; /* au-dessus de l'image */
-}
-
-.favorite.active {color: #e91e63; transform: scale(1.2); }
 </style>
 </head>
 <body>
@@ -68,7 +51,6 @@ h2 { text-align:center; color:#00796B; margin-bottom:20px; }
 <div class="container">
   <div class="image-wrapper">
     <img id="main-image" class="main-image" src="https://via.placeholder.com/400x300?text=Chargement...">
-    <span class="material-icons favorite" id="fav-btn">favorite_border</span>
     <button class="arrow left" onclick="prevImage()">&#10094;</button>
     <button class="arrow right" onclick="nextImage()">&#10095;</button>
   </div>
@@ -82,16 +64,9 @@ h2 { text-align:center; color:#00796B; margin-bottom:20px; }
   <div class="seller" id="seller-info"></div>
   <div class="buttons" id="contact-buttons"></div>
 </div>
-<div id="notLoggedMsg" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; padding:20px 30px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.25); text-align:center; z-index:99999;">
-  <p>Veuillez vous connecter pour ajouter  cette annonce à vos favoris.</p>
-  <a href="login.html">Se connecter</a>
-</div>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-import { getFirestore, doc, getDoc, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
-
-// Firebase config
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
   authDomain: "diallo-ee5aa.firebaseapp.com",
@@ -103,24 +78,22 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const auth = getAuth();
-
-// Récupération de l’ID produit depuis l’URL
 const params = new URLSearchParams(window.location.search);
 const id = params.get('id');
-
-// Variables pour les images
 let images = [];
 let currentIndex = 0;
-
-// FONCTIONS UTILES
 function updateActiveThumbnail() {
   document.querySelectorAll('.thumbnails img').forEach((img, i) => {
     img.classList.toggle('active', i === currentIndex);
   });
 }
 function escapeHTML(str) {
-  return str ? str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;") : "";
+  return str
+    ? str.replace(/&/g, "&amp;")
+         .replace(/</g, "&lt;")
+         .replace(/>/g, "&gt;")
+         .replace(/"/g, "&quot;")
+    : "";
 }
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
@@ -162,50 +135,6 @@ function showSecurityModal(callback) {
   modal.appendChild(box);
   document.body.appendChild(modal);
 }
-
-// ---------------- FAVORIS ----------------
-let currentUser = null;
-let userFavorites = [];
-const favBtn = document.getElementById("fav-btn");
-const notLoggedMsg = document.getElementById("notLoggedMsg");
-
-onAuthStateChanged(auth, async (user) => {
-  currentUser = user;
-  if(user){
-    const userRef = doc(db,"users",user.uid);
-    const userSnap = await getDoc(userRef);
-    userFavorites = userSnap.data()?.favorites || [];
-    if(userFavorites.includes(id)){
-      favBtn.classList.add("active");
-      favBtn.textContent = "favorite";
-    }
-  } else {
-    userFavorites = [];
-  }
-});
-
-favBtn.addEventListener("click", async (e) => {
-  e.stopPropagation();
-  if(!currentUser){
-    notLoggedMsg.style.display = "block";
-    setTimeout(()=>{ notLoggedMsg.style.display = "none"; }, 3000);
-    return;
-  }
-  const favRef = doc(db,"users",currentUser.uid);
-  if(favBtn.classList.contains("active")){
-    favBtn.classList.remove("active");
-    favBtn.textContent = "favorite_border";
-    userFavorites = userFavorites.filter(favId => favId !== id);
-    await updateDoc(favRef,{ favorites: arrayRemove(id) });
-  } else {
-    favBtn.classList.add("active");
-    favBtn.textContent = "favorite";
-    userFavorites.push(id);
-    await updateDoc(favRef,{ favorites: arrayUnion(id) });
-  }
-});
-
-// ---------------- CHARGEMENT DU PRODUIT ----------------
 async function loadDetails() {
   try {
     const docRef = doc(db, "annonces", id);
@@ -215,8 +144,6 @@ async function loadDetails() {
       return;
     }
     const data = docSnap.data();
-
-    // Images
     const mainImage = document.getElementById('main-image');
     const thumbnails = document.getElementById('thumbnails');
     thumbnails.innerHTML = '';
@@ -239,20 +166,18 @@ async function loadDetails() {
     });
     updateMainImage();
     images.forEach((url, index) => {
-      const thumb = document.createElement('img');
-      thumb.src = url;
-      thumb.loading = "lazy";
-      if (index === 0) thumb.classList.add("active");
-      thumb.addEventListener('click', () => {
-        document.querySelectorAll('.thumbnails img').forEach(img => img.classList.remove('active'));
-        thumb.classList.add('active');
-        currentIndex = index;
-        updateMainImage();
-      });
-      thumbnails.appendChild(thumb);
-    });
-
-    // Infos produit
+  const thumb = document.createElement('img');
+  thumb.src = url;
+  thumb.loading = "lazy";
+  if (index === 0) thumb.classList.add("active");
+  thumb.addEventListener('click', () => {
+    document.querySelectorAll('.thumbnails img').forEach(img => img.classList.remove('active'));
+    thumb.classList.add('active');
+    currentIndex = index;
+    updateMainImage();
+  });
+  thumbnails.appendChild(thumb);
+});
     document.getElementById('product-price').textContent = data.price ? escapeHTML(data.price + " FCFA") : "Prix sur demande";
     document.getElementById('product-title').innerHTML = escapeHTML(data.title || "Sans titre");   
     document.getElementById('product-location').innerHTML = `<i class="material-icons" style="color:#E91E63;">location_on</i> ${escapeHTML(data.city || "")}${data.quartier ? " - " + escapeHTML(data.quartier) : ""}`;
@@ -263,8 +188,6 @@ async function loadDetails() {
       timeElem.innerHTML = `<i class="material-icons" style="font-size:16px;vertical-align:middle;">schedule</i> ${timeAgo(data.createdAt)}`;
       document.querySelector('.product-header').appendChild(timeElem);
     }
-
-    // Details
     const order = ["categorie","souscategorie","Marque","Modèle","Année","Kilométrage","Carburant","Transmission","Nombredeportes","Surface(m²)","Nombredechambres","Nombredesallesdebain","Nombredepièces","Nombred’appartements","Nombred’étages","Annéedeconstruction","Typedeculture","Étatgénéral","Option","produitNeuf","livraison","description"];
     const iconsMap = { categorie:"category", souscategorie:"category", Marque:"branding_watermark", Modèle:"build", Année:"calendar_today", Kilométrage:"speed", Carburant:"local_gas_station", Transmission:"settings", Nombredeportes:"door_front", "Surface(m²)":"square_foot", Nombredechambres:"bed", Nombredesallesdebain:"bathtub", Nombredepièces:"meeting_room", "Nombred’appartements":"apartment", "Nombred’étages":"stairs", Annéedeconstruction:"history", Typedeculture:"agriculture", Étatgénéral:"construction", Option:"done", produitNeuf:"new_releases", livraison:"local_shipping", description:"description"};
     const detailsDiv = document.getElementById('details');
@@ -279,8 +202,6 @@ async function loadDetails() {
         detailsDiv.appendChild(div);
       }
     });
-
-    // Vendeur
     let seller = {};
     if (data.ownerId) {
       const sellerRef = doc(db, "users", data.ownerId);
@@ -291,18 +212,16 @@ async function loadDetails() {
       }
     }
     const sellerDiv = document.getElementById('seller-info');
-    let isPro = seller.subscribe === true && seller.subscribeEnd && seller.subscribeEnd.toDate() > new Date();
-    sellerDiv.innerHTML = `
-      <a href="Profil.html?uid=${encodeURIComponent(seller.uid || '')}" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
-        <img src="${isValidImageURL(seller.profileImage) ? seller.profileImage : 'https://via.placeholder.com/50'}" alt="Profil" loading="lazy" style="width:50px;height:50px;border-radius:50%;object-fit:cover;">
-        <div class="seller-info" style="display:flex;align-items:center;gap:6px;">
-          <strong>${escapeHTML(seller.fullName || "Inconnu")}</strong>
-          ${isPro ? '<span class="material-symbols-outlined" title="Boutique Pro" style="color:#00796B;font-size:36px;">storefront</span>' : ''}
-        </div>
-      </a>
-    `;
-
-    // Contact
+let isPro = seller.subscribe === true && seller.subscribeEnd && seller.subscribeEnd.toDate() > new Date();
+sellerDiv.innerHTML = `
+  <a href="Profil.html?uid=${encodeURIComponent(seller.uid || '')}" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
+    <img src="${isValidImageURL(seller.profileImage) ? seller.profileImage : 'https://via.placeholder.com/50'}" alt="Profil" loading="lazy" style="width:50px;height:50px;border-radius:50%;object-fit:cover;">
+    <div class="seller-info" style="display:flex;align-items:center;gap:6px;">
+      <strong>${escapeHTML(seller.fullName || "Inconnu")}</strong>
+      ${isPro ? '<span class="material-symbols-outlined" title="Boutique Pro" style="color:#00796B;font-size:36px;">storefront</span>' : ''}
+    </div>
+  </a>
+`;
     const contactDiv = document.getElementById('contact-buttons');
     contactDiv.innerHTML = "";
     const wa = document.createElement('a');
@@ -319,38 +238,36 @@ async function loadDetails() {
       });
     } else wa.classList.add("disabled");
     contactDiv.appendChild(wa);
-
     const phone = document.createElement('a');
-    phone.className = "button phone";
-    if(data.telephone){
-      phone.href = "#";
-      phone.innerHTML = `<i class="material-icons">call</i>`;
-      phone.addEventListener('click', e => {
-        e.preventDefault();
-        const modal = document.createElement('div');
-        modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;';
-        const box = document.createElement('div');
-        box.style.cssText = 'background:white;padding:20px;border-radius:12px;max-width:400px;text-align:center;position:relative;';
-        const closeBtn = document.createElement('button');
-        closeBtn.textContent = '×';
-        closeBtn.style.cssText = 'position:absolute;top:10px;right:10px;background:transparent;border:none;font-size:24px;cursor:pointer;color:#00796B;';
-        closeBtn.addEventListener('click', () => document.body.removeChild(modal));
-        box.appendChild(closeBtn);
-        const warning = document.createElement('p');
-        warning.textContent = "⚠️ Conseils de sécurité :\n1 - Ne pas envoyer de paiements sans vérifier le produit.\n2 - Ne pas envoyer d'argent par virement ou transfert.\n3 - Rencontrer le vendeur dans un lieu public.";
-        warning.style.whiteSpace = 'pre-line';
-        warning.style.marginBottom = '20px';
-        box.appendChild(warning);
-        const number = document.createElement('p');
-        number.innerHTML = `📞 Numéro du vendeur : <strong>${escapeHTML(data.telephone)}</strong>`;
-        number.style.fontSize = '18px';
-        box.appendChild(number);
-        modal.appendChild(box);
-        document.body.appendChild(modal);
-      });
-    } else phone.classList.add("disabled");
-    contactDiv.appendChild(phone);
-
+phone.className = "button phone";
+if(data.telephone){
+  phone.href = "#";
+  phone.innerHTML = `<i class="material-icons">call</i>`;
+  phone.addEventListener('click', e => {
+    e.preventDefault();
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;';
+    const box = document.createElement('div');
+    box.style.cssText = 'background:white;padding:20px;border-radius:12px;max-width:400px;text-align:center;position:relative;';
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '×';
+    closeBtn.style.cssText = 'position:absolute;top:10px;right:10px;background:transparent;border:none;font-size:24px;cursor:pointer;color:#00796B;';
+    closeBtn.addEventListener('click', () => document.body.removeChild(modal));
+    box.appendChild(closeBtn);
+    const warning = document.createElement('p');
+    warning.textContent = "⚠️ Conseils de sécurité :\n1 - Ne pas envoyer de paiements sans vérifier le produit.\n2 - Ne pas envoyer d'argent par virement ou transfert.\n3 - Rencontrer le vendeur dans un lieu public.";
+    warning.style.whiteSpace = 'pre-line';
+    warning.style.marginBottom = '20px';
+    box.appendChild(warning);
+    const number = document.createElement('p');
+    number.innerHTML = `📞 Numéro du vendeur : <strong>${escapeHTML(data.telephone)}</strong>`;
+    number.style.fontSize = '18px';
+    box.appendChild(number);
+    modal.appendChild(box);
+    document.body.appendChild(modal);
+  });
+} else phone.classList.add("disabled");
+contactDiv.appendChild(phone);
   } catch(err){
     console.error("Erreur chargement détails:", err);
     document.getElementById('details').textContent = "⚠️ Erreur de chargement : " + escapeHTML(err.message);
@@ -366,7 +283,6 @@ window.nextImage = function() {
   document.getElementById('main-image').src = images[currentIndex];
   updateActiveThumbnail();
 }
-
 loadDetails();
 </script>
 </body>
