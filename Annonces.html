@@ -347,81 +347,82 @@ async function loadAnnonces() {
   document.getElementById("spinner").style.display = "flex";
 
   try {
-    // 1) On charge d'abord seulement les 20 premières annonces (affichage rapide)
-    const firstQuery = query(collection(db, "annonces"), orderBy("createdAt", "desc"), limit(20));
-    const firstSnap = await getDocs(firstQuery);
+    // On charge d’abord seulement les 20 premières annonces (plus rapide à afficher)
+    const annoncesQuery = query(
+      collection(db, "annonces"),
+      orderBy("createdAt", "desc"),
+      limit(20) // première page
+    );
 
-    if (firstSnap.empty) {
+    const annoncesSnap = await getDocs(annoncesQuery);
+
+    if (annoncesSnap.empty) {
       annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
       document.getElementById("spinner").style.display = "none";
       return;
     }
 
-    // On stocke les annonces initiales
-    annoncesData = [];
-    firstSnap.forEach(docSnap => {
-      const data = docSnap.data();
-      data.id = docSnap.id;
-      annoncesData.push(data);
-    });
-
-    // garde une référence au dernier doc récupéré, utile pour la suite (lazy loading)
-    window.__lastAnnoncesDoc = firstSnap.docs[firstSnap.docs.length - 1] || null;
-
-    // 2) On charge le cache users (si pas déjà) — important pour l'affichage immédiat du vendeur
+    // Mettre en cache les utilisateurs pour accélérer l’affichage
     if (!window.__usersCache) {
       try {
         const usersSnap = await getDocs(collection(db, "users"));
         const byEmail = {};
         const byId = {};
-        usersSnap.forEach(uDoc => {
+        usersSnap.forEach((uDoc) => {
           const u = uDoc.data() || {};
           byId[uDoc.id] = u;
           const email = (u.email || u.emailAddress || "").toLowerCase().trim();
           if (email) byEmail[email] = u;
         });
         window.__usersCache = { byEmail, byId };
-      } catch(err) {
-        console.error("Erreur chargement users:", err);
+      } catch (err) {
+        console.error("Erreur chargement utilisateurs:", err);
         window.__usersCache = { byEmail: {}, byId: {} };
       }
     }
 
-    // 3) Setup des contrôles et affichage des premières annonces immédiatement
+    // Sauvegarde temporaire des annonces
+    annoncesData = [];
+    annoncesSnap.forEach((docSnap) => {
+      const data = docSnap.data();
+      data.id = docSnap.id;
+      annoncesData.push(data);
+    });
+
+    // On mémorise le dernier document (utile pour les pages suivantes)
+    window.__lastAnnoncesDoc = annoncesSnap.docs[annoncesSnap.docs.length - 1] || null;
+
+    // Initialisation des filtres, recherche, tri, etc.
     setupCategoryFilters();
     setupSearchAndSort();
     setupFilterMenu();
-    applyAllFilters(); // renderAnnonces sera appelé par applyAllFilters()
 
-    // 4) (Optionnel maintenant) — on déclenche en arrière-plan le chargement de la suite des annonces
-    //    Ceci n'empêche pas l'affichage immédiat des 20 premières.
-    //    On lance une fetch asynchrone non bloquante pour récupérer le reste (sans await ici)
+    // On affiche directement la première page
+    applyAllFilters();
+
+    // Pendant que l’utilisateur navigue, on prépare les autres pages en arrière-plan
     (async () => {
       try {
-        // on récupère le reste (ici on récupère jusqu'à 500 restantes ; tu pourras adapter)
         const restQuery = query(collection(db, "annonces"), orderBy("createdAt", "desc"));
         const restSnap = await getDocs(restQuery);
-        // si restSnap contient plus que les 20 premières, on ajoute le reste à annoncesData
         const all = [];
-        restSnap.forEach(d => {
+        restSnap.forEach((d) => {
           const data = d.data();
           data.id = d.id;
           all.push(data);
         });
-        // éviter doublons : merge par id en conservant l'ordre (déja trié par date)
-        const known = new Set(annoncesData.map(a => a.id));
+        // Fusion sans doublons
+        const known = new Set(annoncesData.map((a) => a.id));
         for (const item of all) {
           if (!known.has(item.id)) annoncesData.push(item);
         }
-        // on ne force pas le rerender complet pour l'instant — l'utilisateur verra d'abord 20 items
-        // mais si des filtres sont déjà appliqués, on met à jour l'affichage
+        // Met à jour la pagination existante sans casser l'affichage
         applyAllFilters();
       } catch (err) {
         console.error("Erreur chargement annonces supplémentaires:", err);
       }
     })();
-
-  } catch(err) {
+  } catch (err) {
     console.error("Erreur chargement annonces:", err);
     annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   } finally {
