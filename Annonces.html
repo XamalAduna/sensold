@@ -1,3 +1,4 @@
+
 <!DOCTYPE html> 
 <html lang="fr"> 
 <head> 
@@ -342,61 +343,53 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-
-import { query, collection, orderBy, limit, getDocs, startAfter } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
-
-let lastVisible = null; // pointeur Firestore
-let isLoading = false;
-let allLoaded = false;
-
-async function loadAnnonces(initial = false) {
-  if (isLoading || allLoaded) return;
-  isLoading = true;
-
-  if (initial) {
-    annoncesContainer.innerHTML = "";
-    document.getElementById("spinner").style.display = "flex";
-    lastVisible = null;
-    allLoaded = false;
-  }
+async function loadAnnonces() {
+  annoncesContainer.innerHTML = "";
+  document.getElementById("spinner").style.display = "flex";
 
   try {
-    let annoncesQuery = query(
-      collection(db, "annonces"),
-      orderBy("createdAt", "desc"),
-      limit(20)
-    );
-    if (lastVisible) annoncesQuery = query(
-      collection(db, "annonces"),
-      orderBy("createdAt", "desc"),
-      startAfter(lastVisible),
-      limit(20)
-    );
-
+    const annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt","desc"));
     const annoncesSnap = await getDocs(annoncesQuery);
-    if (annoncesSnap.empty) {
-      allLoaded = true;
+
+    if(annoncesSnap.empty){ 
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
       document.getElementById("spinner").style.display = "none";
-      return;
+      return; 
     }
-
-    lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
+    annoncesData = [];
     annoncesSnap.forEach(docSnap => {
-      const data = docSnap.data();
-      data.id = docSnap.id;
-      annoncesData.push(data);
-    });
+    const data = docSnap.data();
+    data.id = docSnap.id;
+    annoncesData.push(data);});
 
-    renderAnnonces(annoncesData, true);
-  } catch (err) {
+    if (!window.__usersCache) {
+      try {
+        const usersSnap = await getDocs(collection(db, "users"));
+        const byEmail = {};
+        const byId = {};
+        usersSnap.forEach(uDoc => {
+          const u = uDoc.data() || {};
+          byId[uDoc.id] = u;
+          const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+          if(email) byEmail[email] = u;
+        });
+        window.__usersCache = { byEmail, byId };
+      } catch(err) {
+        console.error("Erreur chargement users:", err);
+        window.__usersCache = { byEmail: {}, byId: {} };
+      }
+    }
+    setupCategoryFilters();
+    setupSearchAndSort();
+    setupFilterMenu();
+    applyAllFilters();
+  } catch(err){
     console.error("Erreur chargement annonces:", err);
+    annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   } finally {
-    isLoading = false;
-    document.getElementById("spinner").style.display = "none";
+    document.getElementById("spinner").style.display = "none"; 
   }
 }
-
-
 function escapeHTML(str) {
   if (!str) return "";
   return str
@@ -718,16 +711,6 @@ function applyAllFilters() {
     return bDate - aDate;
   });
   renderAnnonces(filtered);}
-
-  // --- AJOUTER ICI ---
-window.addEventListener("scroll", () => {
-  if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 300) {
-    loadAnnonces(false);
-  }
-});
-
-// Facultatif : charger les premières annonces
-loadAnnonces(true);
 </script>  
 </body>
 </html>
