@@ -342,6 +342,7 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
+
 import { query, collection, orderBy, limit, getDocs, startAfter } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 
 let lastVisible = null; // pointeur Firestore
@@ -395,7 +396,7 @@ async function loadAnnonces(initial = false) {
   }
 }
 
-  
+
 function escapeHTML(str) {
   if (!str) return "";
   return str
