@@ -359,8 +359,21 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     userFavorites = [];
   }
-  loadAnnonces();
+
+  // Ne reload Firebase que si aucun cache n'existe
+  if(!cachedHTML || !cachedState){
+    loadAnnonces();
+  } else {
+    // Sinon, juste mettre à jour les favoris des cartes existantes
+    const favBtns = document.querySelectorAll(".favorite");
+    favBtns.forEach(btn => {
+      const cardId = btn.closest(".annonce-card").dataset.id;
+      if(currentUser && userFavorites.includes(cardId)) btn.classList.add("active");
+      else btn.classList.remove("active");
+    });
+  }
 });
+
 
 async function loadAnnonces() {
   annoncesContainer.innerHTML = "";
