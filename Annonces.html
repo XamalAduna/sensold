@@ -343,6 +343,24 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 async function loadAnnonces() {
+
+  // Vérifie le cache
+  const cachedHTML = sessionStorage.getItem('cachedAnnonces');
+  const cachedFilters = sessionStorage.getItem('cachedFilters');
+
+  if (cachedHTML) {
+    annoncesContainer.innerHTML = cachedHTML;
+    if (cachedFilters) {
+      const filters = JSON.parse(cachedFilters);
+      selectedCategory = filters.selectedCategory;
+      selectedSubcategory = filters.selectedSubcategory;
+      searchText = filters.searchText;
+      sortOrder = filters.sortOrder;
+      currentPage = filters.currentPage;
+    }
+    return; // Ne recharge pas
+  }
+
   annoncesContainer.innerHTML = "";
   document.getElementById("spinner").style.display = "flex";
 
@@ -397,6 +415,7 @@ function escapeHTML(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
 }
+  
 async function renderAnnonces(filtered) {
   annoncesContainer.innerHTML = "";
   if (filtered.length === 0) {
@@ -537,6 +556,17 @@ async function renderAnnonces(filtered) {
 
     annoncesContainer.appendChild(card);
   }
+  
+  // Sauvegarder l'état actuel
+window.sessionStorage.setItem('cachedAnnoncesHTML', annoncesContainer.innerHTML);
+window.sessionStorage.setItem('cachedFilters', JSON.stringify({
+  selectedCategory,
+  selectedSubcategory,
+  searchText,
+  sortOrder,
+  currentPage
+}));
+
 
   renderPagination(Math.ceil(filtered.length / annoncesPerPage));
 }
