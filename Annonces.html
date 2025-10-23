@@ -718,6 +718,16 @@ function applyAllFilters() {
     return bDate - aDate;
   });
   renderAnnonces(filtered);}
+
+  // --- AJOUTER ICI ---
+window.addEventListener("scroll", () => {
+  if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 300) {
+    loadAnnonces(false);
+  }
+});
+
+// Facultatif : charger les premières annonces
+loadAnnonces(true);
 </script>  
 </body>
 </html>
