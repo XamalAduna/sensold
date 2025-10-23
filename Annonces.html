@@ -1,3 +1,4 @@
+
 <!DOCTYPE html> 
 <html lang="fr"> 
 <head> 
@@ -299,6 +300,7 @@ const categoriesData = {
     { "label": "Autre matériel professionnel", "icon": "miscellaneous_services" }
   ]
 };
+
 const annoncesContainer = document.getElementById("annonces");
 const subContainer = document.getElementById("subcategories-container");
 const categoryElements = document.querySelectorAll(".category");
@@ -318,27 +320,6 @@ let searchText = "";
 let sortOrder = "default";
 let currentPage = 1;
 const annoncesPerPage = 20;
-
-// --- RESTAURATION DU CACHE ---
-const cachedHTML = window.sessionStorage.getItem('cachedAnnoncesHTML');
-const cachedState = window.sessionStorage.getItem('cachedAnnoncesState');
-
-if (cachedHTML && cachedState) {
-    // Il y a un cache : on restaure
-    annoncesContainer.innerHTML = cachedHTML;
-    const state = JSON.parse(cachedState);
-    selectedCategory = state.selectedCategory;
-    selectedSubcategory = state.selectedSubcategory;
-    searchText = state.searchText;
-    sortOrder = state.sortOrder;
-    currentPage = state.currentPage;
-    userFavorites = state.userFavorites || [];
-} else {
-    // Pas de cache : on charge depuis Firebase
-    loadAnnonces();
-}
-
-  
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
@@ -359,41 +340,28 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     userFavorites = [];
   }
-
-  // Ne reload Firebase que si aucun cache n'existe
-  if(!cachedHTML || !cachedState){
-    loadAnnonces();
-  } else {
-    // Sinon, juste mettre à jour les favoris des cartes existantes
-    const favBtns = document.querySelectorAll(".favorite");
-    favBtns.forEach(btn => {
-      const cardId = btn.closest(".annonce-card").dataset.id;
-      if(currentUser && userFavorites.includes(cardId)) btn.classList.add("active");
-      else btn.classList.remove("active");
-    });
-  }
+  loadAnnonces();
 });
-
 
 async function loadAnnonces() {
   annoncesContainer.innerHTML = "";
   document.getElementById("spinner").style.display = "flex";
 
   try {
-    const annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt","desc"));
+    // 1. Récupérer toutes les annonces (limite + order)
+    const annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt", "desc"));
     const annoncesSnap = await getDocs(annoncesQuery);
 
-    if(annoncesSnap.empty){ 
-      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
+    if (annoncesSnap.empty) {
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
       document.getElementById("spinner").style.display = "none";
-      return; 
+      return;
     }
-    annoncesData = [];
-    annoncesSnap.forEach(docSnap => {
-    const data = docSnap.data();
-    data.id = docSnap.id;
-    annoncesData.push(data);});
 
+    // 2. Stocker les données localement
+    annoncesData = annoncesSnap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
+
+    // 3. Charger et mettre en cache tous les utilisateurs une seule fois
     if (!window.__usersCache) {
       try {
         const usersSnap = await getDocs(collection(db, "users"));
@@ -403,25 +371,31 @@ async function loadAnnonces() {
           const u = uDoc.data() || {};
           byId[uDoc.id] = u;
           const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-          if(email) byEmail[email] = u;
+          if (email) byEmail[email] = u;
         });
         window.__usersCache = { byEmail, byId };
-      } catch(err) {
+      } catch (err) {
         console.error("Erreur chargement users:", err);
         window.__usersCache = { byEmail: {}, byId: {} };
       }
     }
+
+    // 4. Setup filtres et recherche
     setupCategoryFilters();
     setupSearchAndSort();
     setupFilterMenu();
+
+    // 5. Appliquer les filtres et afficher les annonces
     applyAllFilters();
-  } catch(err){
+
+  } catch (err) {
     console.error("Erreur chargement annonces:", err);
     annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   } finally {
-    document.getElementById("spinner").style.display = "none"; 
+    document.getElementById("spinner").style.display = "none";
   }
 }
+
 function escapeHTML(str) {
   if (!str) return "";
   return str
@@ -562,7 +536,7 @@ async function renderAnnonces(filtered) {
         await updateDoc(favRef, { favorites: arrayUnion(docId) });
       }
     });
-    
+
     card.addEventListener("click", e => {
       if (e.target.classList.contains("favorite")) return;
       window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
@@ -570,16 +544,6 @@ async function renderAnnonces(filtered) {
 
     annoncesContainer.appendChild(card);
   }
-  // Sauvegarde dans sessionStorage
-window.sessionStorage.setItem('cachedAnnoncesHTML', annoncesContainer.innerHTML);
-window.sessionStorage.setItem('cachedAnnoncesState', JSON.stringify({
-    selectedCategory,
-    selectedSubcategory,
-    searchText,
-    sortOrder,
-    currentPage,
-    userFavorites
-}));
 
   renderPagination(Math.ceil(filtered.length / annoncesPerPage));
 }
