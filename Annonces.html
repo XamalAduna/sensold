@@ -299,7 +299,6 @@ const categoriesData = {
     { "label": "Autre matériel professionnel", "icon": "miscellaneous_services" }
   ]
 };
-
 const annoncesContainer = document.getElementById("annonces");
 const subContainer = document.getElementById("subcategories-container");
 const categoryElements = document.querySelectorAll(".category");
@@ -319,6 +318,22 @@ let searchText = "";
 let sortOrder = "default";
 let currentPage = 1;
 const annoncesPerPage = 20;
+
+// --- RESTAURATION DU CACHE ---
+const cachedHTML = window.sessionStorage.getItem('cachedAnnoncesHTML');
+const cachedState = window.sessionStorage.getItem('cachedAnnoncesState');
+
+if(cachedHTML && cachedState){
+  annoncesContainer.innerHTML = cachedHTML;
+  const state = JSON.parse(cachedState);
+  selectedCategory = state.selectedCategory;
+  selectedSubcategory = state.selectedSubcategory;
+  searchText = state.searchText;
+  sortOrder = state.sortOrder;
+  currentPage = state.currentPage;
+  userFavorites = state.userFavorites || [];
+}
+  
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
@@ -343,24 +358,6 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 async function loadAnnonces() {
-
-  // Vérifie le cache
-  const cachedHTML = sessionStorage.getItem('cachedAnnonces');
-  const cachedFilters = sessionStorage.getItem('cachedFilters');
-
-  if (cachedHTML) {
-    annoncesContainer.innerHTML = cachedHTML;
-    if (cachedFilters) {
-      const filters = JSON.parse(cachedFilters);
-      selectedCategory = filters.selectedCategory;
-      selectedSubcategory = filters.selectedSubcategory;
-      searchText = filters.searchText;
-      sortOrder = filters.sortOrder;
-      currentPage = filters.currentPage;
-    }
-    return; // Ne recharge pas
-  }
-
   annoncesContainer.innerHTML = "";
   document.getElementById("spinner").style.display = "flex";
 
@@ -415,7 +412,6 @@ function escapeHTML(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
 }
-  
 async function renderAnnonces(filtered) {
   annoncesContainer.innerHTML = "";
   if (filtered.length === 0) {
@@ -548,7 +544,7 @@ async function renderAnnonces(filtered) {
         await updateDoc(favRef, { favorites: arrayUnion(docId) });
       }
     });
-
+    
     card.addEventListener("click", e => {
       if (e.target.classList.contains("favorite")) return;
       window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
@@ -556,17 +552,16 @@ async function renderAnnonces(filtered) {
 
     annoncesContainer.appendChild(card);
   }
-  
-  // Sauvegarder l'état actuel
+  // Sauvegarde dans sessionStorage
 window.sessionStorage.setItem('cachedAnnoncesHTML', annoncesContainer.innerHTML);
-window.sessionStorage.setItem('cachedFilters', JSON.stringify({
-  selectedCategory,
-  selectedSubcategory,
-  searchText,
-  sortOrder,
-  currentPage
+window.sessionStorage.setItem('cachedAnnoncesState', JSON.stringify({
+    selectedCategory,
+    selectedSubcategory,
+    searchText,
+    sortOrder,
+    currentPage,
+    userFavorites
 }));
-
 
   renderPagination(Math.ceil(filtered.length / annoncesPerPage));
 }
