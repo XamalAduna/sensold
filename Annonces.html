@@ -711,5 +711,39 @@ function applyAllFilters() {
   });
   renderAnnonces(filtered);}
 </script>  
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const iframe = document.querySelector(".iframe-container iframe");
+
+  // 1️⃣ Si on a déjà enregistré le contenu dans la session
+  const saved = sessionStorage.getItem("annonces_iframe");
+  if (saved) {
+    const blob = new Blob([saved], { type: "text/html" });
+    iframe.src = URL.createObjectURL(blob);
+  }
+
+  // 2️⃣ Une fois l'iframe chargée pour la première fois, on sauvegarde son contenu
+  iframe.addEventListener("load", () => {
+    try {
+      const doc = iframe.contentDocument || iframe.contentWindow.document;
+      if (doc && doc.documentElement) {
+        sessionStorage.setItem("annonces_iframe", doc.documentElement.outerHTML);
+      }
+    } catch (e) {
+      console.warn("Impossible d’accéder au contenu de l’iframe (problème de domaine).");
+    }
+  });
+
+  // 3️⃣ Empêche le rechargement automatique quand on revient
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted && saved) {
+      const blob = new Blob([saved], { type: "text/html" });
+      iframe.src = URL.createObjectURL(blob);
+    }
+  });
+});
+</script>
+
 </body>
 </html>
