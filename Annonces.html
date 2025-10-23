@@ -344,77 +344,41 @@ onAuthStateChanged(auth, async (user) => {
 
 async function loadAnnonces() {
   annoncesContainer.innerHTML = "";
-  const spinner = document.getElementById("spinner");
-  spinner.style.display = "flex";
+  document.getElementById("spinner").style.display = "flex";
 
   try {
-    const annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt", "desc"), limit(200));
+    // Charger seulement les 20 plus récentes annonces
+    const annoncesQuery = query(
+      collection(db, "annonces"),
+      orderBy("createdAt", "desc"),
+      limit(20)
+    );
     const annoncesSnap = await getDocs(annoncesQuery);
 
     if (annoncesSnap.empty) {
       annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
-      spinner.style.display = "none";
+      document.getElementById("spinner").style.display = "none";
       return;
     }
 
-    // tableau temporaire pour stocker
     annoncesData = [];
-    let count = 0;
-
-    for (const docSnap of annoncesSnap.docs) {
+    annoncesSnap.forEach(docSnap => {
       const data = docSnap.data();
       data.id = docSnap.id;
       annoncesData.push(data);
+    });
 
-      // 🔥 Affiche les 10 premières instantanément
-      if (count < 10) {
-        renderAnnonceInstant(data);
-      }
-      count++;
-    }
-
-    // ensuite, affiche les autres avec un léger délai (non bloquant)
-    let index = 10;
-    const batchSize = 10;
-    const timer = setInterval(() => {
-      const slice = annoncesData.slice(index, index + batchSize);
-      slice.forEach(renderAnnonceInstant);
-      index += batchSize;
-      if (index >= annoncesData.length) clearInterval(timer);
-    }, 100);
+    // Afficher immédiatement les annonces sans attendre autre chose
+    await renderAnnonces(annoncesData);
 
   } catch (err) {
     console.error("Erreur chargement annonces:", err);
     annoncesContainer.innerHTML = `<p>⚠️ Erreur : ${err.message}</p>`;
   } finally {
-    spinner.style.display = "none";
+    document.getElementById("spinner").style.display = "none";
   }
 }
-
-// 🔧 fonction pour créer une carte très rapidement
-function renderAnnonceInstant(a) {
-  const card = document.createElement("div");
-  card.className = "annonce-card";
-  const image = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
-  const title = escapeHTML(a.title || "Sans titre");
-  const price = escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande");
-  const city = escapeHTML(a.city || "Ville non précisée");
-
-  card.innerHTML = `
-    <img src="${image}" loading="lazy" alt="${title}">
-    <div class="content">
-      <p class="price">${price}</p>
-      <h3 class="title">${title}</h3>
-      <p class="location">📍 ${city}</p>
-    </div>
-  `;
-  card.addEventListener("click", () => {
-    window.location.href = \`Details.html?id=\${encodeURIComponent(a.id)}\`;
-  });
-  annoncesContainer.appendChild(card);
-}
-
-  
+ 
 function escapeHTML(str) {
   if (!str) return "";
   return str
