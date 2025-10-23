@@ -323,16 +323,21 @@ const annoncesPerPage = 20;
 const cachedHTML = window.sessionStorage.getItem('cachedAnnoncesHTML');
 const cachedState = window.sessionStorage.getItem('cachedAnnoncesState');
 
-if(cachedHTML && cachedState){
-  annoncesContainer.innerHTML = cachedHTML;
-  const state = JSON.parse(cachedState);
-  selectedCategory = state.selectedCategory;
-  selectedSubcategory = state.selectedSubcategory;
-  searchText = state.searchText;
-  sortOrder = state.sortOrder;
-  currentPage = state.currentPage;
-  userFavorites = state.userFavorites || [];
+if (cachedHTML && cachedState) {
+    // Il y a un cache : on restaure
+    annoncesContainer.innerHTML = cachedHTML;
+    const state = JSON.parse(cachedState);
+    selectedCategory = state.selectedCategory;
+    selectedSubcategory = state.selectedSubcategory;
+    searchText = state.searchText;
+    sortOrder = state.sortOrder;
+    currentPage = state.currentPage;
+    userFavorites = state.userFavorites || [];
+} else {
+    // Pas de cache : on charge depuis Firebase
+    loadAnnonces();
 }
+
   
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
