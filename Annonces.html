@@ -343,42 +343,46 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-let lastVisibleDoc = null;
-
 async function loadAnnonces() {
   annoncesContainer.innerHTML = "";
   document.getElementById("spinner").style.display = "flex";
 
   try {
-    let annoncesQueryRef = query(
-      collection(db, "annonces"),
-      orderBy("createdAt", "desc"),
-      limit(annoncesPerPage) // récupère seulement 20
-    );
+    const annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt","desc"));
+    const annoncesSnap = await getDocs(annoncesQuery);
 
-    if(lastVisibleDoc) {
-      annoncesQueryRef = query(
-        collection(db, "annonces"),
-        orderBy("createdAt", "desc"),
-        startAfter(lastVisibleDoc),
-        limit(annoncesPerPage)
-      );
+    if(annoncesSnap.empty){ 
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
+      document.getElementById("spinner").style.display = "none";
+      return; 
     }
+    annoncesData = [];
+    annoncesSnap.forEach(docSnap => {
+    const data = docSnap.data();
+    data.id = docSnap.id;
+    annoncesData.push(data);});
 
-    const annoncesSnap = await getDocs(annoncesQueryRef);
-    if(annoncesSnap.empty){
-      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
-      return;
+    if (!window.__usersCache) {
+      try {
+        const usersSnap = await getDocs(collection(db, "users"));
+        const byEmail = {};
+        const byId = {};
+        usersSnap.forEach(uDoc => {
+          const u = uDoc.data() || {};
+          byId[uDoc.id] = u;
+          const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+          if(email) byEmail[email] = u;
+        });
+        window.__usersCache = { byEmail, byId };
+      } catch(err) {
+        console.error("Erreur chargement users:", err);
+        window.__usersCache = { byEmail: {}, byId: {} };
+      }
     }
-
-    lastVisibleDoc = annoncesSnap.docs[annoncesSnap.docs.length-1]; // garde le dernier pour la prochaine requête
-    annoncesData = annoncesSnap.docs.map(docSnap => {
-      const data = docSnap.data();
-      data.id = docSnap.id;
-      return data;
-    });
-
-    applyAllFilters(); // utilise ta fonction existante pour afficher
+    setupCategoryFilters();
+    setupSearchAndSort();
+    setupFilterMenu();
+    applyAllFilters();
   } catch(err){
     console.error("Erreur chargement annonces:", err);
     annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
@@ -386,7 +390,6 @@ async function loadAnnonces() {
     document.getElementById("spinner").style.display = "none"; 
   }
 }
-
 function escapeHTML(str) {
   if (!str) return "";
   return str
