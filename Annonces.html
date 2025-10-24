@@ -1,4 +1,3 @@
-
 <!DOCTYPE html> 
 <html lang="fr"> 
 <head> 
@@ -412,8 +411,25 @@ async function renderAnnonces(filtered) {
   const end = start + annoncesPerPage;
   const pageItems = filtered.slice(start, end);
 
-  // Fonction pour créer chaque carte d'annonce
-  function createAnnonceCard(a) {
+  if (!window.__usersCache) {
+    try {
+      const usersSnap = await getDocs(collection(db, "users"));
+      const byEmail = {};
+      const byId = {};
+      usersSnap.forEach(uDoc => {
+        const u = uDoc.data() || {};
+        byId[uDoc.id] = u;
+        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+        if (email) byEmail[email] = u;
+      });
+      window.__usersCache = { byEmail, byId };
+    } catch (err) {
+      console.error("Erreur chargement users:", err);
+      window.__usersCache = { byEmail: {}, byId: {} };
+    }
+  }
+
+  for (const a of pageItems) {
     const docId = escapeHTML(a.id || "");
     const card = document.createElement("div");
     card.className = "annonce-card";
@@ -431,8 +447,7 @@ async function renderAnnonces(filtered) {
     if (sellerData && sellerData.subscribe === true) {
       const now = new Date();
       const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
-      if (subEnd > now) isPro = true;
-    }
+      if (subEnd > now) isPro = true;}
 
     let fullName = "Utilisateur inconnu";
     if (sellerData) {
@@ -447,7 +462,6 @@ async function renderAnnonces(filtered) {
           "Utilisateur"
         );
     }
-
     let sellerPhoto =
       (sellerData && (
         sellerData.profileImage ||
@@ -462,47 +476,46 @@ async function renderAnnonces(filtered) {
       sellerPhoto = "https://via.placeholder.com/40";
     }
     sellerPhoto = escapeHTML(sellerPhoto);
-
     let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
-
     card.innerHTML = `
-      <div class="image-container">
-        <img src="${annonceImage}" 
-             loading="lazy"
-             alt="${escapeHTML(a.title || 'Annonce')}"
-             onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
-        ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
-        <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
-        <span class="material-icons favorite ${isFav ? 'active' : ''}">
-          ${isFav ? 'favorite' : 'favorite_border'}
-        </span>
-      </div>
-      <div class="content">
-        <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
-        <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
-        <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
-      </div>
-      <div class="seller">
-        <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
-        <div class="seller-info">
-          <strong>${fullName}</strong>
-          ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
-        </div>
-      </div>
-    `;
-
+  <div class="image-container">
+    <img src="${annonceImage}" 
+         loading="lazy"
+         alt="${escapeHTML(a.title || 'Annonce')}"
+         onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
+    ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
+    <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
+    <span class="material-icons favorite ${isFav ? 'active' : ''}">
+      ${isFav ? 'favorite' : 'favorite_border'}
+    </span>
+  </div>
+  <div class="content">
+    <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
+    <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
+    <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
+  </div>
+  <div class="seller">
+    <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
+    <div class="seller-info">
+      <strong>${fullName}</strong>
+      ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
+    </div>
+  </div>
+`;
     const titleEl = card.querySelector('.title');
-    if ((a.title || "").length > 30) titleEl.classList.add('long-text');
-
+      if ((a.title || "").length > 30) {
+      titleEl.classList.add('long-text');}
     const favBtn = card.querySelector(".favorite");
     favBtn.addEventListener("click", async e => {
       e.stopPropagation();
+
       if (!currentUser) {
-        const msg = document.getElementById("notLoggedMsg");
-        msg.style.display = "block";
-        setTimeout(() => { msg.style.display = "none"; }, 3000);
-        return;
-      }
+      const msg = document.getElementById("notLoggedMsg");
+      msg.style.display = "block";
+      setTimeout(() => { msg.style.display = "none"; }, 3000);
+      return;}
+
+      
       const favRef = doc(db, "users", currentUser.uid);
       if (favBtn.classList.contains("active")) {
         favBtn.classList.remove("active");
@@ -525,19 +538,120 @@ async function renderAnnonces(filtered) {
     annoncesContainer.appendChild(card);
   }
 
-  // Affiche immédiatement les 20 premières annonces
-  pageItems.slice(0, 20).forEach(a => createAnnonceCard(a));
-
-  // Affiche le reste par lot (si plus de 20 annonces sur la page)
-  for (let i = 20; i < pageItems.length; i += 20) {
-    setTimeout(() => {
-      pageItems.slice(i, i + 20).forEach(a => createAnnonceCard(a));
-    }, 0);
-  }
-
-  renderPagination(totalPages);
+  renderPagination(Math.ceil(filtered.length / annoncesPerPage));
 }
 
+function renderPagination(totalPages){
+  let paginationContainer = document.getElementById("pagination");
+  if(!paginationContainer){
+    paginationContainer = document.createElement("div");
+    paginationContainer.id = "pagination";
+    paginationContainer.style.textAlign = "center";
+    paginationContainer.style.marginTop = "20px";
+    document.body.appendChild(paginationContainer);
+  }
+
+  paginationContainer.innerHTML = "";
+
+  const createPageBtn = (num) => {
+    const btn = document.createElement("button");
+    btn.textContent = num;
+    btn.style.margin = "0 5px";
+    btn.style.padding = "6px 12px";
+    btn.style.borderRadius = "6px";
+    btn.style.border = num === currentPage ? "2px solid #009688" : "1px solid #ccc";
+    btn.style.background = num === currentPage ? "#009688" : "#fff";
+    btn.style.color = num === currentPage ? "#fff" : "#000";
+    btn.style.cursor = "pointer";
+    btn.addEventListener("click", () => {
+      currentPage = num;
+      applyAllFilters();
+    });
+    return btn;
+  }
+
+  const maxButtons = 7;
+  let startPage = Math.max(1, currentPage - 3);
+  let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+  startPage = Math.max(1, endPage - maxButtons + 1);
+
+  if(startPage > 1){
+    paginationContainer.appendChild(createPageBtn(1));
+    if(startPage > 2) paginationContainer.appendChild(document.createTextNode("..."));
+  }
+
+  for(let i = startPage; i <= endPage; i++){
+    paginationContainer.appendChild(createPageBtn(i));
+  }
+
+  if(endPage < totalPages){
+    if(endPage < totalPages -1) paginationContainer.appendChild(document.createTextNode("..."));
+    paginationContainer.appendChild(createPageBtn(totalPages));
+  }
+}
+
+function setupCategoryFilters() {
+  const allCategory = document.querySelector('.category[data-cat="all"]');
+  if (allCategory) allCategory.classList.add("active");
+
+  document.addEventListener("click", e => {
+    const menu = document.getElementById("subDropdownMenu");
+    if (menu && !menu.parentElement.contains(e.target)) {
+      menu.style.display = "none";
+    }
+  });
+
+  categoryElements.forEach(cat => {
+    cat.addEventListener("click", () => {
+      categoryElements.forEach(c => c.classList.remove("active"));
+      cat.classList.add("active");
+
+      selectedCategory = cat.dataset.cat;
+      selectedSubcategory = null;
+      currentPage = 1;
+      const subs = categoriesData[selectedCategory] || [];
+      if (subs.length === 0) {
+        subContainer.innerHTML = "<p style='text-align:center;color:#777;'>Aucune sous-catégorie</p>";
+      } else {
+        subContainer.innerHTML = `
+          <div style="text-align:center; margin-top:10px; position:relative; display:inline-block;">
+            <button id="subDropdownBtn" style="padding:8px 12px; border-radius:8px; border:1px solid #ccc; background:#fff; cursor:pointer;">
+              Sélectionner une sous-catégorie ▼
+            </button>
+            <div id="subDropdownMenu" style="display:none; position:absolute; top:100%; left:0; background:#fff; border:1px solid #ccc; border-radius:8px; width:220px; box-shadow:0 2px 6px rgba(0,0,0,0.15); z-index:1000;">
+              ${subs.map(s => `<div class="sub-item" style="display:flex; align-items:center; gap:8px; padding:6px 10px; cursor:pointer;">
+                <i class="material-icons" style="color:#009688;">${s.icon}</i>
+                <span>${s.label}</span>
+              </div>`).join('')}
+            </div>
+          </div>
+        `;
+
+        const btn = document.getElementById("subDropdownBtn");
+        const items = document.querySelectorAll(".sub-item");
+
+        btn.addEventListener("click", () => {
+          const menu = document.getElementById("subDropdownMenu");
+          menu.style.display = menu.style.display === "block" ? "none" : "block";
+        });
+
+        items.forEach(item => {
+          item.addEventListener("click", () => {
+            items.forEach(i => { i.style.background = "#fff"; i.style.color = "#000"; });
+            item.style.background = "#009688";
+            item.style.color = "#fff";
+            selectedSubcategory = item.querySelector("span").textContent.trim();
+            btn.textContent = selectedSubcategory + " ▼";
+            document.getElementById("subDropdownMenu").style.display = "none";
+            currentPage = 1;
+            applyAllFilters();
+          });
+        });
+      }
+      applyAllFilters();
+    });
+  });
+}
 
 function setupSearchAndSort(){
   const searchInput = document.getElementById("search-input");
