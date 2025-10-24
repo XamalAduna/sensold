@@ -387,7 +387,6 @@ function escapeHTML(str) {
     .replace(/"/g, "&quot;")
 }
 async function renderAnnonces(filtered) {
-  annoncesContainer.innerHTML = "";
   if (filtered.length === 0) {
     annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
     return;
@@ -530,9 +529,8 @@ async function renderAnnonces(filtered) {
   }
 
   for (const a of pageItems) {
-    // On utilise setTimeout minimal pour laisser le navigateur afficher immédiatement
-    setTimeout(() => createCard(a), 0);
-  }
+    createCard(a); // pas de setTimeout
+}
 
   renderPagination(Math.ceil(filtered.length / annoncesPerPage));
 }
