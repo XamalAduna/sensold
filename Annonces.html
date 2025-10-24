@@ -412,6 +412,7 @@ async function renderAnnonces(filtered) {
   const end = start + annoncesPerPage;
   const pageItems = filtered.slice(start, end);
 
+  // On charge le cache utilisateurs une seule fois
   if (!window.__usersCache) {
     try {
       const usersSnap = await getDocs(collection(db, "users"));
@@ -430,6 +431,7 @@ async function renderAnnonces(filtered) {
     }
   }
 
+  // 🔥 On affiche chaque annonce dès qu’elle est prête
   for (const a of pageItems) {
     const docId = escapeHTML(a.id || "");
     const card = document.createElement("div");
@@ -444,65 +446,52 @@ async function renderAnnonces(filtered) {
     if (!sellerData && a.uid) sellerData = window.__usersCache.byId[a.uid];
     if (!sellerData && a.user && typeof a.user === "object") sellerData = a.user;
 
-    let isPro = false;
-    if (sellerData && sellerData.subscribe === true) {
-      const now = new Date();
-      const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
-      if (subEnd > now) isPro = true;}
+    const isPro = sellerData && sellerData.subscribe === true &&
+                  new Date(sellerData.subscribeEnd?.toDate?.() || sellerData.subscribeEnd) > new Date();
 
-    let fullName = "Utilisateur inconnu";
-    if (sellerData) {
-      fullName =
-        escapeHTML(
-          sellerData.fullName ||
-          `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
-          sellerData.displayName ||
-          sellerData.name ||
-          sellerData.nom ||
-          sellerData.prenom ||
-          "Utilisateur"
-        );
-    }
-    let sellerPhoto =
-      (sellerData && (
-        sellerData.profileImage ||
-        sellerData.profilePic ||
-        sellerData.profile ||
-        sellerData.photoURL ||
-        sellerData.avatar ||
-        sellerData.image ||
-        sellerData.photo
-      )) || "";
-    if (!sellerPhoto || typeof sellerPhoto !== "string" || sellerPhoto.startsWith("gs://") || sellerPhoto.startsWith("/")) {
-      sellerPhoto = "https://via.placeholder.com/40";
-    }
-    sellerPhoto = escapeHTML(sellerPhoto);
-    let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
+    const fullName =
+      sellerData ? escapeHTML(sellerData.fullName ||
+      `${sellerData.firstName || ""} ${sellerData.lastName || ""}`.trim() ||
+      sellerData.displayName || sellerData.name || "Utilisateur") : "Utilisateur inconnu";
+
+    const sellerPhoto = escapeHTML(
+      sellerData?.profileImage || sellerData?.photoURL || "https://via.placeholder.com/40"
+    );
+
+    const annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
+
     card.innerHTML = `
-  <div class="image-container">
-    <img src="${annonceImage}" 
-         loading="lazy"
-         alt="${escapeHTML(a.title || 'Annonce')}"
-         onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
-    ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
-    <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
-    <span class="material-icons favorite ${isFav ? 'active' : ''}">
-      ${isFav ? 'favorite' : 'favorite_border'}
-    </span>
-  </div>
-  <div class="content">
-    <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
-    <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
-    <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
-  </div>
-  <div class="seller">
-    <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
-    <div class="seller-info">
-      <strong>${fullName}</strong>
-      ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
-    </div>
-  </div>
-`;
+      <div class="image-container">
+        <img src="${annonceImage}" loading="lazy" alt="${escapeHTML(a.title || 'Annonce')}"
+             onerror="this.src='https://via.placeholder.com/400x200?text=Annonce'">
+        ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
+        <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
+        <span class="material-icons favorite ${isFav ? 'active' : ''}">
+          ${isFav ? 'favorite' : 'favorite_border'}
+        </span>
+      </div>
+      <div class="content">
+        <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
+        <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
+        <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}</p>
+      </div>
+      <div class="seller">
+        <img src="${sellerPhoto}" alt="${fullName}">
+        <div class="seller-info">
+          <strong>${fullName}</strong>
+          ${isPro ? '<span class="boutique-pro material-symbols-outlined">store</span>' : ''}
+        </div>
+      </div>
+    `;
+
+    // 👉 Affichage immédiat sans attendre les autres
+    annoncesContainer.appendChild(card);
+
+    // petit délai pour fluidifier le rendu visuel
+    await new Promise(r => requestAnimationFrame(r));
+  }
+}
+
     const titleEl = card.querySelector('.title');
       if ((a.title || "").length > 30) {
       titleEl.classList.add('long-text');}
