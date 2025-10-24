@@ -319,11 +319,6 @@ let searchText = "";
 let sortOrder = "default";
 let currentPage = 1;
 const annoncesPerPage = 20;
-
-// <-- Ajoute ces deux lignes ici
-let lastVisibleDoc = null; 
-let allLoaded = false;
-  
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
@@ -347,57 +342,53 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-async function loadAnnonces(initial = true) {
-  if (initial) {
-    annoncesContainer.innerHTML = "";
-    document.getElementById("spinner").style.display = "flex";
-    lastVisibleDoc = null;
-    allLoaded = false;
-    currentPage = 1;
-  }
-
-  if (allLoaded) return;
+async function loadAnnonces() {
+  annoncesContainer.innerHTML = "";
+  document.getElementById("spinner").style.display = "flex";
 
   try {
-    let annoncesQuery = query(
-      collection(db, "annonces"),
-      orderBy("createdAt", "desc"),
-      limit(20)
-    );
-
-    if (lastVisibleDoc) {
-      annoncesQuery = query(
-        collection(db, "annonces"),
-        orderBy("createdAt", "desc"),
-        startAfter(lastVisibleDoc),
-        limit(20)
-      );
-    }
-
+    const annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt","desc"));
     const annoncesSnap = await getDocs(annoncesQuery);
-    document.getElementById("spinner").style.display = "none";
 
-    if (annoncesSnap.empty) {
-      allLoaded = true;
-      return;
+    if(annoncesSnap.empty){ 
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
+      document.getElementById("spinner").style.display = "none";
+      return; 
     }
-
-    lastVisibleDoc = annoncesSnap.docs[annoncesSnap.docs.length - 1];
-
+    annoncesData = [];
     annoncesSnap.forEach(docSnap => {
-      const data = docSnap.data();
-      data.id = docSnap.id;
-      annoncesData.push(data);
-    });
+    const data = docSnap.data();
+    data.id = docSnap.id;
+    annoncesData.push(data);});
 
-    applyAllFilters(false); // false = ne pas reset la pagination
-  } catch (err) {
+    if (!window.__usersCache) {
+      try {
+        const usersSnap = await getDocs(collection(db, "users"));
+        const byEmail = {};
+        const byId = {};
+        usersSnap.forEach(uDoc => {
+          const u = uDoc.data() || {};
+          byId[uDoc.id] = u;
+          const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+          if(email) byEmail[email] = u;
+        });
+        window.__usersCache = { byEmail, byId };
+      } catch(err) {
+        console.error("Erreur chargement users:", err);
+        window.__usersCache = { byEmail: {}, byId: {} };
+      }
+    }
+    setupCategoryFilters();
+    setupSearchAndSort();
+    setupFilterMenu();
+    applyAllFilters();
+  } catch(err){
     console.error("Erreur chargement annonces:", err);
-    annoncesContainer.innerHTML = `<p>⚠️ Erreur : ${err.message}</p>`;
-    document.getElementById("spinner").style.display = "none";
+    annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
+  } finally {
+    document.getElementById("spinner").style.display = "none"; 
   }
 }
-
 function escapeHTML(str) {
   if (!str) return "";
   return str
@@ -406,6 +397,7 @@ function escapeHTML(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
 }
+  
 async function renderAnnonces(filtered) {
   annoncesContainer.innerHTML = "";
   if (filtered.length === 0) {
@@ -420,25 +412,8 @@ async function renderAnnonces(filtered) {
   const end = start + annoncesPerPage;
   const pageItems = filtered.slice(start, end);
 
-  if (!window.__usersCache) {
-    try {
-      const usersSnap = await getDocs(collection(db, "users"));
-      const byEmail = {};
-      const byId = {};
-      usersSnap.forEach(uDoc => {
-        const u = uDoc.data() || {};
-        byId[uDoc.id] = u;
-        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-        if (email) byEmail[email] = u;
-      });
-      window.__usersCache = { byEmail, byId };
-    } catch (err) {
-      console.error("Erreur chargement users:", err);
-      window.__usersCache = { byEmail: {}, byId: {} };
-    }
-  }
-
-  for (const a of pageItems) {
+  // Fonction pour créer chaque carte d'annonce
+  function createAnnonceCard(a) {
     const docId = escapeHTML(a.id || "");
     const card = document.createElement("div");
     card.className = "annonce-card";
@@ -456,7 +431,8 @@ async function renderAnnonces(filtered) {
     if (sellerData && sellerData.subscribe === true) {
       const now = new Date();
       const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
-      if (subEnd > now) isPro = true;}
+      if (subEnd > now) isPro = true;
+    }
 
     let fullName = "Utilisateur inconnu";
     if (sellerData) {
@@ -471,6 +447,7 @@ async function renderAnnonces(filtered) {
           "Utilisateur"
         );
     }
+
     let sellerPhoto =
       (sellerData && (
         sellerData.profileImage ||
@@ -485,46 +462,47 @@ async function renderAnnonces(filtered) {
       sellerPhoto = "https://via.placeholder.com/40";
     }
     sellerPhoto = escapeHTML(sellerPhoto);
+
     let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
+
     card.innerHTML = `
-  <div class="image-container">
-    <img src="${annonceImage}" 
-         loading="lazy"
-         alt="${escapeHTML(a.title || 'Annonce')}"
-         onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
-    ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
-    <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
-    <span class="material-icons favorite ${isFav ? 'active' : ''}">
-      ${isFav ? 'favorite' : 'favorite_border'}
-    </span>
-  </div>
-  <div class="content">
-    <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
-    <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
-    <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
-  </div>
-  <div class="seller">
-    <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
-    <div class="seller-info">
-      <strong>${fullName}</strong>
-      ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
-    </div>
-  </div>
-`;
+      <div class="image-container">
+        <img src="${annonceImage}" 
+             loading="lazy"
+             alt="${escapeHTML(a.title || 'Annonce')}"
+             onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
+        ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
+        <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
+        <span class="material-icons favorite ${isFav ? 'active' : ''}">
+          ${isFav ? 'favorite' : 'favorite_border'}
+        </span>
+      </div>
+      <div class="content">
+        <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
+        <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
+        <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
+      </div>
+      <div class="seller">
+        <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
+        <div class="seller-info">
+          <strong>${fullName}</strong>
+          ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
+        </div>
+      </div>
+    `;
+
     const titleEl = card.querySelector('.title');
-      if ((a.title || "").length > 30) {
-      titleEl.classList.add('long-text');}
+    if ((a.title || "").length > 30) titleEl.classList.add('long-text');
+
     const favBtn = card.querySelector(".favorite");
     favBtn.addEventListener("click", async e => {
       e.stopPropagation();
-
       if (!currentUser) {
-      const msg = document.getElementById("notLoggedMsg");
-      msg.style.display = "block";
-      setTimeout(() => { msg.style.display = "none"; }, 3000);
-      return;}
-
-      
+        const msg = document.getElementById("notLoggedMsg");
+        msg.style.display = "block";
+        setTimeout(() => { msg.style.display = "none"; }, 3000);
+        return;
+      }
       const favRef = doc(db, "users", currentUser.uid);
       if (favBtn.classList.contains("active")) {
         favBtn.classList.remove("active");
@@ -547,12 +525,23 @@ async function renderAnnonces(filtered) {
     annoncesContainer.appendChild(card);
   }
 
-  renderPagination(Math.ceil(filtered.length / annoncesPerPage));
+  // Affiche immédiatement les 20 premières annonces
+  pageItems.slice(0, 20).forEach(a => createAnnonceCard(a));
+
+  // Affiche le reste par lot (si plus de 20 annonces sur la page)
+  for (let i = 20; i < pageItems.length; i += 20) {
+    setTimeout(() => {
+      pageItems.slice(i, i + 20).forEach(a => createAnnonceCard(a));
+    }, 0);
+  }
+
+  renderPagination(totalPages);
 }
 
-function renderPagination(totalPages) {
+
+function renderPagination(totalPages){
   let paginationContainer = document.getElementById("pagination");
-  if (!paginationContainer) {
+  if(!paginationContainer){
     paginationContainer = document.createElement("div");
     paginationContainer.id = "pagination";
     paginationContainer.style.textAlign = "center";
@@ -562,35 +551,42 @@ function renderPagination(totalPages) {
 
   paginationContainer.innerHTML = "";
 
-  const prevBtn = document.createElement("button");
-  prevBtn.textContent = "← Précédent";
-  prevBtn.disabled = currentPage === 1;
-  prevBtn.onclick = () => {
-    if (currentPage > 1) {
-      currentPage--;
-      applyAllFilters(false);
-    }
-  };
-  paginationContainer.appendChild(prevBtn);
+  const createPageBtn = (num) => {
+    const btn = document.createElement("button");
+    btn.textContent = num;
+    btn.style.margin = "0 5px";
+    btn.style.padding = "6px 12px";
+    btn.style.borderRadius = "6px";
+    btn.style.border = num === currentPage ? "2px solid #009688" : "1px solid #ccc";
+    btn.style.background = num === currentPage ? "#009688" : "#fff";
+    btn.style.color = num === currentPage ? "#fff" : "#000";
+    btn.style.cursor = "pointer";
+    btn.addEventListener("click", () => {
+      currentPage = num;
+      applyAllFilters();
+    });
+    return btn;
+  }
 
-  const nextBtn = document.createElement("button");
-  nextBtn.textContent = "Suivant →";
-  nextBtn.onclick = async () => {
-    currentPage++;
-    const totalLoaded = annoncesData.length;
-    const expected = currentPage * annoncesPerPage;
+  const maxButtons = 7;
+  let startPage = Math.max(1, currentPage - 3);
+  let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+  startPage = Math.max(1, endPage - maxButtons + 1);
 
-    // Charger plus de données si nécessaire
-    if (expected > totalLoaded && !allLoaded) {
-      document.getElementById("spinner").style.display = "flex";
-      await loadAnnonces(false);
-    }
+  if(startPage > 1){
+    paginationContainer.appendChild(createPageBtn(1));
+    if(startPage > 2) paginationContainer.appendChild(document.createTextNode("..."));
+  }
 
-    applyAllFilters(false);
-  };
-  paginationContainer.appendChild(nextBtn);
+  for(let i = startPage; i <= endPage; i++){
+    paginationContainer.appendChild(createPageBtn(i));
+  }
+
+  if(endPage < totalPages){
+    if(endPage < totalPages -1) paginationContainer.appendChild(document.createTextNode("..."));
+    paginationContainer.appendChild(createPageBtn(totalPages));
+  }
 }
-
 
 function setupCategoryFilters() {
   const allCategory = document.querySelector('.category[data-cat="all"]');
