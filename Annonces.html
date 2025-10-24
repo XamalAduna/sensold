@@ -1,3 +1,4 @@
+
 <!DOCTYPE html> 
 <html lang="fr"> 
 <head> 
@@ -397,7 +398,6 @@ function escapeHTML(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
 }
-  
 async function renderAnnonces(filtered) {
   annoncesContainer.innerHTML = "";
   if (filtered.length === 0) {
@@ -538,118 +538,6 @@ async function renderAnnonces(filtered) {
   renderPagination(totalPages);
 }
 
-
-function renderPagination(totalPages){
-  let paginationContainer = document.getElementById("pagination");
-  if(!paginationContainer){
-    paginationContainer = document.createElement("div");
-    paginationContainer.id = "pagination";
-    paginationContainer.style.textAlign = "center";
-    paginationContainer.style.marginTop = "20px";
-    document.body.appendChild(paginationContainer);
-  }
-
-  paginationContainer.innerHTML = "";
-
-  const createPageBtn = (num) => {
-    const btn = document.createElement("button");
-    btn.textContent = num;
-    btn.style.margin = "0 5px";
-    btn.style.padding = "6px 12px";
-    btn.style.borderRadius = "6px";
-    btn.style.border = num === currentPage ? "2px solid #009688" : "1px solid #ccc";
-    btn.style.background = num === currentPage ? "#009688" : "#fff";
-    btn.style.color = num === currentPage ? "#fff" : "#000";
-    btn.style.cursor = "pointer";
-    btn.addEventListener("click", () => {
-      currentPage = num;
-      applyAllFilters();
-    });
-    return btn;
-  }
-
-  const maxButtons = 7;
-  let startPage = Math.max(1, currentPage - 3);
-  let endPage = Math.min(totalPages, startPage + maxButtons - 1);
-  startPage = Math.max(1, endPage - maxButtons + 1);
-
-  if(startPage > 1){
-    paginationContainer.appendChild(createPageBtn(1));
-    if(startPage > 2) paginationContainer.appendChild(document.createTextNode("..."));
-  }
-
-  for(let i = startPage; i <= endPage; i++){
-    paginationContainer.appendChild(createPageBtn(i));
-  }
-
-  if(endPage < totalPages){
-    if(endPage < totalPages -1) paginationContainer.appendChild(document.createTextNode("..."));
-    paginationContainer.appendChild(createPageBtn(totalPages));
-  }
-}
-
-function setupCategoryFilters() {
-  const allCategory = document.querySelector('.category[data-cat="all"]');
-  if (allCategory) allCategory.classList.add("active");
-
-  document.addEventListener("click", e => {
-    const menu = document.getElementById("subDropdownMenu");
-    if (menu && !menu.parentElement.contains(e.target)) {
-      menu.style.display = "none";
-    }
-  });
-
-  categoryElements.forEach(cat => {
-    cat.addEventListener("click", () => {
-      categoryElements.forEach(c => c.classList.remove("active"));
-      cat.classList.add("active");
-
-      selectedCategory = cat.dataset.cat;
-      selectedSubcategory = null;
-      currentPage = 1;
-      const subs = categoriesData[selectedCategory] || [];
-      if (subs.length === 0) {
-        subContainer.innerHTML = "<p style='text-align:center;color:#777;'>Aucune sous-catégorie</p>";
-      } else {
-        subContainer.innerHTML = `
-          <div style="text-align:center; margin-top:10px; position:relative; display:inline-block;">
-            <button id="subDropdownBtn" style="padding:8px 12px; border-radius:8px; border:1px solid #ccc; background:#fff; cursor:pointer;">
-              Sélectionner une sous-catégorie ▼
-            </button>
-            <div id="subDropdownMenu" style="display:none; position:absolute; top:100%; left:0; background:#fff; border:1px solid #ccc; border-radius:8px; width:220px; box-shadow:0 2px 6px rgba(0,0,0,0.15); z-index:1000;">
-              ${subs.map(s => `<div class="sub-item" style="display:flex; align-items:center; gap:8px; padding:6px 10px; cursor:pointer;">
-                <i class="material-icons" style="color:#009688;">${s.icon}</i>
-                <span>${s.label}</span>
-              </div>`).join('')}
-            </div>
-          </div>
-        `;
-
-        const btn = document.getElementById("subDropdownBtn");
-        const items = document.querySelectorAll(".sub-item");
-
-        btn.addEventListener("click", () => {
-          const menu = document.getElementById("subDropdownMenu");
-          menu.style.display = menu.style.display === "block" ? "none" : "block";
-        });
-
-        items.forEach(item => {
-          item.addEventListener("click", () => {
-            items.forEach(i => { i.style.background = "#fff"; i.style.color = "#000"; });
-            item.style.background = "#009688";
-            item.style.color = "#fff";
-            selectedSubcategory = item.querySelector("span").textContent.trim();
-            btn.textContent = selectedSubcategory + " ▼";
-            document.getElementById("subDropdownMenu").style.display = "none";
-            currentPage = 1;
-            applyAllFilters();
-          });
-        });
-      }
-      applyAllFilters();
-    });
-  });
-}
 
 function setupSearchAndSort(){
   const searchInput = document.getElementById("search-input");
