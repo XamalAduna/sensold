@@ -348,21 +348,19 @@ async function loadAnnonces() {
   document.getElementById("spinner").style.display = "flex";
 
   try {
-    const annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt", "desc"));
+    const annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt","desc"));
     const annoncesSnap = await getDocs(annoncesQuery);
 
-    if (annoncesSnap.empty) {
-      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
+    if(annoncesSnap.empty){ 
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
       document.getElementById("spinner").style.display = "none";
-      return;
+      return; 
     }
-
     annoncesData = [];
     annoncesSnap.forEach(docSnap => {
-      const data = docSnap.data();
-      data.id = docSnap.id;
-      annoncesData.push(data);
-    });
+    const data = docSnap.data();
+    data.id = docSnap.id;
+    annoncesData.push(data);});
 
     if (!window.__usersCache) {
       try {
@@ -381,19 +379,17 @@ async function loadAnnonces() {
         window.__usersCache = { byEmail: {}, byId: {} };
       }
     }
-
     setupCategoryFilters();
     setupSearchAndSort();
     setupFilterMenu();
     applyAllFilters();
-  } catch(err) {
+  } catch(err){
     console.error("Erreur chargement annonces:", err);
     annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   } finally {
-    document.getElementById("spinner").style.display = "none";
+    document.getElementById("spinner").style.display = "none"; 
   }
 }
-
 function escapeHTML(str) {
   if (!str) return "";
   return str
@@ -402,7 +398,7 @@ function escapeHTML(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
 }
-// Nouvelle fonction renderAnnonces ultra-rapide
+// Version plus rapide de renderAnnonces avec ajout progressif
 async function renderAnnonces(filtered) {
   annoncesContainer.innerHTML = "";
   if (filtered.length === 0) {
@@ -417,130 +413,102 @@ async function renderAnnonces(filtered) {
   const end = start + annoncesPerPage;
   const pageItems = filtered.slice(start, end);
 
-  // Fonction qui ajoute les annonces par lot pour ne pas bloquer le DOM
-  const batchRender = async (items, batchSize = 5) => {
-    for (let i = 0; i < items.length; i += batchSize) {
-      const batch = items.slice(i, i + batchSize);
-      batch.forEach(a => {
-        const card = createAnnonceCard(a);
-        annoncesContainer.appendChild(card);
-      });
-      await new Promise(r => requestAnimationFrame(r));
-    }
-  };
+  // Ajout progressif (batch) pour plus de rapidité
+  const batchSize = 5; // on ajoute 5 cartes à la fois pour fluidité
+  for (let i = 0; i < pageItems.length; i += batchSize) {
+    const batch = pageItems.slice(i, i + batchSize);
+    const fragment = document.createDocumentFragment();
 
-  await batchRender(pageItems);
-  renderPagination(Math.ceil(filtered.length / annoncesPerPage));
-}
+    batch.forEach(a => {
+      const docId = escapeHTML(a.id || "");
+      const card = document.createElement("div");
+      card.className = "annonce-card";
 
-// Fonction séparée pour créer la carte d'annonce (comme avant)
-function createAnnonceCard(a) {
-  const docId = escapeHTML(a.id || "");
-  const card = document.createElement("div");
-  card.className = "annonce-card";
+      const isFav = currentUser && userFavorites.includes(a.id);
 
-  const isFav = currentUser && userFavorites.includes(a.id);
+      let sellerData = null;
+      const annonceEmail = (a.userEmail || "").toLowerCase().trim();
+      if (annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
+      if (!sellerData && a.userId) sellerData = window.__usersCache.byId[a.userId];
+      if (!sellerData && a.uid) sellerData = window.__usersCache.byId[a.uid];
+      if (!sellerData && a.user && typeof a.user === "object") sellerData = a.user;
 
-  let sellerData = null;
-  const annonceEmail = (a.userEmail || "").toLowerCase().trim();
-  if (annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
-  if (!sellerData && a.userId) sellerData = window.__usersCache.byId[a.userId];
-  if (!sellerData && a.uid) sellerData = window.__usersCache.byId[a.uid];
-  if (!sellerData && a.user && typeof a.user === "object") sellerData = a.user;
+      let isPro = false;
+      if (sellerData && sellerData.subscribe === true) {
+        const now = new Date();
+        const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
+        if (subEnd > now) isPro = true;
+      }
 
-  let isPro = false;
-  if (sellerData && sellerData.subscribe === true) {
-    const now = new Date();
-    const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
-    if (subEnd > now) isPro = true;
+      let fullName = sellerData ? escapeHTML(sellerData.fullName || `${sellerData.firstName || ""} ${sellerData.lastName || ""}`.trim()) : "Utilisateur inconnu";
+      let sellerPhoto = (sellerData?.profileImage || sellerData?.photoURL || "https://via.placeholder.com/40");
+      sellerPhoto = escapeHTML(sellerPhoto);
+
+      let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
+
+      card.innerHTML = `
+        <div class="image-container">
+          <img src="${annonceImage}" loading="lazy" alt="${escapeHTML(a.title || 'Annonce')}" onerror="this.src='https://via.placeholder.com/400x200?text=Annonce'">
+          ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
+          <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
+          <span class="material-icons favorite ${isFav ? 'active' : ''}">
+            ${isFav ? 'favorite' : 'favorite_border'}
+          </span>
+        </div>
+        <div class="content">
+          <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
+          <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
+          <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
+        </div>
+        <div class="seller">
+          <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur">
+          <div class="seller-info">
+            <strong>${fullName}</strong>
+            ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
+          </div>
+        </div>
+      `;
+
+      fragment.appendChild(card);
+    });
+
+    annoncesContainer.appendChild(fragment);
+
+    // Petite pause pour fluidité
+    await new Promise(r => setTimeout(r, 10));
   }
 
-  let fullName = "Utilisateur inconnu";
-  if (sellerData) {
-    fullName =
-      escapeHTML(
-        sellerData.fullName ||
-        `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
-        sellerData.displayName ||
-        sellerData.name ||
-        sellerData.nom ||
-        sellerData.prenom ||
-        "Utilisateur"
+  renderPagination(totalPages);
+}
+
+// Optimisation : garder la pagination mais appliquer les filtres avant
+function applyAllFilters() {
+  let filtered = annoncesData;
+  if(selectedCategory && selectedCategory !== "all") 
+      filtered = filtered.filter(a => a.categorie === selectedCategory);
+  if(selectedSubcategory) 
+      filtered = filtered.filter(a => a.souscategorie === selectedSubcategory);
+  if(searchText) 
+      filtered = filtered.filter(a => 
+        (a.title?.toLowerCase().includes(searchText.toLowerCase())) || 
+        (a.city?.toLowerCase().includes(searchText.toLowerCase()))
       );
-  }
 
-  let sellerPhoto =
-    (sellerData && (
-      sellerData.profileImage ||
-      sellerData.profilePic ||
-      sellerData.profile ||
-      sellerData.photoURL ||
-      sellerData.avatar ||
-      sellerData.image ||
-      sellerData.photo
-    )) || "";
-  if (!sellerPhoto || typeof sellerPhoto !== "string" || sellerPhoto.startsWith("gs://") || sellerPhoto.startsWith("/")) {
-    sellerPhoto = "https://via.placeholder.com/40";
-  }
-  sellerPhoto = escapeHTML(sellerPhoto);
-  let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
-
-  card.innerHTML = `
-    <div class="image-container">
-      <img src="${annonceImage}" loading="lazy" alt="${escapeHTML(a.title || 'Annonce')}" 
-        onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
-      ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
-      <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
-      <span class="material-icons favorite ${isFav ? 'active' : ''}">${isFav ? 'favorite' : 'favorite_border'}</span>
-    </div>
-    <div class="content">
-      <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
-      <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
-      <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
-    </div>
-    <div class="seller">
-      <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" 
-        onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
-      <div class="seller-info">
-        <strong>${fullName}</strong>
-        ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
-      </div>
-    </div>
-  `;
-
-  const titleEl = card.querySelector('.title');
-  if ((a.title || "").length > 30) titleEl.classList.add('long-text');
-
-  const favBtn = card.querySelector(".favorite");
-  favBtn.addEventListener("click", async e => {
-    e.stopPropagation();
-    if (!currentUser) {
-      const msg = document.getElementById("notLoggedMsg");
-      msg.style.display = "block";
-      setTimeout(() => { msg.style.display = "none"; }, 3000);
-      return;
-    }
-    const favRef = doc(db, "users", currentUser.uid);
-    if (favBtn.classList.contains("active")) {
-      favBtn.classList.remove("active");
-      favBtn.textContent = "favorite_border";
-      userFavorites = userFavorites.filter(id => id !== docId);
-      await updateDoc(favRef, { favorites: arrayRemove(docId) });
-    } else {
-      favBtn.classList.add("active");
-      favBtn.textContent = "favorite";
-      userFavorites.push(docId);
-      await updateDoc(favRef, { favorites: arrayUnion(docId) });
-    }
+  filtered.sort((a, b) => {
+    const aBoost = isBoostActive(a);
+    const bBoost = isBoostActive(b);
+    if(aBoost && !bBoost) return -1;
+    if(!aBoost && bBoost) return 1;
+    if(sortOrder === "asc") return (a.price || 0) - (b.price || 0);
+    if(sortOrder === "desc") return (b.price || 0) - (a.price || 0);
+    const aDate = a.createdAt ? a.createdAt.seconds * 1000 : 0;
+    const bDate = b.createdAt ? b.createdAt.seconds * 1000 : 0;
+    return bDate - aDate;
   });
 
-  card.addEventListener("click", e => {
-    if (e.target.classList.contains("favorite")) return;
-    window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
-  });
-
-  return card;
+  renderAnnonces(filtered);
 }
+
 function renderPagination(totalPages){
   let paginationContainer = document.getElementById("pagination");
   if(!paginationContainer){
