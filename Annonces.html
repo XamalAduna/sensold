@@ -313,6 +313,10 @@ let searchText = "";
 let sortOrder = "default";
 let currentPage = 1;
 const annoncesPerPage = 20;
+
+let lastVisible = null; // pour savoir où reprendre le chargement
+const annoncesPerPage = 20; // nombre d'annonces par page
+
   
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
@@ -337,46 +341,48 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-async function loadAnnonces() {
-  annoncesContainer.innerHTML = "";
+async function loadAnnonces(page = 1) {
+  annoncesContainer.innerHTML = "<p>Chargement...</p>";
+
   try {
-    const annoncesSnap = await getDocs(query(collection(db, "annonces"), orderBy("createdAt","desc")));
-    if(annoncesSnap.empty){ 
-      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
-      return; 
+    let q = query(
+      collection(db, "annonces"), 
+      orderBy("createdAt", "desc"), 
+      limit(annoncesPerPage)
+    );
+
+    if (page > 1 && lastVisible) {
+      q = query(
+        collection(db, "annonces"),
+        orderBy("createdAt", "desc"),
+        startAfter(lastVisible),
+        limit(annoncesPerPage)
+      );
     }
-    annoncesData = [];
-    annoncesSnap.forEach(docSnap => {
+
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
+      return;
+    }
+
+    // mémoriser la dernière annonce pour la page suivante
+    lastVisible = snapshot.docs[snapshot.docs.length - 1];
+
+    annoncesData = snapshot.docs.map(docSnap => {
       const data = docSnap.data();
       data.id = docSnap.id;
-      annoncesData.push(data);
+      return data;
     });
 
-    // Charge les utilisateurs AVANT d'appeler applyAllFilters
-    if (!window.__usersCache) {
-      const usersSnap = await getDocs(collection(db, "users"));
-      const byEmail = {};
-      const byId = {};
-      usersSnap.forEach(uDoc => {
-        const u = uDoc.data() || {};
-        byId[uDoc.id] = u;
-        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-        if(email) byEmail[email] = u;
-      });
-      window.__usersCache = { byEmail, byId };
-    }
+    applyAllFilters(); // affiche seulement les annonces téléchargées
 
-    setupCategoryFilters();
-    setupSearchAndSort();
-    setupFilterMenu();
-    applyAllFilters();
-
-  } catch(err){
+  } catch (err) {
     console.error("Erreur chargement annonces:", err);
-    annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
+    annoncesContainer.innerHTML = `<p>Erreur: ${err.message}</p>`;
   }
 }
-
 
 function escapeHTML(str) {
   if (!str) return "";
@@ -560,9 +566,9 @@ function renderPagination(totalPages){
     btn.style.color = num === currentPage ? "#fff" : "#000";
     btn.style.cursor = "pointer";
     btn.addEventListener("click", () => {
-      currentPage = num;
-      applyAllFilters();
-    });
+  currentPage = num;
+  loadAnnonces(currentPage);
+});
     return btn;
   }
 
