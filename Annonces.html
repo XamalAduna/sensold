@@ -337,11 +337,6 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-let lastVisible = null;
-let totalAnnonces = 0; 
-const annoncesPerPage = 20; 
-let currentPage = 1;
-
 async function loadAnnonces(page = 1) {
   annoncesContainer.innerHTML = "<p>Chargement des annonces…</p>";
 
