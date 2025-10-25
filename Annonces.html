@@ -1,3 +1,4 @@
+
 <!DOCTYPE html> 
 <html lang="fr"> 
 <head> 
@@ -337,64 +338,45 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-
-
-async function loadAnnonces(page = 1) {
-  annoncesContainer.innerHTML = "<p>Chargement...</p>";
-
+async function loadAnnonces() {
+  annoncesContainer.innerHTML = "";
   try {
-    // Calcul de l'offset pour la page
-    const offset = (page - 1) * annoncesPerPage;
-
-    // Requête Firebase : seulement les annonces nécessaires pour la page
-    let q = query(
-      collection(db, "annonces"),
-      orderBy("createdAt", "desc"),
-      limit(annoncesPerPage)
-    );
-
-    // Si page > 1, on utilise startAfter pour paginer efficacement
-    if (page > 1 && lastVisiblePages[page - 1]) {
-      q = query(
-        collection(db, "annonces"),
-        orderBy("createdAt", "desc"),
-        startAfter(lastVisiblePages[page - 1]),
-        limit(annoncesPerPage)
-      );
+    const annoncesSnap = await getDocs(query(collection(db, "annonces"), orderBy("createdAt","desc")));
+    if(annoncesSnap.empty){ 
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
+      return; 
     }
-
-    const snap = await getDocs(q);
-
-    if (snap.empty) {
-      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
-      return;
-    }
-
-    // Mettre à jour le cache du dernier document par page
-    if (!window.lastVisiblePages) window.lastVisiblePages = {};
-    window.lastVisiblePages[page] = snap.docs[snap.docs.length - 1];
-
-    // Récupération des annonces
-    const newAnnonces = snap.docs.map(docSnap => {
+    annoncesData = [];
+    annoncesSnap.forEach(docSnap => {
       const data = docSnap.data();
       data.id = docSnap.id;
-      return data;
+      annoncesData.push(data);
     });
 
-    // Charger uniquement les utilisateurs nécessaires
-    await loadUsersForAnnonces(newAnnonces);
+    // Charge les utilisateurs AVANT d'appeler applyAllFilters
+    if (!window.__usersCache) {
+      const usersSnap = await getDocs(collection(db, "users"));
+      const byEmail = {};
+      const byId = {};
+      usersSnap.forEach(uDoc => {
+        const u = uDoc.data() || {};
+        byId[uDoc.id] = u;
+        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+        if(email) byEmail[email] = u;
+      });
+      window.__usersCache = { byEmail, byId };
+    }
 
-    // Remplacer les annonces de la page courante
-    annoncesData = newAnnonces;
-    currentPage = page;
+    setupCategoryFilters();
+    setupSearchAndSort();
+    setupFilterMenu();
+    applyAllFilters();
 
-    applyAllFilters(); // appliquera tri / filtre et affichera correctement
-  } catch (err) {
+  } catch(err){
     console.error("Erreur chargement annonces:", err);
     annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   }
 }
-
 
 
 function escapeHTML(str) {
@@ -437,10 +419,12 @@ async function renderAnnonces(filtered) {
     }
   }
 
-  function createCard(a) {
+  const createCard = (a) => {
     const docId = escapeHTML(a.id || "");
     const card = document.createElement("div");
     card.className = "annonce-card";
+    card.style.opacity = 0;
+    card.style.transform = "translateY(20px)";
 
     const isFav = currentUser && userFavorites.includes(a.id);
 
@@ -546,15 +530,29 @@ async function renderAnnonces(filtered) {
     });
 
     annoncesContainer.appendChild(card);
-  }
 
-  for (const a of pageItems) {
-    // On utilise setTimeout minimal pour laisser le navigateur afficher immédiatement
-    setTimeout(() => createCard(a), 0);
-  }
+    // Animation fade-in
+    setTimeout(() => {
+      card.style.transition = "opacity 0.4s ease, transform 0.4s ease";
+      card.style.opacity = 1;
+      card.style.transform = "translateY(0)";
+    }, 50);
+  };
+
+  // Affichage progressif avec intervalle
+  let index = 0;
+  const interval = setInterval(() => {
+    if (index >= pageItems.length) {
+      clearInterval(interval);
+      return;
+    }
+    createCard(pageItems[index]);
+    index++;
+  }, 80); // 80ms entre chaque carte (modifiable selon vitesse souhaitée)
 
   renderPagination(Math.ceil(filtered.length / annoncesPerPage));
 }
+
 
 function renderPagination(totalPages){
   let paginationContainer = document.getElementById("pagination");
