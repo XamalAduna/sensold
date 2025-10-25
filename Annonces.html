@@ -348,10 +348,14 @@ async function loadAnnonces() {
     }
     annoncesData = [];
     annoncesSnap.forEach(docSnap => {
-      const data = docSnap.data();
-      data.id = docSnap.id;
-      annoncesData.push(data);
-    });
+  const data = docSnap.data();
+  data.id = docSnap.id;
+  annoncesData.push(data);
+
+  // 🔥 Affiche directement chaque annonce dès qu’elle est prête
+  renderAnnonces(annoncesData);
+});
+
 
     // Charge les utilisateurs AVANT d'appeler applyAllFilters
     if (!window.__usersCache) {
