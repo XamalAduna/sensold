@@ -387,6 +387,7 @@ function escapeHTML(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
 }
+  
 async function renderAnnonces(filtered) {
   annoncesContainer.innerHTML = "";
   if (filtered.length === 0) {
@@ -521,7 +522,7 @@ async function renderAnnonces(filtered) {
   }
 
   // Affichage progressif par lots de 5 annonces
-  const batchSize = 5;
+  const batchSize = 10;
   let index = 0;
 
   function renderBatch() {
