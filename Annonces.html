@@ -1,3 +1,4 @@
+
 <!DOCTYPE html> 
 <html lang="fr"> 
 <head> 
@@ -159,12 +160,8 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 </div>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-import { 
-  getFirestore, collection, getDocs, query, orderBy, limit, startAfter, 
-  doc, updateDoc, arrayUnion, arrayRemove, getDoc 
-} from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, query, orderBy, limit, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
-
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
   authDomain: "diallo-ee5aa.firebaseapp.com",
@@ -317,9 +314,6 @@ let searchText = "";
 let sortOrder = "default";
 let currentPage = 1;
 const annoncesPerPage = 20;
-let lastVisible = null; // pour savoir où reprendre le chargement
-
-
   
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
@@ -344,47 +338,48 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-async function loadAnnonces(page = 1) {
-  annoncesContainer.innerHTML = "<p>Chargement...</p>";
+let lastVisible = null; // pour savoir où on s'est arrêté
+let annoncesData = [];
+const annoncesPerPage = 20; // nombre d'annonces par page
 
-  try {
-    let q = query(
-      collection(db, "annonces"), 
-      orderBy("createdAt", "desc"), 
+async function loadAnnonces(reset = true) {
+  if(reset){
+    annoncesContainer.innerHTML = "<p>Chargement...</p>";
+    annoncesData = [];
+    lastVisible = null;
+    currentPage = 1;
+  }
+
+  let q = query(
+    collection(db, "annonces"),
+    orderBy("createdAt", "desc"),
+    limit(annoncesPerPage)
+  );
+
+  if(lastVisible){
+    q = query(
+      collection(db, "annonces"),
+      orderBy("createdAt", "desc"),
+      startAfter(lastVisible),
       limit(annoncesPerPage)
     );
-
-    if (page > 1 && lastVisible) {
-      q = query(
-        collection(db, "annonces"),
-        orderBy("createdAt", "desc"),
-        startAfter(lastVisible),
-        limit(annoncesPerPage)
-      );
-    }
-
-    const snapshot = await getDocs(q);
-
-    if (snapshot.empty) {
-      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
-      return;
-    }
-
-    // mémoriser la dernière annonce pour la page suivante
-    lastVisible = snapshot.docs[snapshot.docs.length - 1];
-
-    annoncesData = snapshot.docs.map(docSnap => {
-      const data = docSnap.data();
-      data.id = docSnap.id;
-      return data;
-    });
-
-    applyAllFilters(); // affiche seulement les annonces téléchargées
-
-  } catch (err) {
-    console.error("Erreur chargement annonces:", err);
-    annoncesContainer.innerHTML = `<p>Erreur: ${err.message}</p>`;
   }
+
+  const snap = await getDocs(q);
+  if(snap.empty && reset){
+    annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
+    return;
+  }
+
+  lastVisible = snap.docs[snap.docs.length - 1];
+
+  snap.forEach(docSnap => {
+    const data = docSnap.data();
+    data.id = docSnap.id;
+    annoncesData.push(data);
+  });
+
+  applyAllFilters(); // applique tes filtres et affiche les annonces
 }
 
 function escapeHTML(str) {
@@ -569,9 +564,9 @@ function renderPagination(totalPages){
     btn.style.color = num === currentPage ? "#fff" : "#000";
     btn.style.cursor = "pointer";
     btn.addEventListener("click", () => {
-  currentPage = num;
-  loadAnnonces(currentPage);
-});
+      currentPage = num;
+      applyAllFilters();
+    });
     return btn;
   }
 
