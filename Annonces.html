@@ -339,28 +339,26 @@ onAuthStateChanged(auth, async (user) => {
 
 
 
-let annoncesData = [];
-let currentPage = 1;
-const annoncesPerPage = 20;
-let lastVisible = null;
-let hasNextPage = true;
-
 async function loadAnnonces(page = 1) {
   annoncesContainer.innerHTML = "<p>Chargement...</p>";
 
   try {
-    // Calcul du nombre d'annonces à sauter si ce n'est pas la première page
+    // Calcul de l'offset pour la page
+    const offset = (page - 1) * annoncesPerPage;
+
+    // Requête Firebase : seulement les annonces nécessaires pour la page
     let q = query(
       collection(db, "annonces"),
       orderBy("createdAt", "desc"),
       limit(annoncesPerPage)
     );
 
-    if (lastVisible && page > currentPage) {
+    // Si page > 1, on utilise startAfter pour paginer efficacement
+    if (page > 1 && lastVisiblePages[page - 1]) {
       q = query(
         collection(db, "annonces"),
         orderBy("createdAt", "desc"),
-        startAfter(lastVisible),
+        startAfter(lastVisiblePages[page - 1]),
         limit(annoncesPerPage)
       );
     }
@@ -369,75 +367,33 @@ async function loadAnnonces(page = 1) {
 
     if (snap.empty) {
       annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
-      hasNextPage = false;
       return;
     }
 
-    // Mise à jour du dernier document pour la pagination
-    lastVisible = snap.docs[snap.docs.length - 1];
-    hasNextPage = snap.docs.length === annoncesPerPage;
+    // Mettre à jour le cache du dernier document par page
+    if (!window.lastVisiblePages) window.lastVisiblePages = {};
+    window.lastVisiblePages[page] = snap.docs[snap.docs.length - 1];
 
-    // Récupération des données des annonces
+    // Récupération des annonces
     const newAnnonces = snap.docs.map(docSnap => {
       const data = docSnap.data();
       data.id = docSnap.id;
       return data;
     });
 
-    // Ajout à la liste complète pour filtrage / tri
-    if (page === 1) annoncesData = newAnnonces;
-    else annoncesData = [...annoncesData, ...newAnnonces];
-
-    // Charger uniquement les utilisateurs des annonces affichées
+    // Charger uniquement les utilisateurs nécessaires
     await loadUsersForAnnonces(newAnnonces);
 
-    applyAllFilters();
+    // Remplacer les annonces de la page courante
+    annoncesData = newAnnonces;
+    currentPage = page;
 
+    applyAllFilters(); // appliquera tri / filtre et affichera correctement
   } catch (err) {
     console.error("Erreur chargement annonces:", err);
     annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   }
 }
-
-// Charger uniquement les utilisateurs associés aux annonces passées
-async function loadUsersForAnnonces(annonces) {
-  if (!window.__usersCache) window.__usersCache = { byEmail: {}, byId: {} };
-
-  const userIdsToLoad = annonces
-    .map(a => a.userId || a.uid)
-    .filter(uid => uid && !window.__usersCache.byId[uid]);
-
-  if (userIdsToLoad.length === 0) return;
-
-  // On charge uniquement les utilisateurs nécessaires
-  const usersSnap = await getDocs(collection(db, "users"));
-  usersSnap.forEach(uDoc => {
-    if (userIdsToLoad.includes(uDoc.id)) {
-      const u = uDoc.data() || {};
-      window.__usersCache.byId[uDoc.id] = u;
-      const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-      if (email) window.__usersCache.byEmail[email] = u;
-    }
-  });
-}
-
-// Fonction pour charger la page suivante
-async function loadNextPage() {
-  if (!hasNextPage) return;
-  currentPage++;
-  await loadAnnonces(currentPage);
-}
-
-// Fonction pour réinitialiser et charger la première page
-async function reloadAnnonces() {
-  currentPage = 1;
-  lastVisible = null;
-  hasNextPage = true;
-  annoncesData = [];
-  await loadAnnonces(1);
-}
-
-
 
 
 
