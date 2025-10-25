@@ -159,8 +159,12 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 </div>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-import { getFirestore, collection, getDocs, query, orderBy, limit, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { 
+  getFirestore, collection, getDocs, query, orderBy, limit, startAfter, 
+  doc, updateDoc, arrayUnion, arrayRemove, getDoc 
+} from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
+
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
   authDomain: "diallo-ee5aa.firebaseapp.com",
@@ -313,9 +317,8 @@ let searchText = "";
 let sortOrder = "default";
 let currentPage = 1;
 const annoncesPerPage = 20;
-
 let lastVisible = null; // pour savoir où reprendre le chargement
-const annoncesPerPage = 20; // nombre d'annonces par page
+
 
   
 function timeAgo(timestamp){
