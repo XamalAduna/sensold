@@ -337,45 +337,106 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-async function loadAnnonces() {
-  annoncesContainer.innerHTML = "";
+
+
+let annoncesData = [];
+let currentPage = 1;
+const annoncesPerPage = 20;
+let lastVisible = null;
+let hasNextPage = true;
+
+async function loadAnnonces(page = 1) {
+  annoncesContainer.innerHTML = "<p>Chargement...</p>";
+
   try {
-    const annoncesSnap = await getDocs(query(collection(db, "annonces"), orderBy("createdAt", "desc"), limit(20)));
-    if(annoncesSnap.empty){ 
-      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
-      return; 
+    // Calcul du nombre d'annonces à sauter si ce n'est pas la première page
+    let q = query(
+      collection(db, "annonces"),
+      orderBy("createdAt", "desc"),
+      limit(annoncesPerPage)
+    );
+
+    if (lastVisible && page > currentPage) {
+      q = query(
+        collection(db, "annonces"),
+        orderBy("createdAt", "desc"),
+        startAfter(lastVisible),
+        limit(annoncesPerPage)
+      );
     }
-    annoncesData = [];
-    annoncesSnap.forEach(docSnap => {
+
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
+      hasNextPage = false;
+      return;
+    }
+
+    // Mise à jour du dernier document pour la pagination
+    lastVisible = snap.docs[snap.docs.length - 1];
+    hasNextPage = snap.docs.length === annoncesPerPage;
+
+    // Récupération des données des annonces
+    const newAnnonces = snap.docs.map(docSnap => {
       const data = docSnap.data();
       data.id = docSnap.id;
-      annoncesData.push(data);
+      return data;
     });
 
-    // Charge les utilisateurs AVANT d'appeler applyAllFilters
-    if (!window.__usersCache) {
-      const usersSnap = await getDocs(collection(db, "users"));
-      const byEmail = {};
-      const byId = {};
-      usersSnap.forEach(uDoc => {
-        const u = uDoc.data() || {};
-        byId[uDoc.id] = u;
-        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-        if(email) byEmail[email] = u;
-      });
-      window.__usersCache = { byEmail, byId };
-    }
+    // Ajout à la liste complète pour filtrage / tri
+    if (page === 1) annoncesData = newAnnonces;
+    else annoncesData = [...annoncesData, ...newAnnonces];
 
-    setupCategoryFilters();
-    setupSearchAndSort();
-    setupFilterMenu();
+    // Charger uniquement les utilisateurs des annonces affichées
+    await loadUsersForAnnonces(newAnnonces);
+
     applyAllFilters();
 
-  } catch(err){
+  } catch (err) {
     console.error("Erreur chargement annonces:", err);
     annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   }
 }
+
+// Charger uniquement les utilisateurs associés aux annonces passées
+async function loadUsersForAnnonces(annonces) {
+  if (!window.__usersCache) window.__usersCache = { byEmail: {}, byId: {} };
+
+  const userIdsToLoad = annonces
+    .map(a => a.userId || a.uid)
+    .filter(uid => uid && !window.__usersCache.byId[uid]);
+
+  if (userIdsToLoad.length === 0) return;
+
+  // On charge uniquement les utilisateurs nécessaires
+  const usersSnap = await getDocs(collection(db, "users"));
+  usersSnap.forEach(uDoc => {
+    if (userIdsToLoad.includes(uDoc.id)) {
+      const u = uDoc.data() || {};
+      window.__usersCache.byId[uDoc.id] = u;
+      const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+      if (email) window.__usersCache.byEmail[email] = u;
+    }
+  });
+}
+
+// Fonction pour charger la page suivante
+async function loadNextPage() {
+  if (!hasNextPage) return;
+  currentPage++;
+  await loadAnnonces(currentPage);
+}
+
+// Fonction pour réinitialiser et charger la première page
+async function reloadAnnonces() {
+  currentPage = 1;
+  lastVisible = null;
+  hasNextPage = true;
+  annoncesData = [];
+  await loadAnnonces(1);
+}
+
 
 
 
