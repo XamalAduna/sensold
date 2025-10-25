@@ -337,6 +337,13 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
+let lastVisible = null;
+let totalAnnonces = 0;
+const annoncesPerPage = 20;
+let currentPage = 1;
+let annoncesData = [];
+const annoncesContainer = document.getElementById("annoncesContainer"); // ton vrai ID
+
 async function loadAnnonces(page = 1) {
   annoncesContainer.innerHTML = "<p>Chargement des annonces…</p>";
 
@@ -354,7 +361,7 @@ async function loadAnnonces(page = 1) {
     q = query(q, orderBy("boostActive", "desc"), orderBy("createdAt", "desc"));
 
     // Pagination
-    if(lastVisible && page > 1) q = query(q, startAfter(lastVisible));
+    if (lastVisible && page > 1) q = query(q, startAfter(lastVisible));
     q = query(q, limit(annoncesPerPage));
 
     // 2️⃣ Récupération annonces
@@ -373,7 +380,7 @@ async function loadAnnonces(page = 1) {
 
     lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
 
-    // 3️⃣ Précharge utilisateurs
+    // 3️⃣ Précharge utilisateurs (cache)
     if (!window.__usersCache) {
       const usersSnap = await getDocs(collection(db, "users"));
       const byEmail = {};
@@ -382,7 +389,7 @@ async function loadAnnonces(page = 1) {
         const u = uDoc.data() || {};
         byId[uDoc.id] = u;
         const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-        if(email) byEmail[email] = u;
+        if (email) byEmail[email] = u;
       });
       window.__usersCache = { byEmail, byId };
     }
@@ -394,16 +401,17 @@ async function loadAnnonces(page = 1) {
     setupFilterMenu();
     applyAllFilters();
 
-    // 5️⃣ Compter total pour pagination
-    const countSnap = await getCountFromServer(q); 
+    // 5️⃣ Compter total (⚠️ sur la collection complète)
+    const countSnap = await getCountFromServer(collection(db, "annonces"));
     totalAnnonces = countSnap.data().count;
     renderPagination(Math.ceil(totalAnnonces / annoncesPerPage));
 
-  } catch(err){
+  } catch (err) {
     console.error("Erreur chargement annonces:", err);
     annoncesContainer.innerHTML = `<p>⚠️ Erreur : ${err.message}</p>`;
   }
 }
+
 
 
 function escapeHTML(str) {
