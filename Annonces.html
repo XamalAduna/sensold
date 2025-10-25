@@ -338,9 +338,9 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-let lastVisible = null; // pour savoir où on s'est arrêté
+let lastVisible = null; 
 let annoncesData = [];
-const annoncesPerPage = 20; // nombre d'annonces par page
+const annoncesPerPage = 20;
 
 async function loadAnnonces(reset = true) {
   if(reset){
@@ -379,7 +379,7 @@ async function loadAnnonces(reset = true) {
     annoncesData.push(data);
   });
 
-  applyAllFilters(); // applique tes filtres et affiche les annonces
+  applyAllFilters();
 }
 
 function escapeHTML(str) {
