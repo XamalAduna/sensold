@@ -402,21 +402,16 @@ async function renderAnnonces(filtered) {
   const pageItems = filtered.slice(start, end);
 
   if (!window.__usersCache) {
-    try {
-      const usersSnap = await getDocs(collection(db, "users"));
-      const byEmail = {};
-      const byId = {};
-      usersSnap.forEach(uDoc => {
-        const u = uDoc.data() || {};
-        byId[uDoc.id] = u;
-        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-        if (email) byEmail[email] = u;
-      });
-      window.__usersCache = { byEmail, byId };
-    } catch (err) {
-      console.error("Erreur chargement users:", err);
-      window.__usersCache = { byEmail: {}, byId: {} };
-    }
+    const usersSnap = await getDocs(collection(db, "users"));
+    const byEmail = {};
+    const byId = {};
+    usersSnap.forEach(uDoc => {
+      const u = uDoc.data() || {};
+      byId[uDoc.id] = u;
+      const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+      if (email) byEmail[email] = u;
+    });
+    window.__usersCache = { byEmail, byId };
   }
 
   function createCard(a) {
@@ -473,15 +468,10 @@ async function renderAnnonces(filtered) {
 
     card.innerHTML = `
       <div class="image-container">
-        <img src="${annonceImage}" 
-             loading="lazy"
-             alt="${escapeHTML(a.title || 'Annonce')}"
-             onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
+        <img src="${annonceImage}" loading="lazy" alt="${escapeHTML(a.title || 'Annonce')}" onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
         ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
         <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
-        <span class="material-icons favorite ${isFav ? 'active' : ''}">
-          ${isFav ? 'favorite' : 'favorite_border'}
-        </span>
+        <span class="material-icons favorite ${isFav ? 'active' : ''}">${isFav ? 'favorite' : 'favorite_border'}</span>
       </div>
       <div class="content">
         <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
@@ -530,12 +520,22 @@ async function renderAnnonces(filtered) {
     annoncesContainer.appendChild(card);
   }
 
-  for (const a of pageItems) {
-    // On utilise setTimeout minimal pour laisser le navigateur afficher immédiatement
-    setTimeout(() => createCard(a), 0);
+  // Affichage progressif par lots de 5 annonces
+  const batchSize = 5;
+  let index = 0;
+
+  function renderBatch() {
+    const batch = pageItems.slice(index, index + batchSize);
+    batch.forEach(a => createCard(a));
+    index += batchSize;
+    if (index < pageItems.length) {
+      requestAnimationFrame(renderBatch); // Affiche le batch suivant à la prochaine frame
+    } else {
+      renderPagination(Math.ceil(filtered.length / annoncesPerPage));
+    }
   }
 
-  renderPagination(Math.ceil(filtered.length / annoncesPerPage));
+  renderBatch(); // lance l'affichage progressif
 }
 
 function renderPagination(totalPages){
