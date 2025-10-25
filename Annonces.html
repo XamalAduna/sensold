@@ -338,34 +338,14 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-let lastVisible = null; // garde en mémoire le dernier document chargé
-const annoncesPerPage = 20; // nombre d'annonces par page
-
-async function loadAnnonces(page = 1) {
+async function loadAnnonces() {
   annoncesContainer.innerHTML = "";
   try {
-    const colRef = collection(db, "annonces");
-    let q;
-
-    // Si on charge la première page
-    if (page === 1) {
-      q = query(colRef, orderBy("createdAt", "desc"), limit(annoncesPerPage));
-      lastVisible = null; // reset pour nouvelle recherche
-    } else if (lastVisible) {
-      // Pages suivantes
-      q = query(colRef, orderBy("createdAt", "desc"), startAfter(lastVisible), limit(annoncesPerPage));
-    } else {
-      console.warn("Pas de dernier document pour continuer la pagination");
-      return;
+    const annoncesSnap = await getDocs(query(collection(db, "annonces"), orderBy("createdAt","desc")));
+    if(annoncesSnap.empty){ 
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
+      return; 
     }
-
-    const annoncesSnap = await getDocs(q);
-
-    if (annoncesSnap.empty) {
-      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
-      return;
-    }
-
     annoncesData = [];
     annoncesSnap.forEach(docSnap => {
       const data = docSnap.data();
@@ -373,10 +353,7 @@ async function loadAnnonces(page = 1) {
       annoncesData.push(data);
     });
 
-    // Mettre à jour le dernier document pour la pagination
-    lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
-
-    // Charger les utilisateurs (cache global)
+    // Charge les utilisateurs AVANT d'appeler applyAllFilters
     if (!window.__usersCache) {
       const usersSnap = await getDocs(collection(db, "users"));
       const byEmail = {};
@@ -401,7 +378,7 @@ async function loadAnnonces(page = 1) {
   }
 }
 
-  
+
 function escapeHTML(str) {
   if (!str) return "";
   return str
