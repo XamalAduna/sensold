@@ -341,23 +341,7 @@ onAuthStateChanged(auth, async (user) => {
 async function loadAnnonces() {
   annoncesContainer.innerHTML = "";
   try {
-    const annoncesSnap = await getDocs(query(collection(db, "annonces"), orderBy("createdAt","desc")));
-    if(annoncesSnap.empty){ 
-      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
-      return; 
-    }
-    annoncesData = [];
-    annoncesSnap.forEach(docSnap => {
-  const data = docSnap.data();
-  data.id = docSnap.id;
-  annoncesData.push(data);
-
-  // 🔥 Affiche directement chaque annonce dès qu’elle est prête
-  renderAnnonces(annoncesData);
-});
-
-
-    // Charge les utilisateurs AVANT d'appeler applyAllFilters
+    // Préparer le cache utilisateurs
     if (!window.__usersCache) {
       const usersSnap = await getDocs(collection(db, "users"));
       const byEmail = {};
@@ -366,22 +350,47 @@ async function loadAnnonces() {
         const u = uDoc.data() || {};
         byId[uDoc.id] = u;
         const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-        if(email) byEmail[email] = u;
+        if (email) byEmail[email] = u;
       });
       window.__usersCache = { byEmail, byId };
     }
 
-    setupCategoryFilters();
-    setupSearchAndSort();
-    setupFilterMenu();
-    applyAllFilters();
+    // Charger les annonces en flux continu
+    const annoncesSnap = await getDocs(query(collection(db, "annonces"), orderBy("createdAt", "desc")));
+    if (annoncesSnap.empty) {
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
+      return;
+    }
 
-  } catch(err){
+    annoncesData = [];
+    annoncesSnap.forEach(docSnap => {
+      const data = docSnap.data();
+      data.id = docSnap.id;
+      annoncesData.push(data);
+
+      // Crée et affiche immédiatement la carte
+      const card = document.createElement("div");
+      card.className = "annonce-card";
+      const img = data.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce";
+      card.innerHTML = `
+        <div class="image-container">
+          <img src="${img}" loading="lazy" alt="Annonce">
+          <span class="time-badge">⏰ ${timeAgo(data.createdAt)}</span>
+        </div>
+        <div class="content">
+          <p class="price">${data.price ? data.price + " FCFA" : "Prix sur demande"}</p>
+          <h3 class="title">${data.title || "Sans titre"}</h3>
+          <p class="location">📍 ${data.city || "Ville non précisée"}</p>
+        </div>
+      `;
+      annoncesContainer.appendChild(card);
+    });
+
+  } catch (err) {
     console.error("Erreur chargement annonces:", err);
     annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   }
 }
-
 
 function escapeHTML(str) {
   if (!str) return "";
