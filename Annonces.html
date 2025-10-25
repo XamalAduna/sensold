@@ -341,7 +341,7 @@ onAuthStateChanged(auth, async (user) => {
 async function loadAnnonces() {
   annoncesContainer.innerHTML = "";
   try {
-    const annoncesSnap = await getDocs(query(collection(db, "annonces"), orderBy("createdAt", "desc"), limit(20)));
+    const annoncesSnap = await getDocs(query(collection(db, "annonces"), orderBy("createdAt","desc")));
     if(annoncesSnap.empty){ 
       annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
       return; 
@@ -377,7 +377,6 @@ async function loadAnnonces() {
     annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   }
 }
-
 
 
 function escapeHTML(str) {
