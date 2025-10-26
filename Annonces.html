@@ -376,19 +376,36 @@ async function loadAnnonces(page = 1) {
     // sauvegarde du dernier document pour la prochaine page
     lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
 
-    // Charger les utilisateurs (cache)
-    if (!window.__usersCache) {
-      const usersSnap = await getDocs(collection(db, "users"));
-      const byEmail = {};
-      const byId = {};
-      usersSnap.forEach(uDoc => {
-        const u = uDoc.data() || {};
-        byId[uDoc.id] = u;
-        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-        if(email) byEmail[email] = u;
-      });
-      window.__usersCache = { byEmail, byId };
+    // Cache utilisateur si inexistant
+if (!window.__usersCache) window.__usersCache = { byEmail: {}, byId: {} };
+
+// Charger uniquement les utilisateurs des annonces affichées
+const usersToFetch = [];
+
+annoncesData.forEach(a => {
+  const userId = a.userId || a.uid;
+  const userEmail = (a.userEmail || "").toLowerCase().trim();
+
+  if (userId && !window.__usersCache.byId[userId]) usersToFetch.push({type:'id', value:userId});
+  else if (userEmail && !window.__usersCache.byEmail[userEmail]) usersToFetch.push({type:'email', value:userEmail});
+});
+
+// Supprimer doublons
+const uniqueUsers = Array.from(new Map(usersToFetch.map(u => [u.type+'-'+u.value, u])).values());
+
+// Récupérer les utilisateurs manquants
+await Promise.all(uniqueUsers.map(async u => {
+  try {
+    if(u.type === 'id'){
+      const docSnap = await getDoc(doc(db, "users", u.value));
+      if(docSnap.exists()) window.__usersCache.byId[u.value] = docSnap.data();
     }
+    // Si tu veux gérer par email, tu peux faire une requête avec where("email","==",u.value)
+  } catch(err){
+    console.error("Erreur chargement utilisateur:", err);
+  }
+}));
+
 
     setupCategoryFilters();
     setupSearchAndSort();
