@@ -1,3 +1,4 @@
+
 <!DOCTYPE html> 
 <html lang="fr"> 
 <head> 
@@ -161,7 +162,6 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getFirestore, collection, getDocs, query, orderBy, limit, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
-import { startAfter } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
   authDomain: "diallo-ee5aa.firebaseapp.com",
@@ -338,34 +338,14 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-let lastVisible = null; // pour la pagination Firebase
-
-async function loadAnnonces(page = 1) {
-  annoncesContainer.innerHTML = "<p>Chargement...</p>";
+async function loadAnnonces() {
+  annoncesContainer.innerHTML = "";
   try {
-    let q = query(
-      collection(db, "annonces"),
-      orderBy("createdAt", "desc"),
-      limit(annoncesPerPage)
-    );
-
-    // Si ce n'est pas la première page, utiliser startAfter
-    if (lastVisible && page > 1) {
-      q = query(
-        collection(db, "annonces"),
-        orderBy("createdAt", "desc"),
-        startAfter(lastVisible),
-        limit(annoncesPerPage)
-      );
-    }
-
-    const annoncesSnap = await getDocs(q);
-
-    if (annoncesSnap.empty) { 
+    const annoncesSnap = await getDocs(query(collection(db, "annonces"), orderBy("createdAt","desc")));
+    if(annoncesSnap.empty){ 
       annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
       return; 
     }
-
     annoncesData = [];
     annoncesSnap.forEach(docSnap => {
       const data = docSnap.data();
@@ -373,10 +353,7 @@ async function loadAnnonces(page = 1) {
       annoncesData.push(data);
     });
 
-    // sauvegarde du dernier document pour la prochaine page
-    lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
-
-    // Charger les utilisateurs (cache)
+    // Charge les utilisateurs AVANT d'appeler applyAllFilters
     if (!window.__usersCache) {
       const usersSnap = await getDocs(collection(db, "users"));
       const byEmail = {};
@@ -400,7 +377,6 @@ async function loadAnnonces(page = 1) {
     annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   }
 }
-
 
 
 function escapeHTML(str) {
@@ -443,12 +419,10 @@ async function renderAnnonces(filtered) {
     }
   }
 
-  const createCard = (a) => {
+  function createCard(a) {
     const docId = escapeHTML(a.id || "");
     const card = document.createElement("div");
     card.className = "annonce-card";
-    card.style.opacity = 0;
-    card.style.transform = "translateY(20px)";
 
     const isFav = currentUser && userFavorites.includes(a.id);
 
@@ -554,29 +528,15 @@ async function renderAnnonces(filtered) {
     });
 
     annoncesContainer.appendChild(card);
+  }
 
-    // Animation fade-in
-    setTimeout(() => {
-      card.style.transition = "opacity 0.4s ease, transform 0.4s ease";
-      card.style.opacity = 1;
-      card.style.transform = "translateY(0)";
-    }, 50);
-  };
-
-  // Affichage progressif avec intervalle
-  let index = 0;
-  const interval = setInterval(() => {
-    if (index >= pageItems.length) {
-      clearInterval(interval);
-      return;
-    }
-    createCard(pageItems[index]);
-    index++;
-  }, 80); // 80ms entre chaque carte (modifiable selon vitesse souhaitée)
+  for (const a of pageItems) {
+    // On utilise setTimeout minimal pour laisser le navigateur afficher immédiatement
+    setTimeout(() => createCard(a), 0);
+  }
 
   renderPagination(Math.ceil(filtered.length / annoncesPerPage));
 }
-
 
 function renderPagination(totalPages){
   let paginationContainer = document.getElementById("pagination");
