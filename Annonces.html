@@ -403,6 +403,7 @@ async function loadAnnonces(page = 1) {
 
 
 
+
 function escapeHTML(str) {
   if (!str) return "";
   return str
@@ -424,24 +425,6 @@ async function renderAnnonces(filtered) {
   const start = (currentPage - 1) * annoncesPerPage;
   const end = start + annoncesPerPage;
   const pageItems = filtered.slice(start, end);
-
-  if (!window.__usersCache) {
-    try {
-      const usersSnap = await getDocs(collection(db, "users"));
-      const byEmail = {};
-      const byId = {};
-      usersSnap.forEach(uDoc => {
-        const u = uDoc.data() || {};
-        byId[uDoc.id] = u;
-        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-        if (email) byEmail[email] = u;
-      });
-      window.__usersCache = { byEmail, byId };
-    } catch (err) {
-      console.error("Erreur chargement users:", err);
-      window.__usersCache = { byEmail: {}, byId: {} };
-    }
-  }
 
   const createCard = (a) => {
     const docId = escapeHTML(a.id || "");
@@ -572,7 +555,7 @@ async function renderAnnonces(filtered) {
     }
     createCard(pageItems[index]);
     index++;
-  }, 80); // 80ms entre chaque carte (modifiable selon vitesse souhaitée)
+  }, 40); // 80ms entre chaque carte (modifiable selon vitesse souhaitée)
 
   renderPagination(Math.ceil(filtered.length / annoncesPerPage));
 }
