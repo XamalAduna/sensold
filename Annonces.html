@@ -1,3 +1,4 @@
+
 <!DOCTYPE html> 
 <html lang="fr"> 
 <head> 
@@ -312,6 +313,7 @@ let selectedSubcategory = null;
 let searchText = "";
 let sortOrder = "default";
 let currentPage = 1;
+let lastVisible = null; // pour mémoriser la dernière annonce visible
 const annoncesPerPage = 20;
   
 function timeAgo(timestamp){
@@ -337,36 +339,37 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-let lastVisible = null; // pour Firestore pagination
+
 
 async function loadAnnonces(page = 1) {
   annoncesContainer.innerHTML = "<p>Chargement...</p>";
   try {
     const annoncesRef = collection(db, "annonces");
-    const q = query(
-      annoncesRef,
-      orderBy("createdAt", "desc"),
-      limit(annoncesPerPage * page)
-    );
+    let q = query(annoncesRef, orderBy("createdAt", "desc"), limit(annoncesPerPage));
 
-    const snapshot = await getDocs(q);
+    // Si on veut une autre page, on saute les précédentes avec startAfter
+    if (page > 1 && lastVisible) {
+      q = query(annoncesRef, orderBy("createdAt", "desc"), startAfter(lastVisible), limit(annoncesPerPage));
+    }
 
-    if (snapshot.empty) {
+    const annoncesSnap = await getDocs(q);
+
+    if (annoncesSnap.empty) {
       annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
       return;
     }
 
-    // Sauvegarde du dernier document pour le prochain chargement
-    const docsArray = snapshot.docs;
-    lastVisible = docsArray[docsArray.length - 1];
+    // On garde la dernière annonce visible pour la page suivante
+    lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
 
-    annoncesData = docsArray.map(docSnap => {
+    annoncesData = [];
+    annoncesSnap.forEach(docSnap => {
       const data = docSnap.data();
       data.id = docSnap.id;
-      return data;
+      annoncesData.push(data);
     });
 
-    // Cache des utilisateurs (chargé une seule fois)
+    // Chargement des utilisateurs (cache)
     if (!window.__usersCache) {
       const usersSnap = await getDocs(collection(db, "users"));
       const byEmail = {};
@@ -380,13 +383,17 @@ async function loadAnnonces(page = 1) {
       window.__usersCache = { byEmail, byId };
     }
 
-    applyAllFilters(); // on garde ton affichage normal
+    setupCategoryFilters();
+    setupSearchAndSort();
+    setupFilterMenu();
+    applyAllFilters();
 
   } catch (err) {
     console.error("Erreur chargement annonces:", err);
     annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   }
 }
+
 
 
 function escapeHTML(str) {
@@ -720,3 +727,4 @@ function applyAllFilters() {
 </script>  
 </body>
 </html>
+
