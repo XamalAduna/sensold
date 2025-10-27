@@ -313,7 +313,6 @@ let selectedSubcategory = null;
 let searchText = "";
 let sortOrder = "default";
 let currentPage = 1;
-let lastVisible = null; // garde la référence du dernier doc pour pagination
 const annoncesPerPage = 20;
   
 function timeAgo(timestamp){
@@ -339,90 +338,43 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-
-async function loadAnnonces(page = 1) {
-  annoncesContainer.innerHTML = "<p>Chargement...</p>";
-
+async function loadAnnonces() {
+  annoncesContainer.innerHTML = "";
   try {
-    // Construire la requête Firestore
-    let q = query(
-      collection(db, "annonces"),
-      orderBy("createdAt", "desc"),
-      limit(annoncesPerPage)
-    );
-
-    // Si on n’est pas sur la première page, on commence après le dernier doc visible
-    if (page > 1 && lastVisible) {
-      q = query(
-        collection(db, "annonces"),
-        orderBy("createdAt", "desc"),
-        startAfter(lastVisible),
-        limit(annoncesPerPage)
-      );
+    const annoncesSnap = await getDocs(query(collection(db, "annonces"), orderBy("createdAt","desc")));
+    if(annoncesSnap.empty){ 
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
+      return; 
     }
-
-    const annoncesSnap = await getDocs(q);
-
-    if (annoncesSnap.empty) {
-      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
-      return;
-    }
-
-    // Mettre à jour le dernier doc visible pour la prochaine page
-    lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
-
-    // Préparer les données à afficher
-    const annoncesDataPage = [];
+    annoncesData = [];
     annoncesSnap.forEach(docSnap => {
       const data = docSnap.data();
       data.id = docSnap.id;
-      annoncesDataPage.push(data);
+      annoncesData.push(data);
     });
 
-    // Affichage rapide des annonces
-    annoncesContainer.innerHTML = "";
-    annoncesDataPage.forEach(a => createCard(a));
+    // Charge les utilisateurs AVANT d'appeler applyAllFilters
+    if (!window.__usersCache) {
+      const usersSnap = await getDocs(collection(db, "users"));
+      const byEmail = {};
+      const byId = {};
+      usersSnap.forEach(uDoc => {
+        const u = uDoc.data() || {};
+        byId[uDoc.id] = u;
+        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+        if(email) byEmail[email] = u;
+      });
+      window.__usersCache = { byEmail, byId };
+    }
 
-    // Rendu de la pagination
-    renderPaginationPage(page);
+    setupCategoryFilters();
+    setupSearchAndSort();
+    setupFilterMenu();
+    applyAllFilters();
 
-  } catch (err) {
+  } catch(err){
     console.error("Erreur chargement annonces:", err);
-    annoncesContainer.innerHTML = `<p>⚠️ Erreur : ${err.message}</p>`;
-  }
-}
-
-// Fonction simple pour la pagination
-function renderPaginationPage(currentPage) {
-  const paginationContainer = document.getElementById("pagination") || document.createElement("div");
-  paginationContainer.id = "pagination";
-  paginationContainer.style.textAlign = "center";
-  paginationContainer.style.marginTop = "20px";
-  document.body.appendChild(paginationContainer);
-
-  paginationContainer.innerHTML = "";
-
-  // Exemple simple : boutons pour 5 pages autour de la page courante
-  const totalPages = 1000; // On ne connaît pas le total exact, peut être ajusté avec Firestore count()
-  const maxButtons = 7;
-  let startPage = Math.max(1, currentPage - 3);
-  let endPage = Math.min(totalPages, startPage + maxButtons - 1);
-  startPage = Math.max(1, endPage - maxButtons + 1);
-
-  for (let i = startPage; i <= endPage; i++) {
-    const btn = document.createElement("button");
-    btn.textContent = i;
-    btn.style.margin = "0 5px";
-    btn.style.padding = "6px 12px";
-    btn.style.borderRadius = "6px";
-    btn.style.border = i === currentPage ? "2px solid #009688" : "1px solid #ccc";
-    btn.style.background = i === currentPage ? "#009688" : "#fff";
-    btn.style.color = i === currentPage ? "#fff" : "#000";
-    btn.style.cursor = "pointer";
-    btn.addEventListener("click", () => {
-      loadAnnonces(i);
-    });
-    paginationContainer.appendChild(btn);
+    annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   }
 }
 
@@ -435,7 +387,8 @@ function escapeHTML(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
 }
-async function renderAnnonces(filtered) {
+
+async function renderAnnoncesOptimized(filtered) {
   annoncesContainer.innerHTML = "";
   if (filtered.length === 0) {
     annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
@@ -449,23 +402,38 @@ async function renderAnnonces(filtered) {
   const end = start + annoncesPerPage;
   const pageItems = filtered.slice(start, end);
 
-  if (!window.__usersCache) {
-    try {
-      const usersSnap = await getDocs(collection(db, "users"));
-      const byEmail = {};
-      const byId = {};
-      usersSnap.forEach(uDoc => {
-        const u = uDoc.data() || {};
-        byId[uDoc.id] = u;
-        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-        if (email) byEmail[email] = u;
-      });
-      window.__usersCache = { byEmail, byId };
-    } catch (err) {
-      console.error("Erreur chargement users:", err);
-      window.__usersCache = { byEmail: {}, byId: {} };
-    }
+  // Récupérer uniquement les users liés aux annonces de la page
+  const userIdsToLoad = new Set();
+  const userEmailsToLoad = new Set();
+  pageItems.forEach(a => {
+    if (a.userId || a.uid) userIdsToLoad.add(a.userId || a.uid);
+    if (a.userEmail) userEmailsToLoad.add(a.userEmail.toLowerCase().trim());
+  });
+
+  const usersCache = { byId: {}, byEmail: {} };
+
+  // Charger les utilisateurs par IDs
+  if (userIdsToLoad.size > 0) {
+    const usersSnap = await getDocs(
+      query(collection(db, "users"), where(documentId(), "in", Array.from(userIdsToLoad)))
+    );
+    usersSnap.forEach(uDoc => {
+      usersCache.byId[uDoc.id] = uDoc.data();
+    });
   }
+
+  // Charger les utilisateurs par email
+  if (userEmailsToLoad.size > 0) {
+    const usersSnap = await getDocs(collection(db, "users"));
+    usersSnap.forEach(uDoc => {
+      const u = uDoc.data() || {};
+      const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+      if (userEmailsToLoad.has(email)) usersCache.byEmail[email] = u;
+    });
+  }
+
+  // Créer et injecter les cartes progressivement
+  const fragment = document.createDocumentFragment();
 
   function createCard(a) {
     const docId = escapeHTML(a.id || "");
@@ -476,9 +444,8 @@ async function renderAnnonces(filtered) {
 
     let sellerData = null;
     const annonceEmail = (a.userEmail || "").toLowerCase().trim();
-    if (annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
-    if (!sellerData && a.userId) sellerData = window.__usersCache.byId[a.userId];
-    if (!sellerData && a.uid) sellerData = window.__usersCache.byId[a.uid];
+    if (annonceEmail) sellerData = usersCache.byEmail[annonceEmail];
+    if (!sellerData && (a.userId || a.uid)) sellerData = usersCache.byId[a.userId || a.uid];
     if (!sellerData && a.user && typeof a.user === "object") sellerData = a.user;
 
     let isPro = false;
@@ -511,19 +478,14 @@ async function renderAnnonces(filtered) {
         sellerData.avatar ||
         sellerData.image ||
         sellerData.photo
-      )) || "";
-    if (!sellerPhoto || typeof sellerPhoto !== "string" || sellerPhoto.startsWith("gs://") || sellerPhoto.startsWith("/")) {
-      sellerPhoto = "https://via.placeholder.com/40";
-    }
+      )) || "https://via.placeholder.com/40";
     sellerPhoto = escapeHTML(sellerPhoto);
 
     let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
 
     card.innerHTML = `
       <div class="image-container">
-        <img src="${annonceImage}" 
-             loading="lazy"
-             alt="${escapeHTML(a.title || 'Annonce')}"
+        <img src="${annonceImage}" loading="lazy" alt="${escapeHTML(a.title || 'Annonce')}" 
              onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
         ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
         <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
@@ -544,6 +506,7 @@ async function renderAnnonces(filtered) {
         </div>
       </div>
     `;
+
     const titleEl = card.querySelector('.title');
     if ((a.title || "").length > 30) titleEl.classList.add('long-text');
 
@@ -575,15 +538,27 @@ async function renderAnnonces(filtered) {
       window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
     });
 
-    annoncesContainer.appendChild(card);
+    fragment.appendChild(card);
   }
 
-  for (const a of pageItems) {
-    // On utilise setTimeout minimal pour laisser le navigateur afficher immédiatement
-    setTimeout(() => createCard(a), 0);
+  // Création progressive avec requestIdleCallback si disponible
+  let i = 0;
+  function addNext() {
+    const startTime = performance.now();
+    while (i < pageItems.length && performance.now() - startTime < 16) { // ~1 frame
+      createCard(pageItems[i]);
+      i++;
+    }
+    annoncesContainer.appendChild(fragment.cloneNode(true));
+    fragment.textContent = ""; // vider fragment
+    if (i < pageItems.length) {
+      if ("requestIdleCallback" in window) requestIdleCallback(addNext);
+      else setTimeout(addNext, 0);
+    }
   }
+  addNext();
 
-  renderPagination(Math.ceil(filtered.length / annoncesPerPage));
+  renderPagination(totalPages);
 }
 
 function renderPagination(totalPages){
