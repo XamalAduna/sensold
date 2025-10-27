@@ -337,46 +337,108 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-async function loadAnnonces() {
-  annoncesContainer.innerHTML = "";
-  try {
-    const annoncesSnap = await getDocs(query(collection(db, "annonces"), orderBy("createdAt","desc")));
-    if(annoncesSnap.empty){ 
-      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
-      return; 
-    }
-    annoncesData = [];
-    annoncesSnap.forEach(docSnap => {
-      const data = docSnap.data();
-      data.id = docSnap.id;
-      annoncesData.push(data);
-    });
+let annoncesPerPage = 20;
+let lastVisible = null;
+let currentPage = 1;
+let selectedCategory = "all";
+let selectedSubcategory = null;
+let searchText = "";
+let sortOrder = "default";
+let currentUser = null;
+let userFavorites = [];
 
-    // Charge les utilisateurs AVANT d'appeler applyAllFilters
-    if (!window.__usersCache) {
-      const usersSnap = await getDocs(collection(db, "users"));
-      const byEmail = {};
-      const byId = {};
-      usersSnap.forEach(uDoc => {
-        const u = uDoc.data() || {};
-        byId[uDoc.id] = u;
-        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-        if(email) byEmail[email] = u;
-      });
-      window.__usersCache = { byEmail, byId };
-    }
-
-    setupCategoryFilters();
-    setupSearchAndSort();
-    setupFilterMenu();
-    applyAllFilters();
-
-  } catch(err){
-    console.error("Erreur chargement annonces:", err);
-    annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
+async function loadAnnoncesPage(nextPage = false) {
+  if (!nextPage) {
+    annoncesContainer.innerHTML = "<p>Chargement...</p>";
+    lastVisible = null;
+    currentPage = 1;
   }
+
+  let q = query(
+    collection(db, "annonces"),
+    orderBy("createdAt", "desc"),
+    limit(annoncesPerPage)
+  );
+
+  if (lastVisible) {
+    q = query(
+      collection(db, "annonces"),
+      orderBy("createdAt", "desc"),
+      startAfter(lastVisible),
+      limit(annoncesPerPage)
+    );
+  }
+
+  const snapshot = await getDocs(q);
+  if (snapshot.empty) {
+    if (!nextPage) annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
+    return;
+  }
+
+  lastVisible = snapshot.docs[snapshot.docs.length - 1];
+
+  const annoncesToRender = [];
+  snapshot.forEach(docSnap => {
+    const data = docSnap.data();
+    data.id = docSnap.id;
+    annoncesToRender.push(data);
+  });
+
+  await renderAnnonces(annoncesToRender);
 }
 
+async function renderAnnonces(annonces) {
+  const fragment = document.createDocumentFragment();
+
+  for (const a of annonces) {
+    const card = document.createElement("div");
+    card.className = "annonce-card";
+
+    // Détermination favori
+    const isFav = currentUser && userFavorites.includes(a.id);
+
+    card.innerHTML = `
+      <div class="image-container">
+        <img src="${a.images?.[0] || 'https://via.placeholder.com/400x200?text=Annonce'}" 
+             loading="lazy"
+             alt="${a.title || 'Annonce'}"
+             onerror="this.src='https://via.placeholder.com/400x200?text=Annonce'">
+        <span class="material-icons favorite ${isFav ? 'active' : ''}">
+          ${isFav ? 'favorite' : 'favorite_border'}
+        </span>
+      </div>
+      <div class="content">
+        <p class="price">${a.price ? a.price + " FCFA" : "Prix sur demande"}</p>
+        <h3 class="title">${a.title || "Sans titre"}</h3>
+        <p class="location">📍 ${a.city || "Ville non précisée"}</p>
+      </div>
+    `;
+
+    // Événement favori
+    const favBtn = card.querySelector(".favorite");
+    favBtn.addEventListener("click", async e => {
+      e.stopPropagation();
+      if (!currentUser) return alert("Connectez-vous pour ajouter aux favoris !");
+      const favRef = doc(db, "users", currentUser.uid);
+      if (favBtn.classList.contains("active")) {
+        favBtn.classList.remove("active");
+        favBtn.textContent = "favorite_border";
+        userFavorites = userFavorites.filter(id => id !== a.id);
+        await updateDoc(favRef, { favorites: arrayRemove(a.id) });
+      } else {
+        favBtn.classList.add("active");
+        favBtn.textContent = "favorite";
+        userFavorites.push(a.id);
+        await updateDoc(favRef, { favorites: arrayUnion(a.id) });
+      }
+    });
+
+    fragment.appendChild(card);
+  }
+
+  // Affichage progressif
+  annoncesContainer.appendChild(fragment);
+}
 
 function escapeHTML(str) {
   if (!str) return "";
