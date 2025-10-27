@@ -313,6 +313,7 @@ let selectedSubcategory = null;
 let searchText = "";
 let sortOrder = "default";
 let currentPage = 1;
+let lastVisible = null; // garde la référence du dernier doc pour pagination
 const annoncesPerPage = 20;
   
 function timeAgo(timestamp){
@@ -338,83 +339,91 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-let lastVisible = null; // pour la pagination Firestore
 
 async function loadAnnonces(page = 1) {
   annoncesContainer.innerHTML = "<p>Chargement...</p>";
 
   try {
-    // Construire la requête
+    // Construire la requête Firestore
     let q = query(
       collection(db, "annonces"),
       orderBy("createdAt", "desc"),
       limit(annoncesPerPage)
     );
 
-    // Pagination Firestore
-    if (lastVisible && page > 1) {
-      q = query(q, startAfter(lastVisible));
+    // Si on n’est pas sur la première page, on commence après le dernier doc visible
+    if (page > 1 && lastVisible) {
+      q = query(
+        collection(db, "annonces"),
+        orderBy("createdAt", "desc"),
+        startAfter(lastVisible),
+        limit(annoncesPerPage)
+      );
     }
 
     const annoncesSnap = await getDocs(q);
+
     if (annoncesSnap.empty) {
       annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
       return;
     }
 
-    // Mémoriser la dernière doc pour la prochaine page
+    // Mettre à jour le dernier doc visible pour la prochaine page
     lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
 
-    annoncesContainer.innerHTML = "";
-    const fragment = document.createDocumentFragment();
-
+    // Préparer les données à afficher
+    const annoncesDataPage = [];
     annoncesSnap.forEach(docSnap => {
-      const a = docSnap.data();
-      a.id = docSnap.id;
-
-      // Filtrage immédiat
-      if (filterAnnonce(a)) {
-        const card = createAnnonceCard(a);
-        fragment.appendChild(card);
-      }
+      const data = docSnap.data();
+      data.id = docSnap.id;
+      annoncesDataPage.push(data);
     });
 
-    annoncesContainer.appendChild(fragment);
+    // Affichage rapide des annonces
+    annoncesContainer.innerHTML = "";
+    annoncesDataPage.forEach(a => createCard(a));
 
-    renderPagination(Math.ceil( /* ici le total filtré ou total annonces */ 100 / annoncesPerPage));
+    // Rendu de la pagination
+    renderPaginationPage(page);
+
   } catch (err) {
-    console.error("Erreur chargement annonces :", err);
+    console.error("Erreur chargement annonces:", err);
     annoncesContainer.innerHTML = `<p>⚠️ Erreur : ${err.message}</p>`;
   }
 }
 
-// Filtrage selon catégorie, sous-catégorie et recherche
-function filterAnnonce(a) {
-  if (selectedCategory && selectedCategory !== "all" && a.categorie !== selectedCategory) return false;
-  if (selectedSubcategory && a.souscategorie !== selectedSubcategory) return false;
-  if (searchText && !(
-      (a.title?.toLowerCase().includes(searchText.toLowerCase())) || 
-      (a.city?.toLowerCase().includes(searchText.toLowerCase()))
-  )) return false;
-  return true;
-}
+// Fonction simple pour la pagination
+function renderPaginationPage(currentPage) {
+  const paginationContainer = document.getElementById("pagination") || document.createElement("div");
+  paginationContainer.id = "pagination";
+  paginationContainer.style.textAlign = "center";
+  paginationContainer.style.marginTop = "20px";
+  document.body.appendChild(paginationContainer);
 
-// Création d’une carte annonce (extrait simplifié)
-function createAnnonceCard(a) {
-  const card = document.createElement("div");
-  card.className = "annonce-card";
-  card.innerHTML = `
-    <img src="${a.images?.[0] || 'https://via.placeholder.com/400x200?text=Annonce'}" alt="${a.title || 'Annonce'}" loading="lazy">
-    <div class="content">
-      <p class="price">${a.price ? a.price + " FCFA" : "Prix sur demande"}</p>
-      <h3 class="title">${a.title || "Sans titre"}</h3>
-      <p class="location">${a.city || "Ville non précisée"}</p>
-    </div>
-  `;
-  card.addEventListener("click", () => {
-    window.location.href = `Details.html?id=${encodeURIComponent(a.id)}`;
-  });
-  return card;
+  paginationContainer.innerHTML = "";
+
+  // Exemple simple : boutons pour 5 pages autour de la page courante
+  const totalPages = 1000; // On ne connaît pas le total exact, peut être ajusté avec Firestore count()
+  const maxButtons = 7;
+  let startPage = Math.max(1, currentPage - 3);
+  let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+  startPage = Math.max(1, endPage - maxButtons + 1);
+
+  for (let i = startPage; i <= endPage; i++) {
+    const btn = document.createElement("button");
+    btn.textContent = i;
+    btn.style.margin = "0 5px";
+    btn.style.padding = "6px 12px";
+    btn.style.borderRadius = "6px";
+    btn.style.border = i === currentPage ? "2px solid #009688" : "1px solid #ccc";
+    btn.style.background = i === currentPage ? "#009688" : "#fff";
+    btn.style.color = i === currentPage ? "#fff" : "#000";
+    btn.style.cursor = "pointer";
+    btn.addEventListener("click", () => {
+      loadAnnonces(i);
+    });
+    paginationContainer.appendChild(btn);
+  }
 }
 
 
