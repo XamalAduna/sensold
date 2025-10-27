@@ -154,6 +154,7 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
   <div id="subcategories-container"></div>
 </section>
 <div id="annonces" class="annonces-container"></div>
+<div id="pagination" style="text-align:center; margin:20px 0;"></div>
 <div id="notLoggedMsg" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; padding:20px 30px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.25); text-align:center; z-index:99999;">
   <p>Veuillez vous connecter pour ajouter  cette annonce à vos favoris.</p>
   <a href="login.html">Se connecter</a>
@@ -341,39 +342,40 @@ onAuthStateChanged(auth, async (user) => {
 
 
 
+let lastVisibleDocs = {};
+let annoncesCount = 0;
+const annoncesPerPage = 20;
+
+// 🔹 Fonction principale : charge les annonces d’une page donnée
 async function loadAnnonces(page = 1) {
   annoncesContainer.innerHTML = "<p>Chargement...</p>";
+
   try {
     const annoncesRef = collection(db, "annonces");
-    let q = query(annoncesRef, orderBy("createdAt", "desc"), limit(annoncesPerPage));
 
-    // Si on veut une autre page, on saute les précédentes avec startAfter
-    if (page > 1 && lastVisible) {
-      q = query(annoncesRef, orderBy("createdAt", "desc"), startAfter(lastVisible), limit(annoncesPerPage));
+    // 🔸 Requête Firestore
+    let q = query(annoncesRef, orderBy("createdAt", "desc"), limit(annoncesPerPage));
+    if (page > 1 && lastVisibleDocs[page - 1]) {
+      q = query(annoncesRef, orderBy("createdAt", "desc"), startAfter(lastVisibleDocs[page - 1]), limit(annoncesPerPage));
     }
 
-    const annoncesSnap = await getDocs(q);
+    const snap = await getDocs(q);
 
-    if (annoncesSnap.empty) {
-      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
+    if (snap.empty) {
+      annoncesContainer.innerHTML = "<p>Aucune annonce trouvée.</p>";
       return;
     }
 
-    // On garde la dernière annonce visible pour la page suivante
-    lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
+    // 🔸 Mémorise la dernière annonce visible de cette page
+    lastVisibleDocs[page] = snap.docs[snap.docs.length - 1];
 
-    annoncesData = [];
-    annoncesSnap.forEach(docSnap => {
-      const data = docSnap.data();
-      data.id = docSnap.id;
-      annoncesData.push(data);
-    });
+    // 🔸 Convertir les docs Firestore
+    annoncesData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-    // Chargement des utilisateurs (cache)
+    // 🔸 Cache des utilisateurs (une seule fois)
     if (!window.__usersCache) {
       const usersSnap = await getDocs(collection(db, "users"));
-      const byEmail = {};
-      const byId = {};
+      const byEmail = {}, byId = {};
       usersSnap.forEach(uDoc => {
         const u = uDoc.data() || {};
         byId[uDoc.id] = u;
@@ -383,17 +385,52 @@ async function loadAnnonces(page = 1) {
       window.__usersCache = { byEmail, byId };
     }
 
+    // 🔸 Applique les filtres et affiche
     setupCategoryFilters();
     setupSearchAndSort();
     setupFilterMenu();
     applyAllFilters();
 
+    // 🔸 Met à jour la pagination dynamique
+    await updatePaginationButtons();
+
   } catch (err) {
-    console.error("Erreur chargement annonces:", err);
-    annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
+    console.error("Erreur Firestore:", err);
+    annoncesContainer.innerHTML = `<p>⚠️ Erreur : ${err.message}</p>`;
   }
 }
 
+// 🔹 Fonction pour récupérer le nombre total d’annonces et générer les boutons
+async function updatePaginationButtons() {
+  const paginationContainer = document.getElementById("pagination");
+  if (!paginationContainer) return;
+
+  // 🔸 Si on n’a pas encore compté les annonces
+  if (annoncesCount === 0) {
+    const countQuery = query(collection(db, "annonces"));
+    const allDocs = await getDocs(countQuery);
+    annoncesCount = allDocs.size;
+  }
+
+  const totalPages = Math.ceil(annoncesCount / annoncesPerPage);
+  paginationContainer.innerHTML = "";
+
+  // 🔸 Génère les boutons dynamiquement
+  for (let i = 1; i <= totalPages; i++) {
+    const btn = document.createElement("button");
+    btn.textContent = i;
+    btn.onclick = () => loadAnnonces(i);
+    btn.style.margin = "3px";
+    btn.style.padding = "5px 10px";
+    btn.style.borderRadius = "5px";
+    btn.style.border = "1px solid #ccc";
+    btn.style.cursor = "pointer";
+    btn.style.backgroundColor = "#fff";
+    btn.onmouseover = () => (btn.style.backgroundColor = "#eee");
+    btn.onmouseout = () => (btn.style.backgroundColor = "#fff");
+    paginationContainer.appendChild(btn);
+  }
+}
 
 
 function escapeHTML(str) {
