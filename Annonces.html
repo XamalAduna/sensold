@@ -160,7 +160,7 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 </div>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-import { getFirestore, collection, getDocs, query, orderBy, limit,startAfter, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, query, orderBy, limit, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
@@ -338,25 +338,25 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-let lastVisibleDoc = null; // garde en mémoire le dernier doc chargé
-let loading = false;
+let lastVisibleDoc = null; // pour la pagination
+let isLoading = false;     // pour éviter les appels multiples
+const pageSize = 20;       // nombre d'annonces à charger à chaque fois
 
-async function loadAnnonces(reset = true) {
-  if (loading) return; 
-  loading = true;
+async function loadAnnonces(reset = false) {
+  if (isLoading) return;
+  isLoading = true;
 
   if (reset) {
     annoncesContainer.innerHTML = "";
     lastVisibleDoc = null;
     annoncesData = [];
-    currentPage = 1;
   }
 
   try {
     let q = query(
       collection(db, "annonces"),
       orderBy("createdAt", "desc"),
-      limit(annoncesPerPage)
+      limit(pageSize)
     );
 
     if (lastVisibleDoc) {
@@ -364,19 +364,17 @@ async function loadAnnonces(reset = true) {
         collection(db, "annonces"),
         orderBy("createdAt", "desc"),
         startAfter(lastVisibleDoc),
-        limit(annoncesPerPage)
+        limit(pageSize)
       );
     }
 
     const annoncesSnap = await getDocs(q);
 
-    if (annoncesSnap.empty) {
-      if (reset) annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
-      loading = false;
-      return;
+    if (annoncesSnap.empty && reset) { 
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
+      isLoading = false;
+      return; 
     }
-
-    lastVisibleDoc = annoncesSnap.docs[annoncesSnap.docs.length - 1];
 
     annoncesSnap.forEach(docSnap => {
       const data = docSnap.data();
@@ -384,7 +382,9 @@ async function loadAnnonces(reset = true) {
       annoncesData.push(data);
     });
 
-    // Chargement des utilisateurs une seule fois
+    lastVisibleDoc = annoncesSnap.docs[annoncesSnap.docs.length - 1]; // met à jour pour la prochaine page
+
+    // Charge les utilisateurs AVANT d'appeler applyAllFilters
     if (!window.__usersCache) {
       const usersSnap = await getDocs(collection(db, "users"));
       const byEmail = {};
@@ -403,15 +403,20 @@ async function loadAnnonces(reset = true) {
     setupFilterMenu();
     applyAllFilters();
 
-  } catch(err) {
+  } catch(err){
     console.error("Erreur chargement annonces:", err);
-    if (reset) annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
+    annoncesContainer.innerHTML += `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   } finally {
-    loading = false;
+    isLoading = false;
   }
 }
 
-
+// Exemple pour l'infinite scroll
+window.addEventListener("scroll", () => {
+  if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 100) {
+    loadAnnonces(); // charge la page suivante automatiquement
+  }
+});
 
 function escapeHTML(str) {
   if (!str) return "";
