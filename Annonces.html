@@ -161,7 +161,7 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 </div>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-import { getFirestore, collection, getDocs, query, orderBy, limit, doc, updateDoc, arrayUnion, arrayRemove,startAfter, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, query, orderBy, limit, doc, updateDoc, arrayUnion, arrayRemove,startAfter,getCountFromServer, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
@@ -399,35 +399,36 @@ async function loadAnnonces(page = 1) {
     annoncesContainer.innerHTML = `<p>⚠️ Erreur : ${err.message}</p>`;
   }
 }
-
-// 🔹 Fonction pour récupérer le nombre total d’annonces et générer les boutons
 async function updatePaginationButtons() {
   const paginationContainer = document.getElementById("pagination");
   if (!paginationContainer) return;
 
-  // 🔸 Si on n’a pas encore compté les annonces
   if (annoncesCount === 0) {
-    const countQuery = query(collection(db, "annonces"));
-    const allDocs = await getDocs(countQuery);
-    annoncesCount = allDocs.size;
+    const countSnapshot = await getCountFromServer(collection(db, "annonces"));
+    annoncesCount = countSnapshot.data().count; // ⚡️ ultra rapide
   }
 
   const totalPages = Math.ceil(annoncesCount / annoncesPerPage);
   paginationContainer.innerHTML = "";
 
-  // 🔸 Génère les boutons dynamiquement
   for (let i = 1; i <= totalPages; i++) {
     const btn = document.createElement("button");
     btn.textContent = i;
     btn.onclick = () => loadAnnonces(i);
+    btn.className = "pagination-btn";
     btn.style.margin = "3px";
     btn.style.padding = "5px 10px";
     btn.style.borderRadius = "5px";
     btn.style.border = "1px solid #ccc";
     btn.style.cursor = "pointer";
-    btn.style.backgroundColor = "#fff";
-    btn.onmouseover = () => (btn.style.backgroundColor = "#eee");
-    btn.onmouseout = () => (btn.style.backgroundColor = "#fff");
+
+    if (i === currentPage) {
+      btn.style.backgroundColor = "#009688";
+      btn.style.color = "#fff";
+    } else {
+      btn.style.backgroundColor = "#fff";
+    }
+
     paginationContainer.appendChild(btn);
   }
 }
