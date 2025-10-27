@@ -154,14 +154,13 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
   <div id="subcategories-container"></div>
 </section>
 <div id="annonces" class="annonces-container"></div>
-<div id="pagination" style="text-align:center; margin:20px 0;"></div>
 <div id="notLoggedMsg" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; padding:20px 30px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.25); text-align:center; z-index:99999;">
   <p>Veuillez vous connecter pour ajouter  cette annonce à vos favoris.</p>
   <a href="login.html">Se connecter</a>
 </div>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-import { getFirestore, collection, getDocs, query, orderBy, limit, doc, updateDoc, arrayUnion, arrayRemove,startAfter,getCountFromServer, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, query, orderBy, limit, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
@@ -314,7 +313,6 @@ let selectedSubcategory = null;
 let searchText = "";
 let sortOrder = "default";
 let currentPage = 1;
-let lastVisible = null; // pour mémoriser la dernière annonce visible
 const annoncesPerPage = 20;
   
 function timeAgo(timestamp){
@@ -340,97 +338,83 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
+let lastVisible = null; // pour la pagination Firestore
 
-
-let lastVisibleDocs = {};
-let annoncesCount = 0;
-const annoncesPerPage = 20;
-
-// 🔹 Fonction principale : charge les annonces d’une page donnée
 async function loadAnnonces(page = 1) {
   annoncesContainer.innerHTML = "<p>Chargement...</p>";
 
   try {
-    const annoncesRef = collection(db, "annonces");
+    // Construire la requête
+    let q = query(
+      collection(db, "annonces"),
+      orderBy("createdAt", "desc"),
+      limit(annoncesPerPage)
+    );
 
-    // 🔸 Requête Firestore
-    let q = query(annoncesRef, orderBy("createdAt", "desc"), limit(annoncesPerPage));
-    if (page > 1 && lastVisibleDocs[page - 1]) {
-      q = query(annoncesRef, orderBy("createdAt", "desc"), startAfter(lastVisibleDocs[page - 1]), limit(annoncesPerPage));
+    // Pagination Firestore
+    if (lastVisible && page > 1) {
+      q = query(q, startAfter(lastVisible));
     }
 
-    const snap = await getDocs(q);
-
-    if (snap.empty) {
-      annoncesContainer.innerHTML = "<p>Aucune annonce trouvée.</p>";
+    const annoncesSnap = await getDocs(q);
+    if (annoncesSnap.empty) {
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
       return;
     }
 
-    // 🔸 Mémorise la dernière annonce visible de cette page
-    lastVisibleDocs[page] = snap.docs[snap.docs.length - 1];
+    // Mémoriser la dernière doc pour la prochaine page
+    lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
 
-    // 🔸 Convertir les docs Firestore
-    annoncesData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    annoncesContainer.innerHTML = "";
+    const fragment = document.createDocumentFragment();
 
-    // 🔸 Cache des utilisateurs (une seule fois)
-    if (!window.__usersCache) {
-      const usersSnap = await getDocs(collection(db, "users"));
-      const byEmail = {}, byId = {};
-      usersSnap.forEach(uDoc => {
-        const u = uDoc.data() || {};
-        byId[uDoc.id] = u;
-        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-        if (email) byEmail[email] = u;
-      });
-      window.__usersCache = { byEmail, byId };
-    }
+    annoncesSnap.forEach(docSnap => {
+      const a = docSnap.data();
+      a.id = docSnap.id;
 
-    // 🔸 Applique les filtres et affiche
-    setupCategoryFilters();
-    setupSearchAndSort();
-    setupFilterMenu();
-    applyAllFilters();
+      // Filtrage immédiat
+      if (filterAnnonce(a)) {
+        const card = createAnnonceCard(a);
+        fragment.appendChild(card);
+      }
+    });
 
-    // 🔸 Met à jour la pagination dynamique
-    await updatePaginationButtons();
+    annoncesContainer.appendChild(fragment);
 
+    renderPagination(Math.ceil( /* ici le total filtré ou total annonces */ 100 / annoncesPerPage));
   } catch (err) {
-    console.error("Erreur Firestore:", err);
+    console.error("Erreur chargement annonces :", err);
     annoncesContainer.innerHTML = `<p>⚠️ Erreur : ${err.message}</p>`;
   }
 }
-async function updatePaginationButtons() {
-  const paginationContainer = document.getElementById("pagination");
-  if (!paginationContainer) return;
 
-  if (annoncesCount === 0) {
-    const countSnapshot = await getCountFromServer(collection(db, "annonces"));
-    annoncesCount = countSnapshot.data().count; // ⚡️ ultra rapide
-  }
+// Filtrage selon catégorie, sous-catégorie et recherche
+function filterAnnonce(a) {
+  if (selectedCategory && selectedCategory !== "all" && a.categorie !== selectedCategory) return false;
+  if (selectedSubcategory && a.souscategorie !== selectedSubcategory) return false;
+  if (searchText && !(
+      (a.title?.toLowerCase().includes(searchText.toLowerCase())) || 
+      (a.city?.toLowerCase().includes(searchText.toLowerCase()))
+  )) return false;
+  return true;
+}
 
-  const totalPages = Math.ceil(annoncesCount / annoncesPerPage);
-  paginationContainer.innerHTML = "";
-
-  for (let i = 1; i <= totalPages; i++) {
-    const btn = document.createElement("button");
-    btn.textContent = i;
-    btn.onclick = () => loadAnnonces(i);
-    btn.className = "pagination-btn";
-    btn.style.margin = "3px";
-    btn.style.padding = "5px 10px";
-    btn.style.borderRadius = "5px";
-    btn.style.border = "1px solid #ccc";
-    btn.style.cursor = "pointer";
-
-    if (i === currentPage) {
-      btn.style.backgroundColor = "#009688";
-      btn.style.color = "#fff";
-    } else {
-      btn.style.backgroundColor = "#fff";
-    }
-
-    paginationContainer.appendChild(btn);
-  }
+// Création d’une carte annonce (extrait simplifié)
+function createAnnonceCard(a) {
+  const card = document.createElement("div");
+  card.className = "annonce-card";
+  card.innerHTML = `
+    <img src="${a.images?.[0] || 'https://via.placeholder.com/400x200?text=Annonce'}" alt="${a.title || 'Annonce'}" loading="lazy">
+    <div class="content">
+      <p class="price">${a.price ? a.price + " FCFA" : "Prix sur demande"}</p>
+      <h3 class="title">${a.title || "Sans titre"}</h3>
+      <p class="location">${a.city || "Ville non précisée"}</p>
+    </div>
+  `;
+  card.addEventListener("click", () => {
+    window.location.href = `Details.html?id=${encodeURIComponent(a.id)}`;
+  });
+  return card;
 }
 
 
@@ -765,4 +749,5 @@ function applyAllFilters() {
 </script>  
 </body>
 </html>
+
 
