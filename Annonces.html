@@ -160,7 +160,7 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 </div>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-import { getFirestore, collection, getDocs, query, orderBy, limit, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, query, orderBy, limit,startAfter, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
@@ -343,18 +343,35 @@ onAuthStateChanged(auth, async (user) => {
 
 async function loadAnnonces() {
   annoncesContainer.innerHTML = "";
+
   try {
-    // Calcule combien de documents on doit sauter pour la page actuelle
-    const offset = (currentPage - 1) * annoncesPerPage;
-    let q = query(collection(db, "annonces"), orderBy("createdAt", "desc"), limit(offset + annoncesPerPage));
+    let q = query(
+      collection(db, "annonces"),
+      orderBy("createdAt", "desc"),
+      limit(annoncesPerPage)
+    );
+
+    // Si currentPage > 1, on doit sauter les pages précédentes
+    let tempLastDoc = null;
+    for(let page = 1; page < currentPage; page++){
+      const snap = await getDocs(q);
+      if(snap.empty) break;
+      tempLastDoc = snap.docs[snap.docs.length - 1];
+      q = query(
+        collection(db, "annonces"),
+        orderBy("createdAt", "desc"),
+        startAfter(tempLastDoc),
+        limit(annoncesPerPage)
+      );
+    }
 
     const annoncesSnap = await getDocs(q);
+
     if (annoncesSnap.empty) {
       annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
       return;
     }
 
-    // Transforme en tableau d'annonces
     annoncesData = [];
     annoncesSnap.forEach(docSnap => {
       const data = docSnap.data();
@@ -362,10 +379,8 @@ async function loadAnnonces() {
       annoncesData.push(data);
     });
 
-    // Mets à jour le dernier doc visible pour futur usage si besoin
     lastVisibleDoc = annoncesSnap.docs[annoncesSnap.docs.length - 1];
 
-    // Charge les utilisateurs une seule fois
     if (!window.__usersCache) {
       const usersSnap = await getDocs(collection(db, "users"));
       const byEmail = {};
@@ -382,14 +397,13 @@ async function loadAnnonces() {
     setupCategoryFilters();
     setupSearchAndSort();
     setupFilterMenu();
-    applyAllFilters(); // ta fonction de filtre + pagination côté client
+    applyAllFilters();
 
   } catch(err) {
     console.error("Erreur chargement annonces:", err);
     annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   }
 }
-
 
 function escapeHTML(str) {
   if (!str) return "";
