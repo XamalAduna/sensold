@@ -305,17 +305,19 @@ const filterMenu = document.getElementById("filter-menu");
 const priceAscBtn = document.getElementById("price-asc");
 const priceDescBtn = document.getElementById("price-desc");
 
+const annoncesPerPage = 20;
+let currentPage = 1;
+let lastVisibleDocs = {};
+let isLoading = false;
+
 let currentUser = null;
-let lastVisibleDoc = null;
 let userFavorites = [];
 let annoncesData = [];
 let selectedCategory = "all";
 let selectedSubcategory = null;
 let searchText = "";
 let sortOrder = "default";
-let currentPage = 1;
-const annoncesPerPage = 20;
-  
+
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
@@ -339,10 +341,12 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
+async function loadAnnonces(page = 1) {
+  if (isLoading) return;
+  isLoading = true;
 
-
-async function loadAnnonces() {
   annoncesContainer.innerHTML = "";
+  annoncesData = [];
 
   try {
     let q = query(
@@ -351,59 +355,41 @@ async function loadAnnonces() {
       limit(annoncesPerPage)
     );
 
-    // Si currentPage > 1, on doit sauter les pages précédentes
-    let tempLastDoc = null;
-    for(let page = 1; page < currentPage; page++){
-      const snap = await getDocs(q);
-      if(snap.empty) break;
-      tempLastDoc = snap.docs[snap.docs.length - 1];
+    if (page > 1 && lastVisibleDocs[page - 1]) {
       q = query(
         collection(db, "annonces"),
         orderBy("createdAt", "desc"),
-        startAfter(tempLastDoc),
+        startAfter(lastVisibleDocs[page - 1]),
         limit(annoncesPerPage)
       );
     }
 
-    const annoncesSnap = await getDocs(q);
-
-    if (annoncesSnap.empty) {
-      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
+      isLoading = false;
       return;
     }
 
-    annoncesData = [];
-    annoncesSnap.forEach(docSnap => {
+    lastVisibleDocs[page] = snap.docs[snap.docs.length - 1];
+
+    snap.forEach(docSnap => {
       const data = docSnap.data();
       data.id = docSnap.id;
       annoncesData.push(data);
     });
 
-    lastVisibleDoc = annoncesSnap.docs[annoncesSnap.docs.length - 1];
+    applyAllFilters(); // garde tes fonctions existantes pour afficher les annonces
 
-    if (!window.__usersCache) {
-      const usersSnap = await getDocs(collection(db, "users"));
-      const byEmail = {};
-      const byId = {};
-      usersSnap.forEach(uDoc => {
-        const u = uDoc.data() || {};
-        byId[uDoc.id] = u;
-        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-        if(email) byEmail[email] = u;
-      });
-      window.__usersCache = { byEmail, byId };
-    }
-
-    setupCategoryFilters();
-    setupSearchAndSort();
-    setupFilterMenu();
-    applyAllFilters();
-
-  } catch(err) {
+  } catch (err) {
     console.error("Erreur chargement annonces:", err);
-    annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
+    annoncesContainer.innerHTML = `<p>⚠️ Erreur : ${err.message}</p>`;
   }
+
+  currentPage = page;
+  isLoading = false;
 }
+
 
 function escapeHTML(str) {
   if (!str) return "";
