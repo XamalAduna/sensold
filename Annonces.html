@@ -160,7 +160,7 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 </div>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-import { getFirestore, collection, getDocs, query, orderBy, limit,startAfter, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, query, orderBy, limit, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
@@ -338,96 +338,64 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-// 1️⃣ Fonction de chargement initiale
-async function loadAnnonces() {
-  annoncesContainer.innerHTML = "";
-  try {
-    const annoncesQuery = query(
-      collection(db, "annonces"),
-      orderBy("createdAt", "desc"),
-      limit(20)
-    );
+let lastVisible = null;
+const annoncesPerPage = 20;
 
-    const annoncesSnap = await getDocs(annoncesQuery);
-
-    if (annoncesSnap.empty) { 
-      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
-      return; 
-    }
-
-    annoncesData = [];
-    annoncesSnap.forEach(docSnap => {
-      const data = docSnap.data();
-      data.id = docSnap.id;
-      annoncesData.push(data);
-    });
-
-    // Stocke le dernier document pour pagination
-    window.lastAnnonceDoc = annoncesSnap.docs[annoncesSnap.docs.length - 1];
-
-    // Chargement utilisateurs
-    if (!window.__usersCache) {
-      const usersSnap = await getDocs(collection(db, "users"));
-      const byEmail = {};
-      const byId = {};
-      usersSnap.forEach(uDoc => {
-        const u = uDoc.data() || {};
-        byId[uDoc.id] = u;
-        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-        if(email) byEmail[email] = u;
-      });
-      window.__usersCache = { byEmail, byId };
-    }
-
-    setupCategoryFilters();
-    setupSearchAndSort();
-    setupFilterMenu();
-    applyAllFilters();
-
-  } catch(err) {
-    console.error("Erreur chargement annonces:", err);
-    annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
+async function loadAnnoncesBatch(reset = false) {
+  if(reset) {
+    annoncesContainer.innerHTML = "";
+    lastVisible = null;
   }
-}
 
-// 2️⃣ Fonction "Voir plus" pour charger les suivantes
-async function loadMoreAnnonces() {
-  if (!window.lastAnnonceDoc) return;
+  let annoncesQuery = query(
+    collection(db, "annonces"),
+    orderBy("createdAt", "desc"),
+    limit(annoncesPerPage)
+  );
 
-  try {
-    const nextQuery = query(
+  if (lastVisible) {
+    annoncesQuery = query(
       collection(db, "annonces"),
       orderBy("createdAt", "desc"),
-      startAfter(window.lastAnnonceDoc),
-      limit(20)
+      startAfter(lastVisible),
+      limit(annoncesPerPage)
     );
+  }
 
-    const nextSnap = await getDocs(nextQuery);
-    if (nextSnap.empty) {
-      voirPlusBtn.style.display = "none"; 
+  try {
+    const snapshot = await getDocs(annoncesQuery);
+    if(snapshot.empty && reset){
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
       return;
     }
 
-    nextSnap.forEach(docSnap => {
+    lastVisible = snapshot.docs[snapshot.docs.length - 1];
+
+    snapshot.forEach(docSnap => {
       const data = docSnap.data();
       data.id = docSnap.id;
-      annoncesData.push(data);
+      createCard(data); // fonction qui crée et ajoute la carte d'annonce
     });
 
-    window.lastAnnonceDoc = nextSnap.docs[nextSnap.docs.length - 1];
-    applyAllFilters();
-
-  } catch(err) {
-    console.error("Erreur chargement annonces suivantes:", err);
+  } catch(err){
+    console.error("Erreur chargement annonces:", err);
+    annoncesContainer.innerHTML = `<p>⚠️ Erreur : ${err.message}</p>`;
   }
 }
 
-// 3️⃣ Création du bouton "Voir plus"
-const voirPlusBtn = document.createElement("button");
-voirPlusBtn.textContent = "Voir plus";
-voirPlusBtn.className = "voir-plus-btn";
-voirPlusBtn.addEventListener("click", loadMoreAnnonces);
-document.body.appendChild(voirPlusBtn);
+// Scroll infini pour charger plus d'annonces
+window.addEventListener("scroll", () => {
+  if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 100){
+    loadAnnoncesBatch();
+  }
+});
+
+// Exemple d'utilisation au départ
+onAuthStateChanged(auth, user => {
+  currentUser = user;
+  loadAnnoncesBatch(true); // true = reset, on recharge depuis le début
+});
+
 
 
 function escapeHTML(str) {
@@ -589,24 +557,15 @@ async function renderAnnonces(filtered) {
   renderPagination(Math.ceil(filtered.length / annoncesPerPage));
 }
 
-function renderPagination(totalPages, currentPage) {
-    const paginationContainer = document.getElementById("pagination");
-    paginationContainer.innerHTML = "";
-
-    if (totalPages <= 1) return; // pas besoin de pagination
-
-    for (let i = 1; i <= totalPages; i++) {
-        const pageBtn = document.createElement("button");
-        pageBtn.textContent = i;
-        pageBtn.className = i === currentPage ? "active" : "";
-        pageBtn.addEventListener("click", () => {
-            currentPage = i;  // changer la page courante
-            applyAllFilters(); // réappliquer les filtres avec la nouvelle page
-        });
-        paginationContainer.appendChild(pageBtn);
-    }
-}
-
+function renderPagination(totalPages){
+  let paginationContainer = document.getElementById("pagination");
+  if(!paginationContainer){
+    paginationContainer = document.createElement("div");
+    paginationContainer.id = "pagination";
+    paginationContainer.style.textAlign = "center";
+    paginationContainer.style.marginTop = "20px";
+    document.body.appendChild(paginationContainer);
+  }
 
   paginationContainer.innerHTML = "";
 
@@ -738,32 +697,17 @@ function isBoostActive(annonce) {
   return boostEndDate > now;
 }
 
-
 function applyAllFilters() {
-    let filtered = annoncesData;
-
-    // filtres existants
-    if (selectedCategory && selectedCategory !== "all") 
-        filtered = filtered.filter(a => a.categorie === selectedCategory);
-    if (selectedSubcategory) 
-        filtered = filtered.filter(a => a.souscategorie === selectedSubcategory);
-    if (searchText) 
-        filtered = filtered.filter(a => 
-            (a.title?.toLowerCase().includes(searchText.toLowerCase())) || 
-            (a.city?.toLowerCase().includes(searchText.toLowerCase()))
-        );
-
-    // pagination
-    const totalPages = Math.ceil(filtered.length / annoncesPerPage);
-    if (currentPage > totalPages) currentPage = totalPages || 1; // éviter dépassement
-
-    const start = (currentPage - 1) * annoncesPerPage;
-    const end = start + annoncesPerPage;
-    const paginated = filtered.slice(start, end);
-
-    renderAnnonces(paginated);           // afficher les annonces
-    renderPagination(totalPages, currentPage); // afficher la pagination
-}
+  let filtered = annoncesData;
+  if(selectedCategory && selectedCategory !== "all") 
+      filtered = filtered.filter(a => a.categorie === selectedCategory);
+  if(selectedSubcategory) 
+      filtered = filtered.filter(a => a.souscategorie === selectedSubcategory);
+  if(searchText) 
+      filtered = filtered.filter(a => 
+        (a.title?.toLowerCase().includes(searchText.toLowerCase())) || 
+        (a.city?.toLowerCase().includes(searchText.toLowerCase()))
+      );
 
   filtered.sort((a, b) => {
     const aBoost = isBoostActive(a);
