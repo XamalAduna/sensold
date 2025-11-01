@@ -338,49 +338,45 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-let lastVisible = null; // pour suivre la dernière annonce chargée
-
-async function loadAnnoncesPage() {
+async function loadAnnonces() {
+  annoncesContainer.innerHTML = "";
   try {
-    let q;
-    if (!lastVisible) {
-      q = query(
-        collection(db, "annonces"),
-        orderBy("createdAt", "desc"),
-        limit(20)
-      );
-    } else {
-      q = query(
-        collection(db, "annonces"),
-        orderBy("createdAt", "desc"),
-        startAfter(lastVisible),
-        limit(20)
-      );
+    const annoncesSnap = await getDocs(query(collection(db, "annonces"), orderBy("createdAt","desc")));
+    if(annoncesSnap.empty){ 
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
+      return; 
     }
-
-    const annoncesSnap = await getDocs(q);
-    if (annoncesSnap.empty) {
-      console.log("Aucune annonce à charger");
-      return;
-    }
-
-    lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1]; // sauvegarde pour la prochaine page
-
-    const nouvellesAnnonces = [];
+    annoncesData = [];
     annoncesSnap.forEach(docSnap => {
       const data = docSnap.data();
       data.id = docSnap.id;
-      nouvellesAnnonces.push(data);
+      annoncesData.push(data);
     });
 
-    annoncesData = annoncesData.concat(nouvellesAnnonces); // ajoute au tableau global
-    applyAllFilters(); // filtre et affiche
+    // Charge les utilisateurs AVANT d'appeler applyAllFilters
+    if (!window.__usersCache) {
+      const usersSnap = await getDocs(collection(db, "users"));
+      const byEmail = {};
+      const byId = {};
+      usersSnap.forEach(uDoc => {
+        const u = uDoc.data() || {};
+        byId[uDoc.id] = u;
+        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+        if(email) byEmail[email] = u;
+      });
+      window.__usersCache = { byEmail, byId };
+    }
 
-  } catch(err) {
+    setupCategoryFilters();
+    setupSearchAndSort();
+    setupFilterMenu();
+    applyAllFilters();
+
+  } catch(err){
     console.error("Erreur chargement annonces:", err);
+    annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   }
 }
-
 
 
 function escapeHTML(str) {
