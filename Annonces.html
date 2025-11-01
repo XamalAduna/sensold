@@ -160,7 +160,7 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 </div>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-import { getFirestore, collection, getDocs, query, orderBy, limit, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, query, orderBy, limit,startAfter, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
@@ -338,58 +338,70 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-let lastVisible = null;
-let totalAnnonces = 0;
-let totalPages = 1;
+let lastVisible = null; // garde la dernière annonce pour startAfter
+let isLoading = false;
 
-async function loadAnnonces(page = 1) {
-  annoncesContainer.innerHTML = "Chargement...";
+async function loadAnnonces(loadMore = false) {
+  if(isLoading) return;
+  isLoading = true;
+
+  if(!loadMore){
+    annoncesContainer.innerHTML = "";
+    lastVisible = null; // reset si nouvelle catégorie/recherche
+    annoncesData = [];
+  }
 
   try {
-    // On calcule l'offset selon la page
-    const offset = (page - 1) * annoncesPerPage;
-
     let q = query(
       collection(db, "annonces"),
-      orderBy("createdAt","desc"),
+      orderBy("createdAt", "desc"),
       limit(annoncesPerPage)
     );
 
-    if (lastVisible && page > 1) {
+    if(lastVisible) {
       q = query(
         collection(db, "annonces"),
-        orderBy("createdAt","desc"),
+        orderBy("createdAt", "desc"),
         startAfter(lastVisible),
         limit(annoncesPerPage)
       );
     }
 
-    const snap = await getDocs(q);
-    if (snap.empty) {
-      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
-      return;
+    const annoncesSnap = await getDocs(q);
+    if(annoncesSnap.empty && !loadMore){ 
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
+      isLoading = false;
+      return; 
     }
 
-    // On met à jour lastVisible pour la prochaine page
-    lastVisible = snap.docs[snap.docs.length - 1];
-
-    // On prépare les données pour applyAllFilters()
-    annoncesData = snap.docs.map(docSnap => {
+    annoncesSnap.forEach(docSnap => {
       const data = docSnap.data();
       data.id = docSnap.id;
-      return data;
+      annoncesData.push(data);
     });
 
-    // Nombre total d'annonces Firestore (approx)
-    totalAnnonces = annoncesData.length + offset; 
-    totalPages = Math.ceil(totalAnnonces / annoncesPerPage);
+    lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
 
-    applyAllFilters(); // filtre + tri + render
-    renderPagination(totalPages);
+    // Cache utilisateurs
+    if (!window.__usersCache) {
+      const usersSnap = await getDocs(collection(db, "users"));
+      const byEmail = {};
+      const byId = {};
+      usersSnap.forEach(uDoc => {
+        const u = uDoc.data() || {};
+        byId[uDoc.id] = u;
+        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+        if(email) byEmail[email] = u;
+      });
+      window.__usersCache = { byEmail, byId };
+    }
 
-  } catch(err) {
+    applyAllFilters();
+  } catch(err){
     console.error("Erreur chargement annonces:", err);
     annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
+  } finally {
+    isLoading = false;
   }
 }
 
@@ -402,6 +414,9 @@ function escapeHTML(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
 }
+
+let loading = false;
+
 async function renderAnnonces(filtered) {
   annoncesContainer.innerHTML = "";
   if (filtered.length === 0) {
@@ -409,12 +424,11 @@ async function renderAnnonces(filtered) {
     return;
   }
 
-  const totalPages = Math.ceil(filtered.length / annoncesPerPage);
-  if (currentPage > totalPages) currentPage = 1;
-
-  const start = (currentPage - 1) * annoncesPerPage;
-  const end = start + annoncesPerPage;
-  const pageItems = filtered.slice(start, end);
+  // On ne slice plus ici, car on va charger par lot
+  const batchSize = 20;
+  const startIndex = (currentPage - 1) * batchSize;
+  const endIndex = startIndex + batchSize;
+  const pageItems = filtered.slice(startIndex, endIndex);
 
   if (!window.__usersCache) {
     try {
@@ -511,6 +525,7 @@ async function renderAnnonces(filtered) {
         </div>
       </div>
     `;
+
     const titleEl = card.querySelector('.title');
     if ((a.title || "").length > 30) titleEl.classList.add('long-text');
 
@@ -546,14 +561,13 @@ async function renderAnnonces(filtered) {
   }
 
   for (const a of pageItems) {
-    // On utilise setTimeout minimal pour laisser le navigateur afficher immédiatement
     setTimeout(() => createCard(a), 0);
   }
 
-  renderPagination(Math.ceil(filtered.length / annoncesPerPage));
+  renderPagination(Math.ceil(filtered.length / batchSize));
 }
 
-function renderPagination(totalPages) {
+function renderPagination(totalPages){
   let paginationContainer = document.getElementById("pagination");
   if(!paginationContainer){
     paginationContainer = document.createElement("div");
@@ -562,6 +576,7 @@ function renderPagination(totalPages) {
     paginationContainer.style.marginTop = "20px";
     document.body.appendChild(paginationContainer);
   }
+
   paginationContainer.innerHTML = "";
 
   const createPageBtn = (num) => {
@@ -576,8 +591,7 @@ function renderPagination(totalPages) {
     btn.style.cursor = "pointer";
     btn.addEventListener("click", () => {
       currentPage = num;
-      lastVisible = null; // reset pour Firestore startAfter
-      loadAnnonces(currentPage);
+      applyAllFilters();
     });
     return btn;
   }
@@ -601,6 +615,7 @@ function renderPagination(totalPages) {
     paginationContainer.appendChild(createPageBtn(totalPages));
   }
 }
+
 function setupCategoryFilters() {
   const allCategory = document.querySelector('.category[data-cat="all"]');
   if (allCategory) allCategory.classList.add("active");
