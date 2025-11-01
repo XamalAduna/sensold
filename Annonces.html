@@ -338,61 +338,56 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-let lastVisible = null; // pour la pagination Firestore
+let lastVisible = null;
+let totalAnnonces = 0;
+let totalPages = 1;
 
-async function loadAnnonces() {
-  annoncesContainer.innerHTML = "";
+async function loadAnnonces(page = 1) {
+  annoncesContainer.innerHTML = "Chargement...";
+
   try {
+    // On calcule l'offset selon la page
+    const offset = (page - 1) * annoncesPerPage;
+
     let q = query(
       collection(db, "annonces"),
       orderBy("createdAt","desc"),
-      limit(20) // récupère 20 annonces seulement
+      limit(annoncesPerPage)
     );
 
-    if (lastVisible) {
+    if (lastVisible && page > 1) {
       q = query(
         collection(db, "annonces"),
         orderBy("createdAt","desc"),
         startAfter(lastVisible),
-        limit(20)
+        limit(annoncesPerPage)
       );
     }
 
-    const annoncesSnap = await getDocs(q);
-    if (annoncesSnap.empty) {
-      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
-      return; 
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
+      return;
     }
 
-    annoncesData = [];
-    annoncesSnap.forEach(docSnap => {
+    // On met à jour lastVisible pour la prochaine page
+    lastVisible = snap.docs[snap.docs.length - 1];
+
+    // On prépare les données pour applyAllFilters()
+    annoncesData = snap.docs.map(docSnap => {
       const data = docSnap.data();
       data.id = docSnap.id;
-      annoncesData.push(data);
+      return data;
     });
 
-    lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1]; // pour la prochaine page
+    // Nombre total d'annonces Firestore (approx)
+    totalAnnonces = annoncesData.length + offset; 
+    totalPages = Math.ceil(totalAnnonces / annoncesPerPage);
 
-    // Reste du code comme avant
-    if (!window.__usersCache) {
-      const usersSnap = await getDocs(collection(db, "users"));
-      const byEmail = {};
-      const byId = {};
-      usersSnap.forEach(uDoc => {
-        const u = uDoc.data() || {};
-        byId[uDoc.id] = u;
-        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-        if(email) byEmail[email] = u;
-      });
-      window.__usersCache = { byEmail, byId };
-    }
+    applyAllFilters(); // filtre + tri + render
+    renderPagination(totalPages);
 
-    setupCategoryFilters();
-    setupSearchAndSort();
-    setupFilterMenu();
-    applyAllFilters();
-
-  } catch(err){
+  } catch(err) {
     console.error("Erreur chargement annonces:", err);
     annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   }
@@ -558,7 +553,7 @@ async function renderAnnonces(filtered) {
   renderPagination(Math.ceil(filtered.length / annoncesPerPage));
 }
 
-function renderPagination(totalPages){
+function renderPagination(totalPages) {
   let paginationContainer = document.getElementById("pagination");
   if(!paginationContainer){
     paginationContainer = document.createElement("div");
@@ -567,7 +562,6 @@ function renderPagination(totalPages){
     paginationContainer.style.marginTop = "20px";
     document.body.appendChild(paginationContainer);
   }
-
   paginationContainer.innerHTML = "";
 
   const createPageBtn = (num) => {
@@ -582,7 +576,8 @@ function renderPagination(totalPages){
     btn.style.cursor = "pointer";
     btn.addEventListener("click", () => {
       currentPage = num;
-      applyAllFilters();
+      lastVisible = null; // reset pour Firestore startAfter
+      loadAnnonces(currentPage);
     });
     return btn;
   }
@@ -606,7 +601,6 @@ function renderPagination(totalPages){
     paginationContainer.appendChild(createPageBtn(totalPages));
   }
 }
-
 function setupCategoryFilters() {
   const allCategory = document.querySelector('.category[data-cat="all"]');
   if (allCategory) allCategory.classList.add("active");
