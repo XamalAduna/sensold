@@ -338,22 +338,53 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-async function loadAnnonces() {
-  annoncesContainer.innerHTML = "";
-  try {
-    const annoncesSnap = await getDocs(query(collection(db, "annonces"), orderBy("createdAt","desc")));
-    if(annoncesSnap.empty){ 
-      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
-      return; 
-    }
+let lastVisible = null; // pour Firestore pagination
+let isLoading = false;   // pour éviter les appels simultanés
+
+async function loadAnnonces(reset = true) {
+  if (isLoading) return;
+  isLoading = true;
+
+  if (reset) {
+    annoncesContainer.innerHTML = "";
     annoncesData = [];
+    lastVisible = null;
+    currentPage = 1;
+  }
+
+  try {
+    let q = query(
+      collection(db, "annonces"),
+      orderBy("createdAt", "desc"),
+      limit(20)
+    );
+
+    if (lastVisible) {
+      q = query(
+        collection(db, "annonces"),
+        orderBy("createdAt", "desc"),
+        startAfter(lastVisible),
+        limit(20)
+      );
+    }
+
+    const annoncesSnap = await getDocs(q);
+
+    if (annoncesSnap.empty) {
+      if (annoncesData.length === 0) annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
+      isLoading = false;
+      return;
+    }
+
+    lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
+
     annoncesSnap.forEach(docSnap => {
       const data = docSnap.data();
       data.id = docSnap.id;
       annoncesData.push(data);
     });
 
-    // Charge les utilisateurs AVANT d'appeler applyAllFilters
+    // Charge les utilisateurs si nécessaire
     if (!window.__usersCache) {
       const usersSnap = await getDocs(collection(db, "users"));
       const byEmail = {};
@@ -367,16 +398,16 @@ async function loadAnnonces() {
       window.__usersCache = { byEmail, byId };
     }
 
-    setupCategoryFilters();
-    setupSearchAndSort();
-    setupFilterMenu();
-    applyAllFilters();
+    applyAllFilters(); // rafraîchit les annonces affichées avec pagination actuelle
 
-  } catch(err){
+  } catch(err) {
     console.error("Erreur chargement annonces:", err);
     annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
+  } finally {
+    isLoading = false;
   }
 }
+
 
 
 function escapeHTML(str) {
