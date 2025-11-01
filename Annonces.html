@@ -589,15 +589,24 @@ async function renderAnnonces(filtered) {
   renderPagination(Math.ceil(filtered.length / annoncesPerPage));
 }
 
-function renderPagination(totalPages){
-  let paginationContainer = document.getElementById("pagination");
-  if(!paginationContainer){
-    paginationContainer = document.createElement("div");
-    paginationContainer.id = "pagination";
-    paginationContainer.style.textAlign = "center";
-    paginationContainer.style.marginTop = "20px";
-    document.body.appendChild(paginationContainer);
-  }
+function renderPagination(totalPages, currentPage) {
+    const paginationContainer = document.getElementById("pagination");
+    paginationContainer.innerHTML = "";
+
+    if (totalPages <= 1) return; // pas besoin de pagination
+
+    for (let i = 1; i <= totalPages; i++) {
+        const pageBtn = document.createElement("button");
+        pageBtn.textContent = i;
+        pageBtn.className = i === currentPage ? "active" : "";
+        pageBtn.addEventListener("click", () => {
+            currentPage = i;  // changer la page courante
+            applyAllFilters(); // réappliquer les filtres avec la nouvelle page
+        });
+        paginationContainer.appendChild(pageBtn);
+    }
+}
+
 
   paginationContainer.innerHTML = "";
 
@@ -729,17 +738,32 @@ function isBoostActive(annonce) {
   return boostEndDate > now;
 }
 
+
 function applyAllFilters() {
-  let filtered = annoncesData;
-  if(selectedCategory && selectedCategory !== "all") 
-      filtered = filtered.filter(a => a.categorie === selectedCategory);
-  if(selectedSubcategory) 
-      filtered = filtered.filter(a => a.souscategorie === selectedSubcategory);
-  if(searchText) 
-      filtered = filtered.filter(a => 
-        (a.title?.toLowerCase().includes(searchText.toLowerCase())) || 
-        (a.city?.toLowerCase().includes(searchText.toLowerCase()))
-      );
+    let filtered = annoncesData;
+
+    // filtres existants
+    if (selectedCategory && selectedCategory !== "all") 
+        filtered = filtered.filter(a => a.categorie === selectedCategory);
+    if (selectedSubcategory) 
+        filtered = filtered.filter(a => a.souscategorie === selectedSubcategory);
+    if (searchText) 
+        filtered = filtered.filter(a => 
+            (a.title?.toLowerCase().includes(searchText.toLowerCase())) || 
+            (a.city?.toLowerCase().includes(searchText.toLowerCase()))
+        );
+
+    // pagination
+    const totalPages = Math.ceil(filtered.length / annoncesPerPage);
+    if (currentPage > totalPages) currentPage = totalPages || 1; // éviter dépassement
+
+    const start = (currentPage - 1) * annoncesPerPage;
+    const end = start + annoncesPerPage;
+    const paginated = filtered.slice(start, end);
+
+    renderAnnonces(paginated);           // afficher les annonces
+    renderPagination(totalPages, currentPage); // afficher la pagination
+}
 
   filtered.sort((a, b) => {
     const aBoost = isBoostActive(a);
