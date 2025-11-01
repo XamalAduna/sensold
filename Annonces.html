@@ -338,59 +338,45 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-let lastVisible = null; // pour la page suivante
-let firstVisible = null; // pour la page précédente
-let annoncesPerPage = 20;
-
-async function loadAnnonces(page = 1, filters = {}) {
-  const { categorie, souscategorie, searchText, favoris } = filters;
-  const annoncesContainer = document.getElementById("annonces");
-  annoncesContainer.innerHTML = "<p>Chargement...</p>";
-
+async function loadAnnonces() {
+  annoncesContainer.innerHTML = "";
   try {
-    let q = collection(db, "annonces");
-
-    // Appliquer les filtres Firestore si existants
-    if (categorie && categorie !== "all") q = query(q, where("categorie", "==", categorie));
-    if (souscategorie) q = query(q, where("souscategorie", "==", souscategorie));
-    if (searchText) q = query(q, where("titre", ">=", searchText), where("titre", "<=", searchText + "\uf8ff"));
-
-    // Trier par date
-    q = query(q, orderBy("createdAt", "desc"));
-
-    // Pagination
-    if (page > 1 && lastVisible) {
-      q = query(q, startAfter(lastVisible), limit(annoncesPerPage));
-    } else {
-      q = query(q, limit(annoncesPerPage));
+    const annoncesSnap = await getDocs(query(collection(db, "annonces"), orderBy("createdAt","desc")));
+    if(annoncesSnap.empty){ 
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
+      return; 
     }
-
-    const snap = await getDocs(q);
-
-    if (snap.empty) {
-      annoncesContainer.innerHTML = "<p>Aucune annonce trouvée.</p>";
-      return;
-    }
-
-    const annoncesData = [];
-    snap.forEach(docSnap => {
+    annoncesData = [];
+    annoncesSnap.forEach(docSnap => {
       const data = docSnap.data();
       data.id = docSnap.id;
-      data.favori = favoris?.includes(docSnap.id) || false;
       annoncesData.push(data);
     });
 
-    firstVisible = snap.docs[0];
-    lastVisible = snap.docs[snap.docs.length - 1];
+    // Charge les utilisateurs AVANT d'appeler applyAllFilters
+    if (!window.__usersCache) {
+      const usersSnap = await getDocs(collection(db, "users"));
+      const byEmail = {};
+      const byId = {};
+      usersSnap.forEach(uDoc => {
+        const u = uDoc.data() || {};
+        byId[uDoc.id] = u;
+        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+        if(email) byEmail[email] = u;
+      });
+      window.__usersCache = { byEmail, byId };
+    }
 
-    renderAnnonces(annoncesData); // On passe à l'étape 2️⃣
-    renderPaginationFirestore(page); // On passe à l'étape 3️⃣
-  } catch (err) {
-    console.error(err);
-    annoncesContainer.innerHTML = `<p>Erreur : ${err.message}</p>`;
+    setupCategoryFilters();
+    setupSearchAndSort();
+    setupFilterMenu();
+    applyAllFilters();
+
+  } catch(err){
+    console.error("Erreur chargement annonces:", err);
+    annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   }
 }
-
 
 
 function escapeHTML(str) {
@@ -401,8 +387,6 @@ function escapeHTML(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
 }
-
-
 async function renderAnnonces(filtered) {
   annoncesContainer.innerHTML = "";
   if (filtered.length === 0) {
@@ -410,7 +394,6 @@ async function renderAnnonces(filtered) {
     return;
   }
 
-  // Pagination
   const totalPages = Math.ceil(filtered.length / annoncesPerPage);
   if (currentPage > totalPages) currentPage = 1;
 
@@ -418,7 +401,6 @@ async function renderAnnonces(filtered) {
   const end = start + annoncesPerPage;
   const pageItems = filtered.slice(start, end);
 
-  // Cache utilisateurs
   if (!window.__usersCache) {
     try {
       const usersSnap = await getDocs(collection(db, "users"));
@@ -437,7 +419,6 @@ async function renderAnnonces(filtered) {
     }
   }
 
-  // Création carte annonce
   function createCard(a) {
     const docId = escapeHTML(a.id || "");
     const card = document.createElement("div");
@@ -549,17 +530,17 @@ async function renderAnnonces(filtered) {
     annoncesContainer.appendChild(card);
   }
 
-  // On affiche les annonces de la page
   for (const a of pageItems) {
+    // On utilise setTimeout minimal pour laisser le navigateur afficher immédiatement
     setTimeout(() => createCard(a), 0);
   }
 
-  renderPagination(totalPages);
+  renderPagination(Math.ceil(filtered.length / annoncesPerPage));
 }
 
-function renderPagination(totalPages){
+function renderPagination(totalPages) {
   let paginationContainer = document.getElementById("pagination");
-  if(!paginationContainer){
+  if (!paginationContainer) {
     paginationContainer = document.createElement("div");
     paginationContainer.id = "pagination";
     paginationContainer.style.textAlign = "center";
@@ -569,41 +550,50 @@ function renderPagination(totalPages){
 
   paginationContainer.innerHTML = "";
 
-  const createPageBtn = (num) => {
-    const btn = document.createElement("button");
-    btn.textContent = num;
-    btn.style.margin = "0 5px";
-    btn.style.padding = "6px 12px";
-    btn.style.borderRadius = "6px";
-    btn.style.border = num === currentPage ? "2px solid #009688" : "1px solid #ccc";
-    btn.style.background = num === currentPage ? "#009688" : "#fff";
-    btn.style.color = num === currentPage ? "#fff" : "#000";
-    btn.style.cursor = "pointer";
-    btn.addEventListener("click", () => {
-      currentPage = num;
+  if (totalPages <= 1) return;
+
+  // Bouton Précédent
+  const prevBtn = document.createElement("button");
+  prevBtn.textContent = "Précédent";
+  prevBtn.style.margin = "0 10px";
+  prevBtn.style.padding = "6px 12px";
+  prevBtn.style.borderRadius = "6px";
+  prevBtn.style.border = "1px solid #ccc";
+  prevBtn.style.background = "#fff";
+  prevBtn.style.cursor = currentPage === 1 ? "not-allowed" : "pointer";
+  prevBtn.disabled = currentPage === 1;
+  prevBtn.addEventListener("click", () => {
+    if (currentPage > 1) {
+      currentPage--;
       applyAllFilters();
-    });
-    return btn;
-  }
+    }
+  });
+  paginationContainer.appendChild(prevBtn);
 
-  const maxButtons = 7;
-  let startPage = Math.max(1, currentPage - 3);
-  let endPage = Math.min(totalPages, startPage + maxButtons - 1);
-  startPage = Math.max(1, endPage - maxButtons + 1);
+  // Numéro de page actuel
+  const pageIndicator = document.createElement("span");
+  pageIndicator.textContent = `Page ${currentPage} / ${totalPages}`;
+  pageIndicator.style.margin = "0 10px";
+  pageIndicator.style.fontWeight = "bold";
+  paginationContainer.appendChild(pageIndicator);
 
-  if(startPage > 1){
-    paginationContainer.appendChild(createPageBtn(1));
-    if(startPage > 2) paginationContainer.appendChild(document.createTextNode("..."));
-  }
-
-  for(let i = startPage; i <= endPage; i++){
-    paginationContainer.appendChild(createPageBtn(i));
-  }
-
-  if(endPage < totalPages){
-    if(endPage < totalPages -1) paginationContainer.appendChild(document.createTextNode("..."));
-    paginationContainer.appendChild(createPageBtn(totalPages));
-  }
+  // Bouton Suivant
+  const nextBtn = document.createElement("button");
+  nextBtn.textContent = "Suivant";
+  nextBtn.style.margin = "0 10px";
+  nextBtn.style.padding = "6px 12px";
+  nextBtn.style.borderRadius = "6px";
+  nextBtn.style.border = "1px solid #ccc";
+  nextBtn.style.background = "#fff";
+  nextBtn.style.cursor = currentPage === totalPages ? "not-allowed" : "pointer";
+  nextBtn.disabled = currentPage === totalPages;
+  nextBtn.addEventListener("click", () => {
+    if (currentPage < totalPages) {
+      currentPage++;
+      applyAllFilters();
+    }
+  });
+  paginationContainer.appendChild(nextBtn);
 }
 
 function setupCategoryFilters() {
