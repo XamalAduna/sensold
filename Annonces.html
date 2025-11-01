@@ -160,7 +160,7 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 </div>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-import { getFirestore, collection, getDocs, query, orderBy, limit, doc, updateDoc, arrayUnion, arrayRemove,startAfter, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, query, orderBy, limit,startAfter, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
@@ -338,70 +338,96 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-let lastVisible = null; // pour garder la dernière annonce visible
-let isLoading = false;
-let hasMore = true;
-
-async function loadAnnonces(initial = true) {
-  if (isLoading || !hasMore) return;
-  isLoading = true;
-
-  if (initial) {
-    annoncesContainer.innerHTML = "";
-    annoncesData = [];
-    lastVisible = null;
-    hasMore = true;
-  }
-
+// 1️⃣ Fonction de chargement initiale
+async function loadAnnonces() {
+  annoncesContainer.innerHTML = "";
   try {
-    let q = query(
+    const annoncesQuery = query(
       collection(db, "annonces"),
       orderBy("createdAt", "desc"),
-      limit(20)
-    );
-    if (lastVisible) q = query(
-      collection(db, "annonces"),
-      orderBy("createdAt", "desc"),
-      startAfter(lastVisible),
       limit(20)
     );
 
-    const annoncesSnap = await getDocs(q);
-    if (annoncesSnap.empty) {
-      hasMore = false;
-      isLoading = false;
-      if (initial) annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
-      return;
+    const annoncesSnap = await getDocs(annoncesQuery);
+
+    if (annoncesSnap.empty) { 
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
+      return; 
     }
 
-    lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
+    annoncesData = [];
     annoncesSnap.forEach(docSnap => {
       const data = docSnap.data();
       data.id = docSnap.id;
       annoncesData.push(data);
     });
 
+    // Stocke le dernier document pour pagination
+    window.lastAnnonceDoc = annoncesSnap.docs[annoncesSnap.docs.length - 1];
+
+    // Chargement utilisateurs
     if (!window.__usersCache) {
       const usersSnap = await getDocs(collection(db, "users"));
-      const byEmail = {}, byId = {};
+      const byEmail = {};
+      const byId = {};
       usersSnap.forEach(uDoc => {
         const u = uDoc.data() || {};
         byId[uDoc.id] = u;
         const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-        if (email) byEmail[email] = u;
+        if(email) byEmail[email] = u;
       });
       window.__usersCache = { byEmail, byId };
     }
 
-    applyAllFilters(); // tu gardes ta logique actuelle
-  } catch (err) {
-    console.error("Erreur chargement annonces:", err);
-    annoncesContainer.innerHTML = `<p>⚠️ Erreur : ${err.message}</p>`;
-  }
+    setupCategoryFilters();
+    setupSearchAndSort();
+    setupFilterMenu();
+    applyAllFilters();
 
-  isLoading = false;
+  } catch(err) {
+    console.error("Erreur chargement annonces:", err);
+    annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
+  }
 }
 
+// 2️⃣ Fonction "Voir plus" pour charger les suivantes
+async function loadMoreAnnonces() {
+  if (!window.lastAnnonceDoc) return;
+
+  try {
+    const nextQuery = query(
+      collection(db, "annonces"),
+      orderBy("createdAt", "desc"),
+      startAfter(window.lastAnnonceDoc),
+      limit(20)
+    );
+
+    const nextSnap = await getDocs(nextQuery);
+    if (nextSnap.empty) {
+      voirPlusBtn.style.display = "none"; 
+      return;
+    }
+
+    nextSnap.forEach(docSnap => {
+      const data = docSnap.data();
+      data.id = docSnap.id;
+      annoncesData.push(data);
+    });
+
+    window.lastAnnonceDoc = nextSnap.docs[nextSnap.docs.length - 1];
+    applyAllFilters();
+
+  } catch(err) {
+    console.error("Erreur chargement annonces suivantes:", err);
+  }
+}
+
+// 3️⃣ Création du bouton "Voir plus"
+const voirPlusBtn = document.createElement("button");
+voirPlusBtn.textContent = "Voir plus";
+voirPlusBtn.className = "voir-plus-btn";
+voirPlusBtn.addEventListener("click", loadMoreAnnonces);
+document.body.appendChild(voirPlusBtn);
 
 
 function escapeHTML(str) {
@@ -732,14 +758,6 @@ function applyAllFilters() {
     return bDate - aDate;
   });
   renderAnnonces(filtered);}
-
-
-  window.addEventListener("scroll", () => {
-  if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 100) {
-    loadAnnonces(false); // charge les suivantes quand on atteint le bas
-  }
-});
-
 </script>  
 </body>
 </html>
