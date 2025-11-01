@@ -338,64 +338,65 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-let lastVisible = null;
-const annoncesPerPage = 20;
+let lastVisible = null; // pour la pagination Firestore
 
-async function loadAnnoncesBatch(reset = false) {
-  if(reset) {
-    annoncesContainer.innerHTML = "";
-    lastVisible = null;
-  }
-
-  let annoncesQuery = query(
-    collection(db, "annonces"),
-    orderBy("createdAt", "desc"),
-    limit(annoncesPerPage)
-  );
-
-  if (lastVisible) {
-    annoncesQuery = query(
-      collection(db, "annonces"),
-      orderBy("createdAt", "desc"),
-      startAfter(lastVisible),
-      limit(annoncesPerPage)
-    );
-  }
-
+async function loadAnnonces() {
+  annoncesContainer.innerHTML = "";
   try {
-    const snapshot = await getDocs(annoncesQuery);
-    if(snapshot.empty && reset){
-      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
-      return;
+    let q = query(
+      collection(db, "annonces"),
+      orderBy("createdAt","desc"),
+      limit(20) // récupère 20 annonces seulement
+    );
+
+    if (lastVisible) {
+      q = query(
+        collection(db, "annonces"),
+        orderBy("createdAt","desc"),
+        startAfter(lastVisible),
+        limit(20)
+      );
     }
 
-    lastVisible = snapshot.docs[snapshot.docs.length - 1];
+    const annoncesSnap = await getDocs(q);
+    if (annoncesSnap.empty) {
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
+      return; 
+    }
 
-    snapshot.forEach(docSnap => {
+    annoncesData = [];
+    annoncesSnap.forEach(docSnap => {
       const data = docSnap.data();
       data.id = docSnap.id;
-      createCard(data); // fonction qui crée et ajoute la carte d'annonce
+      annoncesData.push(data);
     });
+
+    lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1]; // pour la prochaine page
+
+    // Reste du code comme avant
+    if (!window.__usersCache) {
+      const usersSnap = await getDocs(collection(db, "users"));
+      const byEmail = {};
+      const byId = {};
+      usersSnap.forEach(uDoc => {
+        const u = uDoc.data() || {};
+        byId[uDoc.id] = u;
+        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+        if(email) byEmail[email] = u;
+      });
+      window.__usersCache = { byEmail, byId };
+    }
+
+    setupCategoryFilters();
+    setupSearchAndSort();
+    setupFilterMenu();
+    applyAllFilters();
 
   } catch(err){
     console.error("Erreur chargement annonces:", err);
-    annoncesContainer.innerHTML = `<p>⚠️ Erreur : ${err.message}</p>`;
+    annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   }
 }
-
-// Scroll infini pour charger plus d'annonces
-window.addEventListener("scroll", () => {
-  if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 100){
-    loadAnnoncesBatch();
-  }
-});
-
-// Exemple d'utilisation au départ
-onAuthStateChanged(auth, user => {
-  currentUser = user;
-  loadAnnoncesBatch(true); // true = reset, on recharge depuis le début
-});
-
 
 
 function escapeHTML(str) {
