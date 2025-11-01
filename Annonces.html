@@ -160,7 +160,7 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 </div>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-import { getFirestore, collection, getDocs, query, orderBy, limit, startAfter, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, query, orderBy, limit, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
@@ -338,74 +338,46 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-let lastVisible = null;
-let autoLoading = false;
-
-async function loadAnnonces(batchSize = 20) {
-  if (autoLoading) return;
-  autoLoading = true;
-
+async function loadAnnonces() {
   annoncesContainer.innerHTML = "";
-  annoncesData = [];
-
   try {
-    let q = query(collection(db, "annonces"), orderBy("createdAt", "desc"), limit(batchSize));
-    let snap = await getDocs(q);
-
-    if (snap.empty) {
-      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
-      autoLoading = false;
-      return;
+    const annoncesSnap = await getDocs(query(collection(db, "annonces"), orderBy("createdAt","desc")));
+    if(annoncesSnap.empty){ 
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
+      return; 
     }
-
-    lastVisible = snap.docs[snap.docs.length - 1];
-
-    // Ajoute le premier lot
-    snap.forEach(d => {
-      const data = d.data();
-      data.id = d.id;
+    annoncesData = [];
+    annoncesSnap.forEach(docSnap => {
+      const data = docSnap.data();
+      data.id = docSnap.id;
       annoncesData.push(data);
     });
-    applyAllFilters();
 
-    // Chargement automatique des lots suivants
-    async function loadNextBatch() {
-      let nextQuery = query(
-        collection(db, "annonces"),
-        orderBy("createdAt", "desc"),
-        startAfter(lastVisible),
-        limit(batchSize)
-      );
-      let nextSnap = await getDocs(nextQuery);
-
-      if (nextSnap.empty) {
-        console.log("✅ Fin des annonces");
-        autoLoading = false;
-        return;
-      }
-
-      nextSnap.forEach(d => {
-        const data = d.data();
-        data.id = d.id;
-        annoncesData.push(data);
+    // Charge les utilisateurs AVANT d'appeler applyAllFilters
+    if (!window.__usersCache) {
+      const usersSnap = await getDocs(collection(db, "users"));
+      const byEmail = {};
+      const byId = {};
+      usersSnap.forEach(uDoc => {
+        const u = uDoc.data() || {};
+        byId[uDoc.id] = u;
+        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+        if(email) byEmail[email] = u;
       });
-
-      lastVisible = nextSnap.docs[nextSnap.docs.length - 1];
-      applyAllFilters();
-
-      // Recharge automatiquement les 20 suivantes après 1 seconde
-      setTimeout(loadNextBatch, 1000);
+      window.__usersCache = { byEmail, byId };
     }
 
-    // Démarre le cycle automatique
-    setTimeout(loadNextBatch, 1000);
+    setupCategoryFilters();
+    setupSearchAndSort();
+    setupFilterMenu();
+    applyAllFilters();
 
-  } catch (err) {
+  } catch(err){
     console.error("Erreur chargement annonces:", err);
     annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
-    autoLoading = false;
   }
 }
+
 
 function escapeHTML(str) {
   if (!str) return "";
