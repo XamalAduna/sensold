@@ -342,52 +342,53 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-// 🔹 Variables globales
-let lastDoc = null;
-let allAnnonces = []; // contiendra toutes les annonces chargées
-let isLoading = false;
+async function loadAnnonces() {
+  annoncesContainer.innerHTML = "";
+  document.getElementById("spinner").style.display = "flex";
 
-// 🔹 Fonction pour charger par lots de 20
-async function loadAnnonces(batchSize = 20) {
-  if (isLoading) return;
-  isLoading = true;
+  try {
+    const annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt","desc"));
+    const annoncesSnap = await getDocs(annoncesQuery);
 
-  const annoncesRef = collection(db, "annonces");
-  let q = query(annoncesRef, orderBy("createdAt", "desc"), limit(batchSize));
+    if(annoncesSnap.empty){ 
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
+      document.getElementById("spinner").style.display = "none";
+      return; 
+    }
+    annoncesData = [];
+    annoncesSnap.forEach(docSnap => {
+    const data = docSnap.data();
+    data.id = docSnap.id;
+    annoncesData.push(data);});
 
-  // S'il y a déjà eu un lot, on continue à partir du dernier
-  if (lastDoc) {
-    q = query(annoncesRef, orderBy("createdAt", "desc"), startAfter(lastDoc), limit(batchSize));
+    if (!window.__usersCache) {
+      try {
+        const usersSnap = await getDocs(collection(db, "users"));
+        const byEmail = {};
+        const byId = {};
+        usersSnap.forEach(uDoc => {
+          const u = uDoc.data() || {};
+          byId[uDoc.id] = u;
+          const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+          if(email) byEmail[email] = u;
+        });
+        window.__usersCache = { byEmail, byId };
+      } catch(err) {
+        console.error("Erreur chargement users:", err);
+        window.__usersCache = { byEmail: {}, byId: {} };
+      }
+    }
+    setupCategoryFilters();
+    setupSearchAndSort();
+    setupFilterMenu();
+    applyAllFilters();
+  } catch(err){
+    console.error("Erreur chargement annonces:", err);
+    annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
+  } finally {
+    document.getElementById("spinner").style.display = "none"; 
   }
-
-  const snap = await getDocs(q);
-
-  // Ajouter les nouvelles annonces
-  const nouvellesAnnonces = snap.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  }));
-
-  allAnnonces = allAnnonces.concat(nouvellesAnnonces);
-  renderAnnonces(allAnnonces); // tu gardes ta fonction existante
-
-  // Préparer le prochain lot
-  if (!snap.empty) {
-    lastDoc = snap.docs[snap.docs.length - 1];
-  }
-
-  // Si on a encore des annonces, continuer automatiquement
-  if (snap.size === batchSize) {
-    setTimeout(() => {
-      loadAnnonces(batchSize);
-    }, 100); // petit délai pour éviter la surcharge
-  } else {
-    console.log("✅ Toutes les annonces ont été chargées !");
-  }
-
-  isLoading = false;
 }
-
 function escapeHTML(str) {
   if (!str) return "";
   return str
@@ -681,53 +682,34 @@ function isBoostActive(annonce) {
 }
 
 function applyAllFilters() {
-  // On part de toutes les annonces déjà chargées
-  let filtered = [...allAnnonces];
+  let filtered = annoncesData;
+  if(selectedCategory && selectedCategory !== "all") 
+      filtered = filtered.filter(a => a.categorie === selectedCategory);
+  if(selectedSubcategory) 
+      filtered = filtered.filter(a => a.souscategorie === selectedSubcategory);
+  if(searchText) 
+      filtered = filtered.filter(a => 
+        (a.title?.toLowerCase().includes(searchText.toLowerCase())) || 
+        (a.city?.toLowerCase().includes(searchText.toLowerCase()))
+      );
 
-  // 🔹 Filtre de recherche (titre ou description)
-  const search = document.getElementById("searchInput")?.value?.toLowerCase() || "";
-  if (search) {
-    filtered = filtered.filter(a =>
-      (a.titre && a.titre.toLowerCase().includes(search)) ||
-      (a.description && a.description.toLowerCase().includes(search))
-    );
-  }
-
-  // 🔹 Filtre catégorie
-  const cat = document.getElementById("categorie")?.value || "";
-  if (cat && cat !== "Toutes") {
-    filtered = filtered.filter(a => a.categorie === cat);
-  }
-
-  // 🔹 Filtre sous-catégorie
-  const sousCat = document.getElementById("sousCategorie")?.value || "";
-  if (sousCat && sousCat !== "Toutes") {
-    filtered = filtered.filter(a => a.sousCategorie === sousCat);
-  }
-
-  // 🔹 Filtre ville
-  const ville = document.getElementById("ville")?.value || "";
-  if (ville && ville !== "Toutes") {
-    filtered = filtered.filter(a => a.ville === ville);
-  }
-
-  // 🔹 Filtre livraison (oui/non)
-  const livraison = document.getElementById("livraison")?.value || "";
-  if (livraison && livraison !== "Toutes") {
-    filtered = filtered.filter(a => a.livraison === livraison);
-  }
-
-  // 🔹 Tri par date de création (plus récentes d’abord)
   filtered.sort((a, b) => {
-    const dateA = a.createdAt?.seconds || 0;
-    const dateB = b.createdAt?.seconds || 0;
-    return dateB - dateA;
+    const aBoost = isBoostActive(a);
+    const bBoost = isBoostActive(b);
+    if(aBoost && !bBoost) return -1;
+    if(!aBoost && bBoost) return 1;
+    if(aBoost && bBoost){
+      const aEnd = a.boostEnd ? a.boostEnd.toDate ? a.boostEnd.toDate() : new Date(a.boostEnd) : 0;
+      const bEnd = b.boostEnd ? b.boostEnd.toDate ? b.boostEnd.toDate() : new Date(b.boostEnd) : 0;
+      return bEnd - aEnd;
+    }
+    if(sortOrder === "asc") return (a.price || 0) - (b.price || 0);
+    if(sortOrder === "desc") return (b.price || 0) - (a.price || 0);
+    const aDate = a.createdAt ? a.createdAt.seconds * 1000 : 0;
+    const bDate = b.createdAt ? b.createdAt.seconds * 1000 : 0;
+    return bDate - aDate;
   });
-
-  // 🔹 Affichage final
-  renderAnnonces(filtered);
-}
-
+  renderAnnonces(filtered);}
 </script>  
 </body>
 </html>
