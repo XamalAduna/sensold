@@ -342,53 +342,52 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-async function loadAnnonces() {
-  annoncesContainer.innerHTML = "";
-  document.getElementById("spinner").style.display = "flex";
+// 🔹 Variables globales
+let lastDoc = null;
+let allAnnonces = []; // contiendra toutes les annonces chargées
+let isLoading = false;
 
-  try {
-    const annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt","desc"));
-    const annoncesSnap = await getDocs(annoncesQuery);
+// 🔹 Fonction pour charger par lots de 20
+async function loadAnnonces(batchSize = 20) {
+  if (isLoading) return;
+  isLoading = true;
 
-    if(annoncesSnap.empty){ 
-      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
-      document.getElementById("spinner").style.display = "none";
-      return; 
-    }
-    annoncesData = [];
-    annoncesSnap.forEach(docSnap => {
-    const data = docSnap.data();
-    data.id = docSnap.id;
-    annoncesData.push(data);});
+  const annoncesRef = collection(db, "annonces");
+  let q = query(annoncesRef, orderBy("createdAt", "desc"), limit(batchSize));
 
-    if (!window.__usersCache) {
-      try {
-        const usersSnap = await getDocs(collection(db, "users"));
-        const byEmail = {};
-        const byId = {};
-        usersSnap.forEach(uDoc => {
-          const u = uDoc.data() || {};
-          byId[uDoc.id] = u;
-          const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-          if(email) byEmail[email] = u;
-        });
-        window.__usersCache = { byEmail, byId };
-      } catch(err) {
-        console.error("Erreur chargement users:", err);
-        window.__usersCache = { byEmail: {}, byId: {} };
-      }
-    }
-    setupCategoryFilters();
-    setupSearchAndSort();
-    setupFilterMenu();
-    applyAllFilters();
-  } catch(err){
-    console.error("Erreur chargement annonces:", err);
-    annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
-  } finally {
-    document.getElementById("spinner").style.display = "none"; 
+  // S'il y a déjà eu un lot, on continue à partir du dernier
+  if (lastDoc) {
+    q = query(annoncesRef, orderBy("createdAt", "desc"), startAfter(lastDoc), limit(batchSize));
   }
+
+  const snap = await getDocs(q);
+
+  // Ajouter les nouvelles annonces
+  const nouvellesAnnonces = snap.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+
+  allAnnonces = allAnnonces.concat(nouvellesAnnonces);
+  renderAnnonces(allAnnonces); // tu gardes ta fonction existante
+
+  // Préparer le prochain lot
+  if (!snap.empty) {
+    lastDoc = snap.docs[snap.docs.length - 1];
+  }
+
+  // Si on a encore des annonces, continuer automatiquement
+  if (snap.size === batchSize) {
+    setTimeout(() => {
+      loadAnnonces(batchSize);
+    }, 100); // petit délai pour éviter la surcharge
+  } else {
+    console.log("✅ Toutes les annonces ont été chargées !");
+  }
+
+  isLoading = false;
 }
+
 function escapeHTML(str) {
   if (!str) return "";
   return str
