@@ -681,34 +681,53 @@ function isBoostActive(annonce) {
 }
 
 function applyAllFilters() {
-  let filtered = annoncesData;
-  if(selectedCategory && selectedCategory !== "all") 
-      filtered = filtered.filter(a => a.categorie === selectedCategory);
-  if(selectedSubcategory) 
-      filtered = filtered.filter(a => a.souscategorie === selectedSubcategory);
-  if(searchText) 
-      filtered = filtered.filter(a => 
-        (a.title?.toLowerCase().includes(searchText.toLowerCase())) || 
-        (a.city?.toLowerCase().includes(searchText.toLowerCase()))
-      );
+  // On part de toutes les annonces déjà chargées
+  let filtered = [...allAnnonces];
 
+  // 🔹 Filtre de recherche (titre ou description)
+  const search = document.getElementById("searchInput")?.value?.toLowerCase() || "";
+  if (search) {
+    filtered = filtered.filter(a =>
+      (a.titre && a.titre.toLowerCase().includes(search)) ||
+      (a.description && a.description.toLowerCase().includes(search))
+    );
+  }
+
+  // 🔹 Filtre catégorie
+  const cat = document.getElementById("categorie")?.value || "";
+  if (cat && cat !== "Toutes") {
+    filtered = filtered.filter(a => a.categorie === cat);
+  }
+
+  // 🔹 Filtre sous-catégorie
+  const sousCat = document.getElementById("sousCategorie")?.value || "";
+  if (sousCat && sousCat !== "Toutes") {
+    filtered = filtered.filter(a => a.sousCategorie === sousCat);
+  }
+
+  // 🔹 Filtre ville
+  const ville = document.getElementById("ville")?.value || "";
+  if (ville && ville !== "Toutes") {
+    filtered = filtered.filter(a => a.ville === ville);
+  }
+
+  // 🔹 Filtre livraison (oui/non)
+  const livraison = document.getElementById("livraison")?.value || "";
+  if (livraison && livraison !== "Toutes") {
+    filtered = filtered.filter(a => a.livraison === livraison);
+  }
+
+  // 🔹 Tri par date de création (plus récentes d’abord)
   filtered.sort((a, b) => {
-    const aBoost = isBoostActive(a);
-    const bBoost = isBoostActive(b);
-    if(aBoost && !bBoost) return -1;
-    if(!aBoost && bBoost) return 1;
-    if(aBoost && bBoost){
-      const aEnd = a.boostEnd ? a.boostEnd.toDate ? a.boostEnd.toDate() : new Date(a.boostEnd) : 0;
-      const bEnd = b.boostEnd ? b.boostEnd.toDate ? b.boostEnd.toDate() : new Date(b.boostEnd) : 0;
-      return bEnd - aEnd;
-    }
-    if(sortOrder === "asc") return (a.price || 0) - (b.price || 0);
-    if(sortOrder === "desc") return (b.price || 0) - (a.price || 0);
-    const aDate = a.createdAt ? a.createdAt.seconds * 1000 : 0;
-    const bDate = b.createdAt ? b.createdAt.seconds * 1000 : 0;
-    return bDate - aDate;
+    const dateA = a.createdAt?.seconds || 0;
+    const dateB = b.createdAt?.seconds || 0;
+    return dateB - dateA;
   });
-  renderAnnonces(filtered);}
+
+  // 🔹 Affichage final
+  renderAnnonces(filtered);
+}
+
 </script>  
 </body>
 </html>
