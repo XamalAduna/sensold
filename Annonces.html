@@ -1,3 +1,4 @@
+
 <!DOCTYPE html> 
 <html lang="fr"> 
 <head> 
@@ -60,8 +61,6 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 #notLoggedMsg a:hover { text-decoration:underline; }
 .seller-info { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; position:relative; padding-right:70px; }
 .seller-info strong { display:block; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-size:13px; }
-.loader { border:6px solid #f3f3f3; border-top:6px solid #009688; border-radius:50%; width:50px; height:50px; animation:spin 1s linear infinite; }
-@keyframes spin { 0% { transform:rotate(0deg); } 100% { transform:rotate(360deg); } }
 .annonce-card .time-badge { position:absolute; top:10px; left:10px; background:rgba(0,0,0,0.6); color:#fff; padding:4px 8px; border-radius:6px; font-size:12px; font-weight:bold; z-index:5; }
 .annonce-card .title { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; font-size:16px; line-height:1.2em; }
 .annonce-card .title.long-text { font-size:14px; }
@@ -98,7 +97,6 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 <section class="categories">
   <div class="categories-wrapper">
     <div class="categories-scroll">
-     
       <div class="category" data-cat="all">
          <i class="material-icons">apps</i>
         <p>Tous</p>
@@ -155,9 +153,6 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
   </div>
   <div id="subcategories-container"></div>
 </section>
-<div id="spinner" style="display:flex; justify-content:center; align-items:center; height:200px;">
-  <div class="loader"></div>
-</div>
 <div id="annonces" class="annonces-container"></div>
 <div id="notLoggedMsg" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; padding:20px 30px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.25); text-align:center; z-index:99999;">
   <p>Veuillez vous connecter pour ajouter  cette annonce à vos favoris.</p>
@@ -167,6 +162,7 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getFirestore, collection, getDocs, query, orderBy, limit, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
+import { startAfter } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
   authDomain: "diallo-ee5aa.firebaseapp.com",
@@ -299,6 +295,7 @@ const categoriesData = {
     { "label": "Autre matériel professionnel", "icon": "miscellaneous_services" }
   ]
 };
+
 const annoncesContainer = document.getElementById("annonces");
 const subContainer = document.getElementById("subcategories-container");
 const categoryElements = document.querySelectorAll(".category");
@@ -318,26 +315,6 @@ let searchText = "";
 let sortOrder = "default";
 let currentPage = 1;
 const annoncesPerPage = 20;
-
-// --- RESTAURATION DU CACHE ---
-const cachedHTML = window.sessionStorage.getItem('cachedAnnoncesHTML');
-const cachedState = window.sessionStorage.getItem('cachedAnnoncesState');
-
-if (cachedHTML && cachedState) {
-    // Il y a un cache : on restaure
-    annoncesContainer.innerHTML = cachedHTML;
-    const state = JSON.parse(cachedState);
-    selectedCategory = state.selectedCategory;
-    selectedSubcategory = state.selectedSubcategory;
-    searchText = state.searchText;
-    sortOrder = state.sortOrder;
-    currentPage = state.currentPage;
-    userFavorites = state.userFavorites || [];
-} else {
-    // Pas de cache : on charge depuis Firebase
-    loadAnnonces();
-}
-
   
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
@@ -359,69 +336,74 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     userFavorites = [];
   }
-
-  // Ne reload Firebase que si aucun cache n'existe
-  if(!cachedHTML || !cachedState){
-    loadAnnonces();
-  } else {
-    // Sinon, juste mettre à jour les favoris des cartes existantes
-    const favBtns = document.querySelectorAll(".favorite");
-    favBtns.forEach(btn => {
-      const cardId = btn.closest(".annonce-card").dataset.id;
-      if(currentUser && userFavorites.includes(cardId)) btn.classList.add("active");
-      else btn.classList.remove("active");
-    });
-  }
+  loadAnnonces();
 });
 
+let lastVisible = null; // pour la pagination Firebase
 
-async function loadAnnonces() {
-  annoncesContainer.innerHTML = "";
-  document.getElementById("spinner").style.display = "flex";
-
+async function loadAnnonces(page = 1) {
+  annoncesContainer.innerHTML = "<p>Chargement...</p>";
   try {
-    const annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt","desc"));
-    const annoncesSnap = await getDocs(annoncesQuery);
+    let q = query(
+      collection(db, "annonces"),
+      orderBy("createdAt", "desc"),
+      limit(annoncesPerPage)
+    );
 
-    if(annoncesSnap.empty){ 
+    // Si ce n'est pas la première page, utiliser startAfter
+    if (lastVisible && page > 1) {
+      q = query(
+        collection(db, "annonces"),
+        orderBy("createdAt", "desc"),
+        startAfter(lastVisible),
+        limit(annoncesPerPage)
+      );
+    }
+
+    const annoncesSnap = await getDocs(q);
+
+    if (annoncesSnap.empty) { 
       annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
-      document.getElementById("spinner").style.display = "none";
       return; 
     }
+
     annoncesData = [];
     annoncesSnap.forEach(docSnap => {
-    const data = docSnap.data();
-    data.id = docSnap.id;
-    annoncesData.push(data);});
+      const data = docSnap.data();
+      data.id = docSnap.id;
+      annoncesData.push(data);
+    });
 
+    // sauvegarde du dernier document pour la prochaine page
+    lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
+
+    // Charger les utilisateurs (cache)
     if (!window.__usersCache) {
-      try {
-        const usersSnap = await getDocs(collection(db, "users"));
-        const byEmail = {};
-        const byId = {};
-        usersSnap.forEach(uDoc => {
-          const u = uDoc.data() || {};
-          byId[uDoc.id] = u;
-          const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-          if(email) byEmail[email] = u;
-        });
-        window.__usersCache = { byEmail, byId };
-      } catch(err) {
-        console.error("Erreur chargement users:", err);
-        window.__usersCache = { byEmail: {}, byId: {} };
-      }
+      const usersSnap = await getDocs(collection(db, "users"));
+      const byEmail = {};
+      const byId = {};
+      usersSnap.forEach(uDoc => {
+        const u = uDoc.data() || {};
+        byId[uDoc.id] = u;
+        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+        if(email) byEmail[email] = u;
+      });
+      window.__usersCache = { byEmail, byId };
     }
+
     setupCategoryFilters();
     setupSearchAndSort();
     setupFilterMenu();
     applyAllFilters();
+
   } catch(err){
     console.error("Erreur chargement annonces:", err);
     annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
-  } finally {
-    document.getElementById("spinner").style.display = "none"; 
   }
 }
+
+
+
 function escapeHTML(str) {
   if (!str) return "";
   return str
@@ -462,10 +444,12 @@ async function renderAnnonces(filtered) {
     }
   }
 
-  for (const a of pageItems) {
+  const createCard = (a) => {
     const docId = escapeHTML(a.id || "");
     const card = document.createElement("div");
     card.className = "annonce-card";
+    card.style.opacity = 0;
+    card.style.transform = "translateY(20px)";
 
     const isFav = currentUser && userFavorites.includes(a.id);
 
@@ -480,7 +464,8 @@ async function renderAnnonces(filtered) {
     if (sellerData && sellerData.subscribe === true) {
       const now = new Date();
       const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
-      if (subEnd > now) isPro = true;}
+      if (subEnd > now) isPro = true;
+    }
 
     let fullName = "Utilisateur inconnu";
     if (sellerData) {
@@ -495,6 +480,7 @@ async function renderAnnonces(filtered) {
           "Utilisateur"
         );
     }
+
     let sellerPhoto =
       (sellerData && (
         sellerData.profileImage ||
@@ -509,46 +495,46 @@ async function renderAnnonces(filtered) {
       sellerPhoto = "https://via.placeholder.com/40";
     }
     sellerPhoto = escapeHTML(sellerPhoto);
+
     let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
+
     card.innerHTML = `
-  <div class="image-container">
-    <img src="${annonceImage}" 
-         loading="lazy"
-         alt="${escapeHTML(a.title || 'Annonce')}"
-         onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
-    ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
-    <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
-    <span class="material-icons favorite ${isFav ? 'active' : ''}">
-      ${isFav ? 'favorite' : 'favorite_border'}
-    </span>
-  </div>
-  <div class="content">
-    <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
-    <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
-    <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
-  </div>
-  <div class="seller">
-    <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
-    <div class="seller-info">
-      <strong>${fullName}</strong>
-      ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
-    </div>
-  </div>
-`;
+      <div class="image-container">
+        <img src="${annonceImage}" 
+             loading="lazy"
+             alt="${escapeHTML(a.title || 'Annonce')}"
+             onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
+        ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
+        <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
+        <span class="material-icons favorite ${isFav ? 'active' : ''}">
+          ${isFav ? 'favorite' : 'favorite_border'}
+        </span>
+      </div>
+      <div class="content">
+        <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
+        <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
+        <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
+      </div>
+      <div class="seller">
+        <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
+        <div class="seller-info">
+          <strong>${fullName}</strong>
+          ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
+        </div>
+      </div>
+    `;
     const titleEl = card.querySelector('.title');
-      if ((a.title || "").length > 30) {
-      titleEl.classList.add('long-text');}
+    if ((a.title || "").length > 30) titleEl.classList.add('long-text');
+
     const favBtn = card.querySelector(".favorite");
     favBtn.addEventListener("click", async e => {
       e.stopPropagation();
-
       if (!currentUser) {
-      const msg = document.getElementById("notLoggedMsg");
-      msg.style.display = "block";
-      setTimeout(() => { msg.style.display = "none"; }, 3000);
-      return;}
-
-      
+        const msg = document.getElementById("notLoggedMsg");
+        msg.style.display = "block";
+        setTimeout(() => { msg.style.display = "none"; }, 3000);
+        return;
+      }
       const favRef = doc(db, "users", currentUser.uid);
       if (favBtn.classList.contains("active")) {
         favBtn.classList.remove("active");
@@ -562,27 +548,36 @@ async function renderAnnonces(filtered) {
         await updateDoc(favRef, { favorites: arrayUnion(docId) });
       }
     });
-    
+
     card.addEventListener("click", e => {
       if (e.target.classList.contains("favorite")) return;
       window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
     });
 
     annoncesContainer.appendChild(card);
-  }
-  // Sauvegarde dans sessionStorage
-window.sessionStorage.setItem('cachedAnnoncesHTML', annoncesContainer.innerHTML);
-window.sessionStorage.setItem('cachedAnnoncesState', JSON.stringify({
-    selectedCategory,
-    selectedSubcategory,
-    searchText,
-    sortOrder,
-    currentPage,
-    userFavorites
-}));
+
+    // Animation fade-in
+    setTimeout(() => {
+      card.style.transition = "opacity 0.4s ease, transform 0.4s ease";
+      card.style.opacity = 1;
+      card.style.transform = "translateY(0)";
+    }, 50);
+  };
+
+  // Affichage progressif avec intervalle
+  let index = 0;
+  const interval = setInterval(() => {
+    if (index >= pageItems.length) {
+      clearInterval(interval);
+      return;
+    }
+    createCard(pageItems[index]);
+    index++;
+  }, 80); // 80ms entre chaque carte (modifiable selon vitesse souhaitée)
 
   renderPagination(Math.ceil(filtered.length / annoncesPerPage));
 }
+
 
 function renderPagination(totalPages){
   let paginationContainer = document.getElementById("pagination");
@@ -716,12 +711,14 @@ function setupFilterMenu(){
     if (!filterMenu.contains(e.target) && e.target !== filterToggle) filterMenu.style.display = "none";
   });
 }
+
 function isBoostActive(annonce) {
   if (!annonce.boost || !annonce.boostEnd) return false;
   const now = new Date();
   const boostEndDate = new Date(annonce.boostEnd.toDate ? annonce.boostEnd.toDate() : annonce.boostEnd);
   return boostEndDate > now;
 }
+
 function applyAllFilters() {
   let filtered = annoncesData;
   if(selectedCategory && selectedCategory !== "all") 
@@ -733,6 +730,7 @@ function applyAllFilters() {
         (a.title?.toLowerCase().includes(searchText.toLowerCase())) || 
         (a.city?.toLowerCase().includes(searchText.toLowerCase()))
       );
+
   filtered.sort((a, b) => {
     const aBoost = isBoostActive(a);
     const bBoost = isBoostActive(b);
