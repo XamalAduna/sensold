@@ -320,6 +320,7 @@ let searchText = "";
 let sortOrder = "default";
 let currentPage = 1;
 const annoncesPerPage = 20;
+
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
@@ -399,42 +400,28 @@ function escapeHTML(str) {
     .replace(/"/g, "&quot;")
 }
 
+let filteredAnnonces = []; // global pour stocker les annonces filtrées
+let loadedCount = 0;        // combien d'annonces ont été affichées
+
 async function renderAnnonces(filtered) {
-  annoncesContainer.innerHTML = "";
-  if (filtered.length === 0) {
+  filteredAnnonces = filtered; // stocke toutes les annonces filtrées
+  loadedCount = 0;             // reset compteur
+  annoncesContainer.innerHTML = ""; // vide l'ancien contenu
+
+  if (filteredAnnonces.length === 0) {
     annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
     return;
   }
 
-  const totalPages = Math.ceil(filtered.length / annoncesPerPage);
-  if (currentPage > totalPages) currentPage = 1;
+  // Affiche le premier lot
+  loadNextBatch();
+}
 
-  const start = (currentPage - 1) * annoncesPerPage;
-  const end = start + annoncesPerPage;
-  const pageItems = filtered.slice(start, end);
+function loadNextBatch() {
+  const batch = filteredAnnonces.slice(loadedCount, loadedCount + annoncesPerPage);
+  loadedCount += batch.length;
 
-  // Chargement des utilisateurs une seule fois
-  if (!window.__usersCache) {
-    try {
-      const usersSnap = await getDocs(collection(db, "users"));
-      const byEmail = {};
-      const byId = {};
-      usersSnap.forEach(uDoc => {
-        const u = uDoc.data() || {};
-        byId[uDoc.id] = u;
-        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-        if (email) byEmail[email] = u;
-      });
-      window.__usersCache = { byEmail, byId };
-    } catch (err) {
-      console.error("Erreur chargement users:", err);
-      window.__usersCache = { byEmail: {}, byId: {} };
-    }
-  }
-
-  const fragment = document.createDocumentFragment(); // DOM fragment pour perf
-
-  for (const a of pageItems) {
+  batch.forEach(a => {
     const docId = escapeHTML(a.id || "");
     const card = document.createElement("div");
     card.className = "annonce-card";
@@ -478,19 +465,15 @@ async function renderAnnonces(filtered) {
         sellerData.avatar ||
         sellerData.image ||
         sellerData.photo
-      )) || "";
-    if (!sellerPhoto || typeof sellerPhoto !== "string" || sellerPhoto.startsWith("gs://") || sellerPhoto.startsWith("/")) {
-      sellerPhoto = "https://via.placeholder.com/40";
-    }
+      )) || "https://via.placeholder.com/40";
     sellerPhoto = escapeHTML(sellerPhoto);
+
     let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
 
     card.innerHTML = `
       <div class="image-container">
-        <img src="${annonceImage}" 
-             loading="lazy"
-             alt="${escapeHTML(a.title || 'Annonce')}"
-             onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
+        <img src="${annonceImage}" loading="lazy" alt="${escapeHTML(a.title || 'Annonce')}"
+          onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
         ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
         <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
         <span class="material-icons favorite ${isFav ? 'active' : ''}">
@@ -543,11 +526,34 @@ async function renderAnnonces(filtered) {
       window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
     });
 
-    fragment.appendChild(card);
+    annoncesContainer.appendChild(card);
+  });
+
+  // bouton "Charger plus"
+  let loadMoreBtn = document.getElementById("loadMoreBtn");
+  if (!loadMoreBtn) {
+    loadMoreBtn = document.createElement("button");
+    loadMoreBtn.id = "loadMoreBtn";
+    loadMoreBtn.textContent = "Charger plus";
+    loadMoreBtn.style.display = "block";
+    loadMoreBtn.style.margin = "20px auto";
+    loadMoreBtn.style.padding = "10px 20px";
+    loadMoreBtn.style.border = "none";
+    loadMoreBtn.style.borderRadius = "8px";
+    loadMoreBtn.style.background = "#009688";
+    loadMoreBtn.style.color = "#fff";
+    loadMoreBtn.style.cursor = "pointer";
+    annoncesContainer.parentNode.appendChild(loadMoreBtn);
+
+    loadMoreBtn.addEventListener("click", () => {
+      loadNextBatch();
+      if (loadedCount >= filteredAnnonces.length) loadMoreBtn.style.display = "none";
+    });
   }
 
-  annoncesContainer.appendChild(fragment); // Ajout du fragment en une seule opération
-  renderPagination(Math.ceil(filtered.length / annoncesPerPage));
+  // cacher le bouton si tout est déjà chargé
+  if (loadedCount >= filteredAnnonces.length) loadMoreBtn.style.display = "none";
+  else loadMoreBtn.style.display = "block";
 }
 
   
