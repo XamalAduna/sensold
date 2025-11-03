@@ -398,6 +398,7 @@ function escapeHTML(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
 }
+
 async function renderAnnonces(filtered) {
   annoncesContainer.innerHTML = "";
   if (filtered.length === 0) {
@@ -412,6 +413,7 @@ async function renderAnnonces(filtered) {
   const end = start + annoncesPerPage;
   const pageItems = filtered.slice(start, end);
 
+  // Chargement des utilisateurs une seule fois
   if (!window.__usersCache) {
     try {
       const usersSnap = await getDocs(collection(db, "users"));
@@ -429,6 +431,8 @@ async function renderAnnonces(filtered) {
       window.__usersCache = { byEmail: {}, byId: {} };
     }
   }
+
+  const fragment = document.createDocumentFragment(); // DOM fragment pour perf
 
   for (const a of pageItems) {
     const docId = escapeHTML(a.id || "");
@@ -448,7 +452,8 @@ async function renderAnnonces(filtered) {
     if (sellerData && sellerData.subscribe === true) {
       const now = new Date();
       const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
-      if (subEnd > now) isPro = true;}
+      if (subEnd > now) isPro = true;
+    }
 
     let fullName = "Utilisateur inconnu";
     if (sellerData) {
@@ -463,6 +468,7 @@ async function renderAnnonces(filtered) {
           "Utilisateur"
         );
     }
+
     let sellerPhoto =
       (sellerData && (
         sellerData.profileImage ||
@@ -478,45 +484,46 @@ async function renderAnnonces(filtered) {
     }
     sellerPhoto = escapeHTML(sellerPhoto);
     let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
+
     card.innerHTML = `
-  <div class="image-container">
-    <img src="${annonceImage}" 
-         loading="lazy"
-         alt="${escapeHTML(a.title || 'Annonce')}"
-         onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
-    ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
-    <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
-    <span class="material-icons favorite ${isFav ? 'active' : ''}">
-      ${isFav ? 'favorite' : 'favorite_border'}
-    </span>
-  </div>
-  <div class="content">
-    <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
-    <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
-    <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
-  </div>
-  <div class="seller">
-    <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
-    <div class="seller-info">
-      <strong>${fullName}</strong>
-      ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
-    </div>
-  </div>
-`;
+      <div class="image-container">
+        <img src="${annonceImage}" 
+             loading="lazy"
+             alt="${escapeHTML(a.title || 'Annonce')}"
+             onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
+        ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
+        <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
+        <span class="material-icons favorite ${isFav ? 'active' : ''}">
+          ${isFav ? 'favorite' : 'favorite_border'}
+        </span>
+      </div>
+      <div class="content">
+        <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
+        <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
+        <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
+      </div>
+      <div class="seller">
+        <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
+        <div class="seller-info">
+          <strong>${fullName}</strong>
+          ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
+        </div>
+      </div>
+    `;
+
     const titleEl = card.querySelector('.title');
-      if ((a.title || "").length > 30) {
-      titleEl.classList.add('long-text');}
+    if ((a.title || "").length > 30) titleEl.classList.add('long-text');
+
     const favBtn = card.querySelector(".favorite");
     favBtn.addEventListener("click", async e => {
       e.stopPropagation();
-
       if (!currentUser) {
-      const msg = document.getElementById("notLoggedMsg");
-      msg.style.display = "block";
-      setTimeout(() => { msg.style.display = "none"; }, 3000);
-      return;}
+        const msg = document.getElementById("notLoggedMsg");
+        msg.style.display = "block";
+        setTimeout(() => { msg.style.display = "none"; }, 3000);
+        return;
+      }
 
-      
       const favRef = doc(db, "users", currentUser.uid);
       if (favBtn.classList.contains("active")) {
         favBtn.classList.remove("active");
@@ -536,12 +543,14 @@ async function renderAnnonces(filtered) {
       window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
     });
 
-    annoncesContainer.appendChild(card);
+    fragment.appendChild(card);
   }
 
+  annoncesContainer.appendChild(fragment); // Ajout du fragment en une seule opération
   renderPagination(Math.ceil(filtered.length / annoncesPerPage));
 }
 
+  
 function renderPagination(totalPages){
   let paginationContainer = document.getElementById("pagination");
   if(!paginationContainer){
