@@ -406,7 +406,8 @@ async function renderAnnonces(filtered) {
     return;
   }
 
- 
+  const pageItems = filtered; // Afficher toutes les annonces d'un coup
+
   if (!window.__usersCache) {
     try {
       const usersSnap = await getDocs(collection(db, "users"));
