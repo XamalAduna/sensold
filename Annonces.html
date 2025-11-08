@@ -344,45 +344,25 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-let lastVisibleAnnonce = null;
-let isLoading = false;
-const annoncesBatchSize = 100;
-
 async function loadAnnonces() {
-  if (isLoading) return;
-  isLoading = true;
+  annoncesContainer.innerHTML = "";
   document.getElementById("spinner").style.display = "flex";
 
   try {
-    // Préparer la query Firestore
-    let annoncesQuery = query(
-      collection(db, "annonces"),
-      orderBy("createdAt", "desc"),
-      limit(annoncesBatchSize)
-    );
-
-    if (lastVisibleAnnonce) {
-      annoncesQuery = query(
-        collection(db, "annonces"),
-        orderBy("createdAt", "desc"),
-        startAfter(lastVisibleAnnonce),
-        limit(annoncesBatchSize)
-      );
-    }
-
+    const annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt","desc"));
     const annoncesSnap = await getDocs(annoncesQuery);
 
-    if (!annoncesSnap.empty) {
-      lastVisibleAnnonce = annoncesSnap.docs[annoncesSnap.docs.length - 1];
-
-      annoncesSnap.forEach(docSnap => {
-        const data = docSnap.data();
-        data.id = docSnap.id;
-        annoncesData.push(data);
-      });
+    if(annoncesSnap.empty){ 
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
+      document.getElementById("spinner").style.display = "none";
+      return; 
     }
+    annoncesData = [];
+    annoncesSnap.forEach(docSnap => {
+    const data = docSnap.data();
+    data.id = docSnap.id;
+    annoncesData.push(data);});
 
-    // Précharger cache utilisateurs si pas déjà fait
     if (!window.__usersCache) {
       try {
         const usersSnap = await getDocs(collection(db, "users"));
@@ -392,7 +372,7 @@ async function loadAnnonces() {
           const u = uDoc.data() || {};
           byId[uDoc.id] = u;
           const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-          if (email) byEmail[email] = u;
+          if(email) byEmail[email] = u;
         });
         window.__usersCache = { byEmail, byId };
       } catch(err) {
@@ -400,22 +380,17 @@ async function loadAnnonces() {
         window.__usersCache = { byEmail: {}, byId: {} };
       }
     }
-
-    applyAllFilters(); // Filtre et render initial
-  } catch(err) {
+    setupCategoryFilters();
+    setupSearchAndSort();
+    setupFilterMenu();
+    applyAllFilters();
+  } catch(err){
     console.error("Erreur chargement annonces:", err);
+    annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   } finally {
-    document.getElementById("spinner").style.display = "none";
-    isLoading = false;
+    document.getElementById("spinner").style.display = "none"; 
   }
 }
-// Scroll infini : détecte si l'utilisateur descend en bas de page
-window.addEventListener("scroll", () => {
-  if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500) {
-    loadAnnonces();
-  }
-});
-
 function escapeHTML(str) {
   if (!str) return "";
   return str
