@@ -399,29 +399,33 @@ function escapeHTML(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
 }
-
-let filteredAnnonces = []; // global pour stocker les annonces filtrées
-let loadedCount = 0;        // combien d'annonces ont été affichées
-
 async function renderAnnonces(filtered) {
-  filteredAnnonces = filtered; // stocke toutes les annonces filtrées
-  loadedCount = 0;             // reset compteur
-  annoncesContainer.innerHTML = ""; // vide l'ancien contenu
-
-  if (filteredAnnonces.length === 0) {
+  annoncesContainer.innerHTML = "";
+  if (filtered.length === 0) {
     annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
     return;
   }
 
-  // Affiche le premier lot
-  loadNextBatch();
-}
+ 
+  if (!window.__usersCache) {
+    try {
+      const usersSnap = await getDocs(collection(db, "users"));
+      const byEmail = {};
+      const byId = {};
+      usersSnap.forEach(uDoc => {
+        const u = uDoc.data() || {};
+        byId[uDoc.id] = u;
+        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+        if (email) byEmail[email] = u;
+      });
+      window.__usersCache = { byEmail, byId };
+    } catch (err) {
+      console.error("Erreur chargement users:", err);
+      window.__usersCache = { byEmail: {}, byId: {} };
+    }
+  }
 
-function loadNextBatch() {
-  const batch = filteredAnnonces.slice(loadedCount, loadedCount + annoncesPerPage);
-  loadedCount += batch.length;
-
-  batch.forEach(a => {
+  for (const a of pageItems) {
     const docId = escapeHTML(a.id || "");
     const card = document.createElement("div");
     card.className = "annonce-card";
@@ -439,8 +443,7 @@ function loadNextBatch() {
     if (sellerData && sellerData.subscribe === true) {
       const now = new Date();
       const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
-      if (subEnd > now) isPro = true;
-    }
+      if (subEnd > now) isPro = true;}
 
     let fullName = "Utilisateur inconnu";
     if (sellerData) {
@@ -455,7 +458,6 @@ function loadNextBatch() {
           "Utilisateur"
         );
     }
-
     let sellerPhoto =
       (sellerData && (
         sellerData.profileImage ||
@@ -465,48 +467,51 @@ function loadNextBatch() {
         sellerData.avatar ||
         sellerData.image ||
         sellerData.photo
-      )) || "https://via.placeholder.com/40";
+      )) || "";
+    if (!sellerPhoto || typeof sellerPhoto !== "string" || sellerPhoto.startsWith("gs://") || sellerPhoto.startsWith("/")) {
+      sellerPhoto = "https://via.placeholder.com/40";
+    }
     sellerPhoto = escapeHTML(sellerPhoto);
-
     let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
-
     card.innerHTML = `
-      <div class="image-container">
-        <img src="${annonceImage}" loading="lazy" alt="${escapeHTML(a.title || 'Annonce')}"
-          onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
-        ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
-        <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
-        <span class="material-icons favorite ${isFav ? 'active' : ''}">
-          ${isFav ? 'favorite' : 'favorite_border'}
-        </span>
-      </div>
-      <div class="content">
-        <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
-        <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
-        <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
-      </div>
-      <div class="seller">
-        <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
-        <div class="seller-info">
-          <strong>${fullName}</strong>
-          ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
-        </div>
-      </div>
-    `;
-
+  <div class="image-container">
+    <img src="${annonceImage}" 
+         loading="lazy"
+         alt="${escapeHTML(a.title || 'Annonce')}"
+         onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
+    ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
+    <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
+    <span class="material-icons favorite ${isFav ? 'active' : ''}">
+      ${isFav ? 'favorite' : 'favorite_border'}
+    </span>
+  </div>
+  <div class="content">
+    <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
+    <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
+    <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
+  </div>
+  <div class="seller">
+    <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
+    <div class="seller-info">
+      <strong>${fullName}</strong>
+      ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
+    </div>
+  </div>
+`;
     const titleEl = card.querySelector('.title');
-    if ((a.title || "").length > 30) titleEl.classList.add('long-text');
-
+      if ((a.title || "").length > 30) {
+      titleEl.classList.add('long-text');}
     const favBtn = card.querySelector(".favorite");
     favBtn.addEventListener("click", async e => {
       e.stopPropagation();
-      if (!currentUser) {
-        const msg = document.getElementById("notLoggedMsg");
-        msg.style.display = "block";
-        setTimeout(() => { msg.style.display = "none"; }, 3000);
-        return;
-      }
 
+      if (!currentUser) {
+      const msg = document.getElementById("notLoggedMsg");
+      msg.style.display = "block";
+      setTimeout(() => { msg.style.display = "none"; }, 3000);
+      return;}
+
+      
       const favRef = doc(db, "users", currentUser.uid);
       if (favBtn.classList.contains("active")) {
         favBtn.classList.remove("active");
@@ -527,36 +532,11 @@ function loadNextBatch() {
     });
 
     annoncesContainer.appendChild(card);
-  });
-
-  // bouton "Charger plus"
-  let loadMoreBtn = document.getElementById("loadMoreBtn");
-  if (!loadMoreBtn) {
-    loadMoreBtn = document.createElement("button");
-    loadMoreBtn.id = "loadMoreBtn";
-    loadMoreBtn.textContent = "Charger plus";
-    loadMoreBtn.style.display = "block";
-    loadMoreBtn.style.margin = "20px auto";
-    loadMoreBtn.style.padding = "10px 20px";
-    loadMoreBtn.style.border = "none";
-    loadMoreBtn.style.borderRadius = "8px";
-    loadMoreBtn.style.background = "#009688";
-    loadMoreBtn.style.color = "#fff";
-    loadMoreBtn.style.cursor = "pointer";
-    annoncesContainer.parentNode.appendChild(loadMoreBtn);
-
-    loadMoreBtn.addEventListener("click", () => {
-      loadNextBatch();
-      if (loadedCount >= filteredAnnonces.length) loadMoreBtn.style.display = "none";
-    });
   }
 
-  // cacher le bouton si tout est déjà chargé
-  if (loadedCount >= filteredAnnonces.length) loadMoreBtn.style.display = "none";
-  else loadMoreBtn.style.display = "block";
+  renderPagination(Math.ceil(filtered.length / annoncesPerPage));
 }
 
-  
 function renderPagination(totalPages){
   let paginationContainer = document.getElementById("pagination");
   if(!paginationContainer){
