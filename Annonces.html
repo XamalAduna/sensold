@@ -314,13 +314,12 @@ const priceDescBtn = document.getElementById("price-desc");
 
 let currentUser = null;
 let userFavorites = [];
-let annoncesData = []; // pour cache local
 let selectedCategory = "all";
 let selectedSubcategory = null;
 let searchText = "";
 let sortOrder = "default";
-let lastVisible = null; // pour infinite scroll Firestore
-const annoncesPerBatch = 50; // nombre d'annonces par batch (lazy loading)
+let lastVisible = null; // pour pagination Firestore
+const annoncesPerBatch = 50; // batch pour infinite scroll
 
 // ------------------------ UTILITAIRES ------------------------
 function timeAgo(timestamp){
@@ -360,21 +359,42 @@ onAuthStateChanged(auth, async (user) => {
   resetAnnonces();
 });
 
-// ------------------------ CHARGEMENT DES ANNONCES ------------------------
-async function fetchAnnoncesBatch() {
-  const batchQuery = query(
-    collection(db, "annonces"),
-    orderBy("boostEnd", "desc"), // boosté d'abord
-    orderBy("createdAt", "desc"),
-    limit(annoncesPerBatch),
-    lastVisible ? startAfter(lastVisible) : undefined
-  );
+// ------------------------ CONSTRUCTION DE LA QUERY FIRESTORE ------------------------
+function buildQuery(){
+  let q = collection(db, "annonces");
 
-  const snap = await getDocs(batchQuery);
+  // FILTRE CATEGORIE
+  if(selectedCategory && selectedCategory!=="all") q = query(q, where("categorie", "==", selectedCategory));
+  if(selectedSubcategory) q = query(q, where("souscategorie", "==", selectedSubcategory));
+
+  // RECHERCHE côté serveur (sur title ou city)
+  if(searchText){
+    // Firestore ne supporte pas "OR" simple => on fait title >= searchText AND title < searchText + "\uf8ff"
+    // pour city on peut faire un deuxième batch si nécessaire
+    const searchLower = searchText.toLowerCase();
+    q = query(q, where("searchTitle","array-contains", searchLower));
+  }
+
+  // TRI priorité boost, puis prix ou date
+  if(sortOrder==="asc") q = query(q, orderBy("boostEnd","desc"), orderBy("price","asc"));
+  else if(sortOrder==="desc") q = query(q, orderBy("boostEnd","desc"), orderBy("price","desc"));
+  else q = query(q, orderBy("boostEnd","desc"), orderBy("createdAt","desc"));
+
+  // Pagination
+  q = lastVisible ? query(q, startAfter(lastVisible), limit(annoncesPerBatch)) : query(q, limit(annoncesPerBatch));
+
+  return q;
+}
+
+// ------------------------ FETCH BATCH ------------------------
+async function fetchAnnoncesBatch(){
+  const q = buildQuery();
+  const snap = await getDocs(q);
   if(snap.empty) return [];
 
-  lastVisible = snap.docs[snap.docs.length -1];
-  const batch = snap.docs.map(docSnap => {
+  lastVisible = snap.docs[snap.docs.length-1];
+
+  const batch = snap.docs.map(docSnap=>{
     const data = docSnap.data();
     data.id = docSnap.id;
     return data;
@@ -388,13 +408,13 @@ async function renderAnnoncesBatch(batch){
     const usersSnap = await getDocs(collection(db, "users"));
     const byEmail = {};
     const byId = {};
-    usersSnap.forEach(uDoc => {
+    usersSnap.forEach(uDoc=>{
       const u = uDoc.data() || {};
       byId[uDoc.id] = u;
       const email = (u.email || u.emailAddress || "").toLowerCase().trim();
       if(email) byEmail[email] = u;
     });
-    window.__usersCache = { byEmail, byId };
+    window.__usersCache = {byEmail, byId};
   }
 
   for(const a of batch){
@@ -409,7 +429,7 @@ async function renderAnnoncesBatch(batch){
     if(annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
     if(!sellerData && a.userId) sellerData = window.__usersCache.byId[a.userId];
     if(!sellerData && a.uid) sellerData = window.__usersCache.byId[a.uid];
-    if(!sellerData && a.user && typeof a.user === "object") sellerData = a.user;
+    if(!sellerData && a.user && typeof a.user==="object") sellerData = a.user;
 
     let isPro = false;
     if(sellerData?.subscribe){
@@ -419,29 +439,27 @@ async function renderAnnoncesBatch(batch){
 
     let fullName = "Utilisateur inconnu";
     if(sellerData){
-      fullName =
-        escapeHTML(
-          sellerData.fullName ||
-          `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
-          sellerData.displayName ||
-          sellerData.name ||
-          sellerData.nom ||
-          sellerData.prenom ||
-          "Utilisateur"
-        );
+      fullName = escapeHTML(
+        sellerData.fullName ||
+        `${sellerData.firstName||sellerData.prenom||""} ${sellerData.lastName||sellerData.nom||""}`.trim() ||
+        sellerData.displayName ||
+        sellerData.name ||
+        sellerData.nom ||
+        sellerData.prenom ||
+        "Utilisateur"
+      );
     }
 
-    let sellerPhoto =
-      escapeHTML(
-        sellerData?.profileImage ||
-        sellerData?.profilePic ||
-        sellerData?.profile ||
-        sellerData?.photoURL ||
-        sellerData?.avatar ||
-        sellerData?.image ||
-        sellerData?.photo ||
-        "https://via.placeholder.com/40"
-      );
+    let sellerPhoto = escapeHTML(
+      sellerData?.profileImage ||
+      sellerData?.profilePic ||
+      sellerData?.profile ||
+      sellerData?.photoURL ||
+      sellerData?.avatar ||
+      sellerData?.image ||
+      sellerData?.photo ||
+      "https://via.placeholder.com/40"
+    );
 
     let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
 
@@ -470,7 +488,7 @@ async function renderAnnoncesBatch(batch){
       </div>
     `;
 
-    // gestion des favoris
+    // favoris
     const favBtn = card.querySelector(".favorite");
     favBtn.addEventListener("click", async e=>{
       e.stopPropagation();
@@ -511,32 +529,11 @@ window.addEventListener("scroll", async ()=>{
   }
 });
 
-// ------------------------ FILTRES & TRI ------------------------
-function applyAllFiltersClientSide(batch){
-  let filtered = batch;
-  if(selectedCategory && selectedCategory!=="all")
-    filtered = filtered.filter(a=>a.categorie===selectedCategory);
-  if(selectedSubcategory)
-    filtered = filtered.filter(a=>a.souscategorie===selectedSubcategory);
-  if(searchText)
-    filtered = filtered.filter(a=>
-      (a.title?.toLowerCase().includes(searchText.toLowerCase()))||
-      (a.city?.toLowerCase().includes(searchText.toLowerCase()))
-    );
-
-  if(sortOrder==="asc") filtered.sort((a,b)=>(a.price||0)-(b.price||0));
-  if(sortOrder==="desc") filtered.sort((a,b)=>(b.price||0)-(a.price||0));
-
-  return filtered;
-}
-
+// ------------------------ RESET ANNONCES ------------------------
 function resetAnnonces(){
   annoncesContainer.innerHTML="";
   lastVisible=null;
-  fetchAnnoncesBatch().then(batch=>{
-    const filtered = applyAllFiltersClientSide(batch);
-    renderAnnoncesBatch(filtered);
-  });
+  fetchAnnoncesBatch().then(batch=>renderAnnoncesBatch(batch));
 }
 
 // ------------------------ SEARCH & SORT ------------------------
@@ -574,7 +571,6 @@ function setupCategoryFilters() {
 // ------------------------ INIT ------------------------
 setupCategoryFilters();
 setupSearchAndSort();
-
 
 </script>  
 </body>
