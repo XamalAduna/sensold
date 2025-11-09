@@ -1,3 +1,4 @@
+
 <!DOCTYPE html> 
 <html lang="fr"> 
 <head> 
@@ -165,7 +166,7 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 </div>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-import { getFirestore, collection, getDocs, query, orderBy, limit,startAfter, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, query, orderBy, limit, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
@@ -343,25 +344,24 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-let lastVisibleAnnonce = null; // pour Firestore pagination
-const annoncesBatchSize = 100; // nombre d'annonces à charger par batch
-
 async function loadAnnonces() {
   annoncesContainer.innerHTML = "";
   document.getElementById("spinner").style.display = "flex";
-  annoncesData = []; // reset
-  lastVisibleAnnonce = null; // reset pagination Firestore
 
   try {
-    await loadNextBatch(); // charge le premier batch
+    const annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt","desc"));
+    const annoncesSnap = await getDocs(annoncesQuery);
 
-    // setup du scroll pour lazy load suivant
-    window.onscroll = async () => {
-      if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 300) {
-        // près du bas de page
-        await loadNextBatch();
-      }
-    };
+    if(annoncesSnap.empty){ 
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
+      document.getElementById("spinner").style.display = "none";
+      return; 
+    }
+    annoncesData = [];
+    annoncesSnap.forEach(docSnap => {
+    const data = docSnap.data();
+    data.id = docSnap.id;
+    annoncesData.push(data);});
 
     if (!window.__usersCache) {
       try {
@@ -380,7 +380,6 @@ async function loadAnnonces() {
         window.__usersCache = { byEmail: {}, byId: {} };
       }
     }
-
     setupCategoryFilters();
     setupSearchAndSort();
     setupFilterMenu();
@@ -389,31 +388,9 @@ async function loadAnnonces() {
     console.error("Erreur chargement annonces:", err);
     annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   } finally {
-    document.getElementById("spinner").style.display = "none";
+    document.getElementById("spinner").style.display = "none"; 
   }
 }
-
-// Fonction pour charger le prochain batch depuis Firestore
-async function loadNextBatch() {
-  let annoncesQuery;
-  if(lastVisibleAnnonce){
-    annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt","desc"), startAfter(lastVisibleAnnonce), limit(annoncesBatchSize));
-  } else {
-    annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt","desc"), limit(annoncesBatchSize));
-  }
-
-  const annoncesSnap = await getDocs(annoncesQuery);
-  if(!annoncesSnap.empty){
-    lastVisibleAnnonce = annoncesSnap.docs[annoncesSnap.docs.length - 1];
-    annoncesSnap.forEach(docSnap => {
-      const data = docSnap.data();
-      data.id = docSnap.id;
-      annoncesData.push(data);
-    });
-    applyAllFilters(); // met à jour l'affichage avec le batch chargé
-  }
-}
-
 function escapeHTML(str) {
   if (!str) return "";
   return str
@@ -422,7 +399,6 @@ function escapeHTML(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
 }
-
 async function renderAnnonces(filtered) {
   annoncesContainer.innerHTML = "";
   if (filtered.length === 0) {
@@ -437,7 +413,6 @@ async function renderAnnonces(filtered) {
   const end = start + annoncesPerPage;
   const pageItems = filtered.slice(start, end);
 
-  // Cache des users pour éviter des appels multiples
   if (!window.__usersCache) {
     try {
       const usersSnap = await getDocs(collection(db, "users"));
@@ -474,8 +449,7 @@ async function renderAnnonces(filtered) {
     if (sellerData && sellerData.subscribe === true) {
       const now = new Date();
       const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
-      if (subEnd > now) isPro = true;
-    }
+      if (subEnd > now) isPro = true;}
 
     let fullName = "Utilisateur inconnu";
     if (sellerData) {
@@ -490,7 +464,6 @@ async function renderAnnonces(filtered) {
           "Utilisateur"
         );
     }
-
     let sellerPhoto =
       (sellerData && (
         sellerData.profileImage ||
@@ -505,51 +478,46 @@ async function renderAnnonces(filtered) {
       sellerPhoto = "https://via.placeholder.com/40";
     }
     sellerPhoto = escapeHTML(sellerPhoto);
-
     let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
-
     card.innerHTML = `
-      <div class="image-container">
-        <img src="${annonceImage}" 
-             loading="lazy"
-             alt="${escapeHTML(a.title || 'Annonce')}"
-             onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
-        ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
-        <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
-        <span class="material-icons favorite ${isFav ? 'active' : ''}">
-          ${isFav ? 'favorite' : 'favorite_border'}
-        </span>
-      </div>
-      <div class="content">
-        <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
-        <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
-        <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
-      </div>
-      <div class="seller">
-        <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
-        <div class="seller-info">
-          <strong>${fullName}</strong>
-          ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
-        </div>
-      </div>
-    `;
-
+  <div class="image-container">
+    <img src="${annonceImage}" 
+         loading="lazy"
+         alt="${escapeHTML(a.title || 'Annonce')}"
+         onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
+    ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
+    <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
+    <span class="material-icons favorite ${isFav ? 'active' : ''}">
+      ${isFav ? 'favorite' : 'favorite_border'}
+    </span>
+  </div>
+  <div class="content">
+    <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
+    <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
+    <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
+  </div>
+  <div class="seller">
+    <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
+    <div class="seller-info">
+      <strong>${fullName}</strong>
+      ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
+    </div>
+  </div>
+`;
     const titleEl = card.querySelector('.title');
-    if ((a.title || "").length > 30) {
-      titleEl.classList.add('long-text');
-    }
-
+      if ((a.title || "").length > 30) {
+      titleEl.classList.add('long-text');}
     const favBtn = card.querySelector(".favorite");
     favBtn.addEventListener("click", async e => {
       e.stopPropagation();
 
       if (!currentUser) {
-        const msg = document.getElementById("notLoggedMsg");
-        msg.style.display = "block";
-        setTimeout(() => { msg.style.display = "none"; }, 3000);
-        return;
-      }
+      const msg = document.getElementById("notLoggedMsg");
+      msg.style.display = "block";
+      setTimeout(() => { msg.style.display = "none"; }, 3000);
+      return;}
 
+      
       const favRef = doc(db, "users", currentUser.uid);
       if (favBtn.classList.contains("active")) {
         favBtn.classList.remove("active");
@@ -575,7 +543,6 @@ async function renderAnnonces(filtered) {
   renderPagination(Math.ceil(filtered.length / annoncesPerPage));
 }
 
-  
 function renderPagination(totalPages){
   let paginationContainer = document.getElementById("pagination");
   if(!paginationContainer){
@@ -716,62 +683,35 @@ function isBoostActive(annonce) {
   return boostEndDate > now;
 }
 
-let filteredAnnonces = []; // Cache du filtre courant pour pagination
-
 function applyAllFilters() {
-  // Ne recalculer les filtres que si la catégorie, sous-catégorie ou texte de recherche change
-  if (!applyAllFilters.lastCategory || 
-      applyAllFilters.lastCategory !== selectedCategory ||
-      applyAllFilters.lastSubcategory !== selectedSubcategory ||
-      applyAllFilters.lastSearchText !== searchText ||
-      applyAllFilters.lastSortOrder !== sortOrder) {
-
-    filteredAnnonces = annoncesData;
-
-    if (selectedCategory && selectedCategory !== "all")
-      filteredAnnonces = filteredAnnonces.filter(a => a.categorie === selectedCategory);
-
-    if (selectedSubcategory)
-      filteredAnnonces = filteredAnnonces.filter(a => a.souscategorie === selectedSubcategory);
-
-    if (searchText)
-      filteredAnnonces = filteredAnnonces.filter(a =>
-        (a.title?.toLowerCase().includes(searchText.toLowerCase())) ||
+  let filtered = annoncesData;
+  if(selectedCategory && selectedCategory !== "all") 
+      filtered = filtered.filter(a => a.categorie === selectedCategory);
+  if(selectedSubcategory) 
+      filtered = filtered.filter(a => a.souscategorie === selectedSubcategory);
+  if(searchText) 
+      filtered = filtered.filter(a => 
+        (a.title?.toLowerCase().includes(searchText.toLowerCase())) || 
         (a.city?.toLowerCase().includes(searchText.toLowerCase()))
       );
 
-    filteredAnnonces.sort((a, b) => {
-      const aBoost = isBoostActive(a);
-      const bBoost = isBoostActive(b);
-      if (aBoost && !bBoost) return -1;
-      if (!aBoost && bBoost) return 1;
-      if (aBoost && bBoost) {
-        const aEnd = a.boostEnd ? (a.boostEnd.toDate ? a.boostEnd.toDate() : new Date(a.boostEnd)) : 0;
-        const bEnd = b.boostEnd ? (b.boostEnd.toDate ? b.boostEnd.toDate() : new Date(b.boostEnd)) : 0;
-        return bEnd - aEnd;
-      }
-      if (sortOrder === "asc") return (a.price || 0) - (b.price || 0);
-      if (sortOrder === "desc") return (b.price || 0) - (a.price || 0);
-      const aDate = a.createdAt ? a.createdAt.seconds * 1000 : 0;
-      const bDate = b.createdAt ? b.createdAt.seconds * 1000 : 0;
-      return bDate - aDate;
-    });
-
-    // Sauvegarde les derniers filtres
-    applyAllFilters.lastCategory = selectedCategory;
-    applyAllFilters.lastSubcategory = selectedSubcategory;
-    applyAllFilters.lastSearchText = searchText;
-    applyAllFilters.lastSortOrder = sortOrder;
-  }
-
-  // Lazy loading par page
-  const start = (currentPage - 1) * annoncesPerPage;
-  const end = start + annoncesPerPage;
-  const pageItems = filteredAnnonces.slice(start, end);
-
-  renderAnnonces(pageItems, filteredAnnonces.length);
-}
-
+  filtered.sort((a, b) => {
+    const aBoost = isBoostActive(a);
+    const bBoost = isBoostActive(b);
+    if(aBoost && !bBoost) return -1;
+    if(!aBoost && bBoost) return 1;
+    if(aBoost && bBoost){
+      const aEnd = a.boostEnd ? a.boostEnd.toDate ? a.boostEnd.toDate() : new Date(a.boostEnd) : 0;
+      const bEnd = b.boostEnd ? b.boostEnd.toDate ? b.boostEnd.toDate() : new Date(b.boostEnd) : 0;
+      return bEnd - aEnd;
+    }
+    if(sortOrder === "asc") return (a.price || 0) - (b.price || 0);
+    if(sortOrder === "desc") return (b.price || 0) - (a.price || 0);
+    const aDate = a.createdAt ? a.createdAt.seconds * 1000 : 0;
+    const bDate = b.createdAt ? b.createdAt.seconds * 1000 : 0;
+    return bDate - aDate;
+  });
+  renderAnnonces(filtered);}
 </script>  
 </body>
 </html>
