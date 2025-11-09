@@ -301,7 +301,6 @@ const categoriesData = {
   ]
 };
 
-// ------------------------ INITIALISATION ------------------------
 const annoncesContainer = document.getElementById("annonces");
 const subContainer = document.getElementById("subcategories-container");
 const categoryElements = document.querySelectorAll(".category");
@@ -314,32 +313,242 @@ const priceDescBtn = document.getElementById("price-desc");
 
 let currentUser = null;
 let userFavorites = [];
+let annoncesData = [];
 let selectedCategory = "all";
 let selectedSubcategory = null;
 let searchText = "";
 let sortOrder = "default";
-let lastVisible = null; // pour pagination Firestore
-const annoncesPerBatch = 50; // batch pour infinite scroll
+let lastDoc = null; // pour pagination Firestore
+const annoncesPerPage = 1000; // 1000 annonces par lot
+let loading = false;
+let hasMore = true;
 
-// ------------------------ UTILITAIRES ------------------------
-function timeAgo(timestamp){
-  if(!timestamp) return "Date inconnue";
+function timeAgo(timestamp) {
+  if (!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
-  if(seconds < 60) return "à l’instant";
-  const minutes = Math.floor(seconds/60);
-  if(minutes < 60) return `il y a ${minutes} min`;
-  const hours = Math.floor(minutes/60);
-  if(hours < 24) return `il y a ${hours} h`;
-  const days = Math.floor(hours/24);
+  if (seconds < 60) return "à l’instant";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `il y a ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `il y a ${hours} h`;
+  const days = Math.floor(hours / 24);
   return `il y a ${days} j`;
 }
 
+// Auth
+onAuthStateChanged(auth, async (user) => {
+  currentUser = user;
+  if (user) {
+    const userSnap = await getDoc(doc(db, "users", user.uid));
+    userFavorites = userSnap.data()?.favorites || [];
+  } else userFavorites = [];
+  resetAnnonces();
+});
+
+// Reset annonces pour recharger depuis le serveur
+function resetAnnonces() {
+  annoncesContainer.innerHTML = "";
+  annoncesData = [];
+  lastDoc = null;
+  hasMore = true;
+  loadAnnonces();
+}
+
+// Fonction principale pour charger les annonces depuis Firestore
+async function loadAnnonces() {
+  if (loading || !hasMore) return;
+  loading = true;
+  document.getElementById("spinner").style.display = "flex";
+
+  try {
+    let annoncesRef = collection(db, "annonces");
+    let q;
+
+    // Filtrage côté serveur
+    if (selectedCategory && selectedCategory !== "all") {
+      q = query(
+        annoncesRef,
+        where("categorie", "==", selectedCategory),
+        orderBy("boostEnd", "desc"),
+        orderBy("createdAt", "desc"),
+        startAfter(lastDoc || 0),
+        limit(annoncesPerPage)
+      );
+    } else {
+      q = query(
+        annoncesRef,
+        orderBy("boostEnd", "desc"),
+        orderBy("createdAt", "desc"),
+        startAfter(lastDoc || 0),
+        limit(annoncesPerPage)
+      );
+    }
+
+    const annoncesSnap = await getDocs(q);
+
+    if (annoncesSnap.empty) {
+      hasMore = false;
+      if (annoncesData.length === 0) annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
+      return;
+    }
+
+    const batch = [];
+    annoncesSnap.forEach(docSnap => {
+      const data = docSnap.data();
+      data.id = docSnap.id;
+      batch.push(data);
+    });
+
+    lastDoc = annoncesSnap.docs[annoncesSnap.docs.length - 1];
+    annoncesData.push(...batch);
+
+    renderAnnonces(batch, true);
+
+    // Précharger les utilisateurs en cache
+    if (!window.__usersCache) {
+      const usersSnap = await getDocs(collection(db, "users"));
+      const byEmail = {};
+      const byId = {};
+      usersSnap.forEach(uDoc => {
+        const u = uDoc.data() || {};
+        byId[uDoc.id] = u;
+        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+        if (email) byEmail[email] = u;
+      });
+      window.__usersCache = { byEmail, byId };
+    }
+  } catch (err) {
+    console.error("Erreur chargement annonces:", err);
+    if (annoncesData.length === 0) annoncesContainer.innerHTML = `<p>⚠️ Erreur : ${err.message}</p>`;
+  } finally {
+    loading = false;
+    document.getElementById("spinner").style.display = "none";
+  }
+}
+
+// Fonction pour afficher les annonces
+function renderAnnonces(items, append = false) {
+  if (!append) annoncesContainer.innerHTML = "";
+  if (items.length === 0 && !append) {
+    annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
+    return;
+  }
+
+  items.forEach(a => {
+    const docId = escapeHTML(a.id || "");
+    const card = document.createElement("div");
+    card.className = "annonce-card";
+
+    const isFav = currentUser && userFavorites.includes(a.id);
+
+    let sellerData = null;
+    const annonceEmail = (a.userEmail || "").toLowerCase().trim();
+    if (annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
+    if (!sellerData && a.userId) sellerData = window.__usersCache.byId[a.userId];
+    if (!sellerData && a.uid) sellerData = window.__usersCache.byId[a.uid];
+    if (!sellerData && a.user && typeof a.user === "object") sellerData = a.user;
+
+    let isPro = false;
+    if (sellerData && sellerData.subscribe === true) {
+      const now = new Date();
+      const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
+      if (subEnd > now) isPro = true;
+    }
+
+    let fullName = "Utilisateur inconnu";
+    if (sellerData) {
+      fullName =
+        escapeHTML(
+          sellerData.fullName ||
+          `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
+          sellerData.displayName ||
+          sellerData.name ||
+          sellerData.nom ||
+          sellerData.prenom ||
+          "Utilisateur"
+        );
+    }
+
+    let sellerPhoto =
+      (sellerData && (
+        sellerData.profileImage ||
+        sellerData.profilePic ||
+        sellerData.profile ||
+        sellerData.photoURL ||
+        sellerData.avatar ||
+        sellerData.image ||
+        sellerData.photo
+      )) || "";
+    if (!sellerPhoto || typeof sellerPhoto !== "string" || sellerPhoto.startsWith("gs://") || sellerPhoto.startsWith("/")) {
+      sellerPhoto = "https://via.placeholder.com/40";
+    }
+    sellerPhoto = escapeHTML(sellerPhoto);
+    let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
+
+    card.innerHTML = `
+      <div class="image-container">
+        <img src="${annonceImage}" loading="lazy" alt="${escapeHTML(a.title || 'Annonce')}" onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
+        ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
+        <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
+        <span class="material-icons favorite ${isFav ? 'active' : ''}">${isFav ? 'favorite' : 'favorite_border'}</span>
+      </div>
+      <div class="content">
+        <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
+        <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
+        <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
+      </div>
+      <div class="seller">
+        <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
+        <div class="seller-info">
+          <strong>${fullName}</strong>
+          ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
+        </div>
+      </div>
+    `;
+
+    const favBtn = card.querySelector(".favorite");
+    favBtn.addEventListener("click", async e => {
+      e.stopPropagation();
+      if (!currentUser) {
+        const msg = document.getElementById("notLoggedMsg");
+        msg.style.display = "block";
+        setTimeout(() => { msg.style.display = "none"; }, 3000);
+        return;
+      }
+      const favRef = doc(db, "users", currentUser.uid);
+      if (favBtn.classList.contains("active")) {
+        favBtn.classList.remove("active");
+        favBtn.textContent = "favorite_border";
+        userFavorites = userFavorites.filter(id => id !== docId);
+        await updateDoc(favRef, { favorites: arrayRemove(docId) });
+      } else {
+        favBtn.classList.add("active");
+        favBtn.textContent = "favorite";
+        userFavorites.push(docId);
+        await updateDoc(favRef, { favorites: arrayUnion(docId) });
+      }
+    });
+
+    card.addEventListener("click", e => {
+      if (e.target.classList.contains("favorite")) return;
+      window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
+    });
+
+    annoncesContainer.appendChild(card);
+  });
+}
+
+// Scroll infini
+window.addEventListener("scroll", () => {
+  if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500) {
+    loadAnnonces();
+  }
+});
+
+// Fonctions utilitaires
 function escapeHTML(str) {
   if (!str) return "";
-  return str.replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;");
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 function isBoostActive(annonce) {
@@ -349,228 +558,11 @@ function isBoostActive(annonce) {
   return boostEndDate > now;
 }
 
-// ------------------------ AUTHENTIFICATION ------------------------
-onAuthStateChanged(auth, async (user) => {
-  currentUser = user;
-  if(user){
-    const userSnap = await getDoc(doc(db,"users",user.uid));
-    userFavorites = userSnap.data()?.favorites || [];
-  } else userFavorites = [];
-  resetAnnonces();
-});
-
-// ------------------------ CONSTRUCTION DE LA QUERY FIRESTORE ------------------------
-function buildQuery(){
-  const qConstraints = [];
-  
-  // FILTRE CATEGORIE
-  if(selectedCategory && selectedCategory!=="all") qConstraints.push(where("categorie", "==", selectedCategory));
-  if(selectedSubcategory) qConstraints.push(where("souscategorie", "==", selectedSubcategory));
-
-  // RECHERCHE côté serveur (title)
-  if(searchText){
-    const searchLower = searchText.toLowerCase();
-    qConstraints.push(where("searchTitle","array-contains", searchLower));
-  }
-
-  // TRI priorité boost, puis prix ou date
-  if(sortOrder==="asc") qConstraints.push(orderBy("boostEnd","desc"), orderBy("price","asc"));
-  else if(sortOrder==="desc") qConstraints.push(orderBy("boostEnd","desc"), orderBy("price","desc"));
-  else qConstraints.push(orderBy("boostEnd","desc"), orderBy("createdAt","desc"));
-
-  // LIMIT et pagination
-  if(lastVisible) qConstraints.push(startAfter(lastVisible), limit(annoncesPerBatch));
-  else qConstraints.push(limit(annoncesPerBatch));
-
-  return query(collection(db, "annonces"), ...qConstraints);
-}
-
-
-// ------------------------ FETCH BATCH ------------------------
-async function fetchAnnoncesBatch(){
-  const q = buildQuery();
-  const snap = await getDocs(q);
-  if(snap.empty) return [];
-
-  lastVisible = snap.docs[snap.docs.length-1];
-
-  const batch = snap.docs.map(docSnap=>{
-    const data = docSnap.data();
-    data.id = docSnap.id;
-    return data;
-  });
-  return batch;
-}
-
-// ------------------------ RENDER ANNONCE ------------------------
-async function renderAnnoncesBatch(batch){
-  if(!window.__usersCache){
-    const usersSnap = await getDocs(collection(db, "users"));
-    const byEmail = {};
-    const byId = {};
-    usersSnap.forEach(uDoc=>{
-      const u = uDoc.data() || {};
-      byId[uDoc.id] = u;
-      const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-      if(email) byEmail[email] = u;
-    });
-    window.__usersCache = {byEmail, byId};
-  }
-
-  for(const a of batch){
-    const docId = escapeHTML(a.id || "");
-    const card = document.createElement("div");
-    card.className = "annonce-card";
-
-    const isFav = currentUser && userFavorites.includes(a.id);
-
-    let sellerData = null;
-    const annonceEmail = (a.userEmail || "").toLowerCase().trim();
-    if(annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
-    if(!sellerData && a.userId) sellerData = window.__usersCache.byId[a.userId];
-    if(!sellerData && a.uid) sellerData = window.__usersCache.byId[a.uid];
-    if(!sellerData && a.user && typeof a.user==="object") sellerData = a.user;
-
-    let isPro = false;
-    if(sellerData?.subscribe){
-      const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
-      if(subEnd > new Date()) isPro = true;
-    }
-
-    let fullName = "Utilisateur inconnu";
-    if(sellerData){
-      fullName = escapeHTML(
-        sellerData.fullName ||
-        `${sellerData.firstName||sellerData.prenom||""} ${sellerData.lastName||sellerData.nom||""}`.trim() ||
-        sellerData.displayName ||
-        sellerData.name ||
-        sellerData.nom ||
-        sellerData.prenom ||
-        "Utilisateur"
-      );
-    }
-
-    let sellerPhoto = escapeHTML(
-      sellerData?.profileImage ||
-      sellerData?.profilePic ||
-      sellerData?.profile ||
-      sellerData?.photoURL ||
-      sellerData?.avatar ||
-      sellerData?.image ||
-      sellerData?.photo ||
-      "https://via.placeholder.com/40"
-    );
-
-    let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
-
-    card.innerHTML = `
-      <div class="image-container">
-        <img src="${annonceImage}" loading="lazy" alt="${escapeHTML(a.title||'Annonce')}"
-             onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
-        ${isBoostActive(a)?'<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>':''}
-        <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
-        <span class="material-icons favorite ${isFav?'active':''}">
-          ${isFav?'favorite':'favorite_border'}
-        </span>
-      </div>
-      <div class="content">
-        <p class="price">${escapeHTML(a.price?a.price+" FCFA":"Prix sur demande")}</p>
-        <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
-        <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier?", "+escapeHTML(a.quartier):""}</p>
-      </div>
-      <div class="seller">
-        <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur"
-             onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
-        <div class="seller-info">
-          <strong>${fullName}</strong>
-          ${isPro?'<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>':''}
-        </div>
-      </div>
-    `;
-
-    // favoris
-    const favBtn = card.querySelector(".favorite");
-    favBtn.addEventListener("click", async e=>{
-      e.stopPropagation();
-      if(!currentUser){
-        const msg = document.getElementById("notLoggedMsg");
-        msg.style.display="block";
-        setTimeout(()=>{msg.style.display="none";},3000);
-        return;
-      }
-      const favRef = doc(db,"users",currentUser.uid);
-      if(favBtn.classList.contains("active")){
-        favBtn.classList.remove("active");
-        favBtn.textContent="favorite_border";
-        userFavorites=userFavorites.filter(id=>id!==docId);
-        await updateDoc(favRef,{favorites:arrayRemove(docId)});
-      } else {
-        favBtn.classList.add("active");
-        favBtn.textContent="favorite";
-        userFavorites.push(docId);
-        await updateDoc(favRef,{favorites:arrayUnion(docId)});
-      }
-    });
-
-    card.addEventListener("click", e=>{
-      if(e.target.classList.contains("favorite")) return;
-      window.location.href=`Details.html?id=${encodeURIComponent(docId)}`;
-    });
-
-    annoncesContainer.appendChild(card);
-  }
-}
-
-// ------------------------ INFINITE SCROLL ------------------------
-window.addEventListener("scroll", async ()=>{
-  if((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 200){
-    const batch = await fetchAnnoncesBatch();
-    if(batch.length>0) await renderAnnoncesBatch(batch);
-  }
-});
-
-// ------------------------ RESET ANNONCES ------------------------
-function resetAnnonces(){
-  annoncesContainer.innerHTML="";
-  lastVisible=null;
-  fetchAnnoncesBatch().then(batch=>renderAnnoncesBatch(batch));
-}
-
-// ------------------------ SEARCH & SORT ------------------------
-function setupSearchAndSort(){
-  const searchInput = document.getElementById("search-input");
-  const searchBtn = document.getElementById("search-btn");
-
-  searchInput.addEventListener("input", ()=>{ searchText = searchInput.value; });
-  searchBtn.addEventListener("click", ()=>{ resetAnnonces(); });
-  searchInput.addEventListener("keypress", e=>{ if(e.key==="Enter") resetAnnonces(); });
-
-  if(filterToggle){
-    filterToggle.addEventListener("click", ()=>{ filterMenu.style.display = filterMenu.style.display==="block"?"none":"block"; });
-    priceAscBtn.addEventListener("click", ()=>{ sortOrder="asc"; resetAnnonces(); filterMenu.style.display="none"; });
-    priceDescBtn.addEventListener("click", ()=>{ sortOrder="desc"; resetAnnonces(); filterMenu.style.display="none"; });
-  }
-}
-
-// ------------------------ CATEGORIES ------------------------
-function setupCategoryFilters() {
-  const allCategory = document.querySelector('.category[data-cat="all"]');
-  if(allCategory) allCategory.classList.add("active");
-
-  categoryElements.forEach(cat=>{
-    cat.addEventListener("click", ()=>{
-      categoryElements.forEach(c=>c.classList.remove("active"));
-      cat.classList.add("active");
-      selectedCategory = cat.dataset.cat;
-      selectedSubcategory = null;
-      resetAnnonces();
-    });
-  });
-}
-
-// ------------------------ INIT ------------------------
+// TODO: garder setupCategoryFilters(), setupSearchAndSort(), setupFilterMenu() intactes
 setupCategoryFilters();
 setupSearchAndSort();
+setupFilterMenu();
+
 
 </script>  
 </body>
