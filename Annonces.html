@@ -741,33 +741,31 @@ function isBoostActive(annonce) {
   return boostEndDate > now;
 }
 
-async function applyAllFilters() {
-  let filtered = [...allAnnonces]; // copie complète des annonces
+let filteredCache = []; // cache des annonces filtrées
+let lastIndexLoaded = 0;
 
-  // Filtre par catégorie
+function applyAllFiltersLazy() {
+  let filtered = [...allAnnonces]; // copie complète
+
   const selectedCategory = categorySelect.value;
   if (selectedCategory && selectedCategory !== "all") {
     filtered = filtered.filter(a => a.category === selectedCategory);
   }
 
-  // Filtre par sous-catégorie
   const selectedSubCategory = subCategorySelect.value;
   if (selectedSubCategory && selectedSubCategory !== "all") {
     filtered = filtered.filter(a => a.subCategory === selectedSubCategory);
   }
 
-  // Filtre par ville
   const selectedCity = citySelect.value;
   if (selectedCity && selectedCity !== "all") {
     filtered = filtered.filter(a => a.city === selectedCity);
   }
 
-  // Filtre par livraison
   if (deliverySelect.value === "true") {
     filtered = filtered.filter(a => a.delivery === true);
   }
 
-  // Filtre par texte
   const searchText = searchInput.value.toLowerCase().trim();
   if (searchText) {
     filtered = filtered.filter(a =>
@@ -776,17 +774,25 @@ async function applyAllFilters() {
     );
   }
 
-  // Tri par boost ou date
+  // Tri boost puis date
   filtered.sort((a, b) => {
     const aBoost = isBoostActive(a) ? 1 : 0;
     const bBoost = isBoostActive(b) ? 1 : 0;
-    if (bBoost !== aBoost) return bBoost - aBoost; // boost d'abord
+    if (bBoost !== aBoost) return bBoost - aBoost;
     return b.createdAt?.toMillis?.() - a.createdAt?.toMillis?.() || 0;
   });
 
-  // Reset pagination et afficher la première page
-  currentPage = 1;
-  renderAnnonces(filtered, false);
+  filteredCache = filtered;
+  lastIndexLoaded = 0;
+  loadNextPage(); // affiche les 100 premières annonces
+}
+
+// Charger les 100 suivantes
+function loadNextPage() {
+  const nextIndex = lastIndexLoaded + annoncesPerPage;
+  const toRender = filteredCache.slice(lastIndexLoaded, nextIndex);
+  renderAnnonces(toRender, lastIndexLoaded > 0); // append si ce n’est pas la première page
+  lastIndexLoaded = nextIndex;
 }
 
 </script>  
