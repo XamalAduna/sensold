@@ -165,7 +165,7 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 </div>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-import { getFirestore, collection, getDocs, query, orderBy, limit, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, query, orderBy, limit,startAfter, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
@@ -488,12 +488,11 @@ async function renderAnnonces(filtered, append = false) {
   const totalPages = Math.ceil(filtered.length / annoncesPerPage);
   if (currentPage > totalPages) currentPage = 1;
 
-  // ⚙️ Si append=true => on affiche tout ce qu'on reçoit
-  const start = append ? 0 : (currentPage - 1) * annoncesPerPage;
-  const end = append ? filtered.length : start + annoncesPerPage;
+  const start = (currentPage - 1) * annoncesPerPage;
+  const end = start + annoncesPerPage;
   const pageItems = filtered.slice(start, end);
 
-  // 🧠 Cache utilisateurs déjà présent ? sinon on le recharge
+  // ✅ Mise en cache des utilisateurs
   if (!window.__usersCache) {
     try {
       const usersSnap = await getDocs(collection(db, "users"));
@@ -512,8 +511,7 @@ async function renderAnnonces(filtered, append = false) {
     }
   }
 
-  // ⚡️ Utilisation d’un fragment pour éviter les ralentissements DOM
-  const fragment = document.createDocumentFragment();
+  const fragment = document.createDocumentFragment(); // ⚙️ pour performance
 
   for (const a of pageItems) {
     const docId = escapeHTML(a.id || "");
@@ -522,6 +520,7 @@ async function renderAnnonces(filtered, append = false) {
 
     const isFav = currentUser && userFavorites.includes(a.id);
 
+    // 🔹 Récupérer les infos du vendeur
     let sellerData = null;
     const annonceEmail = (a.userEmail || "").toLowerCase().trim();
     if (annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
@@ -538,16 +537,15 @@ async function renderAnnonces(filtered, append = false) {
 
     let fullName = "Utilisateur inconnu";
     if (sellerData) {
-      fullName =
-        escapeHTML(
-          sellerData.fullName ||
-          `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
-          sellerData.displayName ||
-          sellerData.name ||
-          sellerData.nom ||
-          sellerData.prenom ||
-          "Utilisateur"
-        );
+      fullName = escapeHTML(
+        sellerData.fullName ||
+        `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
+        sellerData.displayName ||
+        sellerData.name ||
+        sellerData.nom ||
+        sellerData.prenom ||
+        "Utilisateur"
+      );
     }
 
     let sellerPhoto =
@@ -560,6 +558,7 @@ async function renderAnnonces(filtered, append = false) {
         sellerData.image ||
         sellerData.photo
       )) || "";
+
     if (!sellerPhoto || typeof sellerPhoto !== "string" || sellerPhoto.startsWith("gs://") || sellerPhoto.startsWith("/")) {
       sellerPhoto = "https://via.placeholder.com/40";
     }
@@ -567,7 +566,7 @@ async function renderAnnonces(filtered, append = false) {
 
     let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
 
-    // 🧩 Design original conservé
+    // 🧱 HTML de la carte (design intact)
     card.innerHTML = `
       <div class="image-container">
         <img src="${annonceImage}" 
@@ -594,18 +593,17 @@ async function renderAnnonces(filtered, append = false) {
       </div>
     `;
 
-    // Titre long → ajuste la classe
-    const titleEl = card.querySelector(".title");
-    if ((a.title || "").length > 30) titleEl.classList.add("long-text");
+    const titleEl = card.querySelector('.title');
+    if ((a.title || "").length > 30) titleEl.classList.add('long-text');
 
-    // Bouton favori
+    // ❤️ Gestion favoris
     const favBtn = card.querySelector(".favorite");
-    favBtn.addEventListener("click", async (e) => {
+    favBtn.addEventListener("click", async e => {
       e.stopPropagation();
       if (!currentUser) {
         const msg = document.getElementById("notLoggedMsg");
         msg.style.display = "block";
-        setTimeout(() => { msg.style.display = "none"; }, 3000);
+        setTimeout(() => (msg.style.display = "none"), 3000);
         return;
       }
 
@@ -623,8 +621,8 @@ async function renderAnnonces(filtered, append = false) {
       }
     });
 
-    // Navigation vers détails
-    card.addEventListener("click", (e) => {
+    // 🔗 Clic sur la carte → page détails
+    card.addEventListener("click", e => {
       if (e.target.classList.contains("favorite")) return;
       window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
     });
@@ -632,9 +630,10 @@ async function renderAnnonces(filtered, append = false) {
     fragment.appendChild(card);
   }
 
+  // ⚙️ Ajout des annonces d’un coup (optimisé DOM)
   annoncesContainer.appendChild(fragment);
 
-  // 🔹 Pas de pagination en mode lazy loading
+  // 📄 Affiche la pagination seulement si pas de lazy loading
   if (!append) renderPagination(Math.ceil(filtered.length / annoncesPerPage));
 }
 
