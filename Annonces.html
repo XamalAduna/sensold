@@ -304,7 +304,6 @@ const categoriesData = {
 const annoncesContainer = document.getElementById("annonces");
 const subContainer = document.getElementById("subcategories-container");
 const categoryElements = document.querySelectorAll(".category");
-const suggestionsBox = document.getElementById("suggestions");
 
 const filterToggle = document.getElementById("filter-toggle");
 const filterMenu = document.getElementById("filter-menu");
@@ -313,13 +312,15 @@ const priceDescBtn = document.getElementById("price-desc");
 
 let currentUser = null;
 let userFavorites = [];
-let annoncesData = [];
 let selectedCategory = "all";
 let selectedSubcategory = null;
 let searchText = "";
 let sortOrder = "default";
-let currentPage = 1;
+
 const annoncesPerPage = 20;
+let lastVisibleDoc = null;
+let isLoading = false;
+let hasMore = true;
 
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
@@ -332,6 +333,7 @@ function timeAgo(timestamp){
   const days = Math.floor(hours/24);
   return `il y a ${days} j`;
 }
+
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
   if(user){
@@ -341,289 +343,205 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     userFavorites = [];
   }
+  resetAnnonces();
   loadAnnonces();
 });
 
-// Nouvelle fonction paginée & performante pour Firestore
-// Utilise limit, startAfter pour charger uniquement ce qui est nécessaire
-let lastAnnonceDoc = null; // Doc snapshot de la dernière annonce, pour la pagination
-let hasMoreAnnonces = true;
-const annoncesPerPage = 100; // Peut augmenter si besoin
+function resetAnnonces(){
+  annoncesContainer.innerHTML = "";
+  lastVisibleDoc = null;
+  hasMore = true;
+}
 
-async function loadAnnonces(isLoadMore = false) {
+async function loadAnnonces(){
+  if(isLoading || !hasMore) return;
+  isLoading = true;
   document.getElementById("spinner").style.display = "flex";
-  // Si on ne fait pas un "load more", on réinitialise tout
-  if (!isLoadMore) {
-    annoncesContainer.innerHTML = "";
-    window.annoncesData = [];
-    lastAnnonceDoc = null;
-    hasMoreAnnonces = true;
-    currentPage = 1;
-  }
 
   try {
-    let annoncesQuery = query(
-      collection(db, "annonces"),
-      orderBy("createdAt", "desc"),
-      limit(annoncesPerPage)
-    );
-    if (lastAnnonceDoc) {
-      annoncesQuery = query(
-        collection(db, "annonces"),
-        orderBy("createdAt", "desc"),
-        startAfter(lastAnnonceDoc),
-        limit(annoncesPerPage)
-      );
-    }
-    const annoncesSnap = await getDocs(annoncesQuery);
+    let q = collection(db, "annonces");
 
-    if (annoncesSnap.empty) {
-      hasMoreAnnonces = false;
-      document.getElementById("spinner").style.display = "none";
-      if (!isLoadMore) {
-        annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
-      }
+    // Filtrage côté serveur
+    if(selectedCategory && selectedCategory !== "all") q = query(q, where("categorie", "==", selectedCategory));
+    if(selectedSubcategory) q = query(q, where("souscategorie", "==", selectedSubcategory));
+    if(searchText) q = query(q, where("searchKeywords", "array-contains", searchText.toLowerCase()));
+
+    // Tri côté serveur
+    if(sortOrder === "asc") q = query(q, orderBy("price","asc"));
+    else if(sortOrder === "desc") q = query(q, orderBy("price","desc"));
+    else q = query(q, orderBy("createdAt","desc"));
+
+    // Pagination Firestore
+    if(lastVisibleDoc) q = query(q, startAfter(lastVisibleDoc), limit(annoncesPerPage));
+    else q = query(q, limit(annoncesPerPage));
+
+    const annoncesSnap = await getDocs(q);
+    if(annoncesSnap.empty){
+      hasMore = false;
+      if(!lastVisibleDoc) annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
       return;
     }
 
-    const newAnnonces = [];
-    let lastDocTmp = null;
-    annoncesSnap.forEach(docSnap => {
+    const annoncesPage = [];
+    annoncesSnap.forEach(docSnap=>{
       const data = docSnap.data();
       data.id = docSnap.id;
-      newAnnonces.push(data);
-      lastDocTmp = docSnap;
+      annoncesPage.push(data);
     });
 
-    // On mémorise la dernière annonce (pour pagination)
-    lastAnnonceDoc = lastDocTmp;
+    lastVisibleDoc = annoncesSnap.docs[annoncesSnap.docs.length-1];
+    if(annoncesSnap.docs.length < annoncesPerPage) hasMore = false;
 
-    // On ajoute les annonces chargées au cache global
-    window.annoncesData = window.annoncesData ? window.annoncesData.concat(newAnnonces) : newAnnonces;
+    renderAnnonces(annoncesPage);
 
-    // On charge le cache utilisateur à la première page seulement
-    if (!window.__usersCache && !isLoadMore) {
-      try {
-        const usersSnap = await getDocs(collection(db, "users"));
-        const byEmail = {};
-        const byId = {};
-        usersSnap.forEach(uDoc => {
-          const u = uDoc.data() || {};
-          byId[uDoc.id] = u;
-          const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-          if (email) byEmail[email] = u;
-        });
-        window.__usersCache = { byEmail, byId };
-      } catch (err) {
-        console.error("Erreur chargement users:", err);
-        window.__usersCache = { byEmail: {}, byId: {} };
-      }
-    }
-    // Appelle le rendu des annonces
-    applyAllFilters(); // S’adapte (le filtre va créer l’affichage sur window.annoncesData)
-
-  } catch (err) {
+  } catch(err){
     console.error("Erreur chargement annonces:", err);
-    annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
-  } finally {
+    if(!lastVisibleDoc) annoncesContainer.innerHTML = `<p>⚠️ Erreur : ${err.message}</p>`;
+  } finally{
     document.getElementById("spinner").style.display = "none";
+    isLoading = false;
   }
 }
-
-
-// Scroll infini performant pour gros volume d'annonces
-window.addEventListener('scroll', async () => {
-  // Si le spinner est visible (chargement) ou qu’il n’y a plus d’annonces à charger, on ne fait rien !
-  const spinnerVisible = document.getElementById('spinner').style.display === 'flex';
-  if (spinnerVisible || !hasMoreAnnonces) return;
-
-  // Si l’utilisateur arrive en bas de la page :
-  if ((window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 200)) {
-    // Charge les annonces suivantes !
-    document.getElementById('spinner').style.display = 'flex';
-    await loadAnnonces(true); // Charge en mode "loadMore"
-  }
-});
 
 function escapeHTML(str) {
   if (!str) return "";
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-// Ce code remplace les anciennes fonctions applyAllFilters et renderAnnonces
+async function renderAnnonces(annonces){
+  if(annonces.length===0) return;
 
-function applyAllFilters() {
-  let filtered = window.annoncesData || [];
-
-  // Filtrage par catégorie
-  if (selectedCategory && selectedCategory !== "all")
-    filtered = filtered.filter(a => a.categorie === selectedCategory);
-
-  // Filtrage par sous-catégorie
-  if (selectedSubcategory)
-    filtered = filtered.filter(a => a.souscategorie === selectedSubcategory);
-
-  // Filtrage par recherche
-  if (searchText)
-    filtered = filtered.filter(a =>
-      (a.title?.toLowerCase().includes(searchText.toLowerCase())) ||
-      (a.city?.toLowerCase().includes(searchText.toLowerCase()))
-    );
-
-  // Tri
-  filtered.sort((a, b) => {
-    const aBoost = isBoostActive(a);
-    const bBoost = isBoostActive(b);
-    if (aBoost && !bBoost) return -1;
-    if (!aBoost && bBoost) return 1;
-    if (aBoost && bBoost) {
-      const aEnd = a.boostEnd ? a.boostEnd.toDate ? a.boostEnd.toDate() : new Date(a.boostEnd) : 0;
-      const bEnd = b.boostEnd ? b.boostEnd.toDate ? b.boostEnd.toDate() : new Date(b.boostEnd) : 0;
-      return bEnd - aEnd;
+  if(!window.__usersCache){
+    try{
+      const usersSnap = await getDocs(collection(db,"users"));
+      const byEmail = {};
+      const byId = {};
+      usersSnap.forEach(uDoc=>{
+        const u = uDoc.data()||{};
+        byId[uDoc.id] = u;
+        const email = (u.email||u.emailAddress||"").toLowerCase().trim();
+        if(email) byEmail[email] = u;
+      });
+      window.__usersCache = {byEmail, byId};
+    }catch(err){
+      console.error("Erreur chargement users:", err);
+      window.__usersCache = {byEmail:{}, byId:{}};
     }
-    if (sortOrder === "asc") return (a.price || 0) - (b.price || 0);
-    if (sortOrder === "desc") return (b.price || 0) - (a.price || 0);
-    const aDate = a.createdAt ? a.createdAt.seconds * 1000 : 0;
-    const bDate = b.createdAt ? b.createdAt.seconds * 1000 : 0;
-    return bDate - aDate;
-  });
-
-  renderAnnoncesInfinite(filtered);
-}
-
-// Nouveau rendu : n’affiche que les annonces déjà chargées, sans pagination classique
-function renderAnnoncesInfinite(filtered) {
-  annoncesContainer.innerHTML = "";
-  if (filtered.length === 0) {
-    annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
-    return;
   }
 
-  for (const a of filtered) {
-    const docId = escapeHTML(a.id || "");
+  annonces.forEach(a=>{
+    const docId = escapeHTML(a.id||"");
     const card = document.createElement("div");
     card.className = "annonce-card";
+
     const isFav = currentUser && userFavorites.includes(a.id);
 
     let sellerData = null;
     const annonceEmail = (a.userEmail || "").toLowerCase().trim();
-    if (window.__usersCache) {
-      if (annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
-      if (!sellerData && a.userId) sellerData = window.__usersCache.byId[a.userId];
-      if (!sellerData && a.uid) sellerData = window.__usersCache.byId[a.uid];
-      if (!sellerData && a.user && typeof a.user === "object") sellerData = a.user;
-    }
+    if(annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
+    if(!sellerData && a.userId) sellerData = window.__usersCache.byId[a.userId];
+    if(!sellerData && a.uid) sellerData = window.__usersCache.byId[a.uid];
+    if(!sellerData && a.user && typeof a.user==="object") sellerData = a.user;
 
     let isPro = false;
-    if (sellerData && sellerData.subscribe === true) {
+    if(sellerData && sellerData.subscribe===true){
       const now = new Date();
-      const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
-      if (subEnd > now) isPro = true;
+      const subEnd = sellerData.subscribeEnd?.toDate? sellerData.subscribeEnd.toDate(): new Date(sellerData.subscribeEnd);
+      if(subEnd>now) isPro=true;
     }
 
     let fullName = "Utilisateur inconnu";
-    if (sellerData) {
-      fullName =
-        escapeHTML(
-          sellerData.fullName ||
-          `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
-          sellerData.displayName ||
-          sellerData.name ||
-          sellerData.nom ||
-          sellerData.prenom ||
-          "Utilisateur"
-        );
+    if(sellerData){
+      fullName = escapeHTML(
+        sellerData.fullName || `${sellerData.firstName||sellerData.prenom||""} ${sellerData.lastName||sellerData.nom||""}`.trim() || sellerData.displayName || sellerData.name || sellerData.nom || sellerData.prenom || "Utilisateur"
+      );
     }
-    let sellerPhoto =
-      (sellerData && (
-        sellerData.profileImage ||
-        sellerData.profilePic ||
-        sellerData.profile ||
-        sellerData.photoURL ||
-        sellerData.avatar ||
-        sellerData.image ||
-        sellerData.photo
-      )) || "";
-    if (!sellerPhoto || typeof sellerPhoto !== "string" || sellerPhoto.startsWith("gs://") || sellerPhoto.startsWith("/")) {
+    let sellerPhoto = (sellerData && (sellerData.profileImage||sellerData.profilePic||sellerData.profile||sellerData.photoURL||sellerData.avatar||sellerData.image||sellerData.photo)) || "";
+    if(!sellerPhoto || typeof sellerPhoto!=="string" || sellerPhoto.startsWith("gs://") || sellerPhoto.startsWith("/")){
       sellerPhoto = "https://via.placeholder.com/40";
     }
     sellerPhoto = escapeHTML(sellerPhoto);
-    let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
+
+    let annonceImage = escapeHTML(a.images?.[0]||"https://via.placeholder.com/400x200?text=Annonce");
+
     card.innerHTML = `
-  <div class="image-container">
-    <img src="${annonceImage}" 
-         loading="lazy"
-         alt="${escapeHTML(a.title || 'Annonce')}"
-         onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
-    ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
-    <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
-    <span class="material-icons favorite ${isFav ? 'active' : ''}">
-      ${isFav ? 'favorite' : 'favorite_border'}
-    </span>
-  </div>
-  <div class="content">
-    <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
-    <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
-    <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
-  </div>
-  <div class="seller">
-    <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
-    <div class="seller-info">
-      <strong>${fullName}</strong>
-      ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
-    </div>
-  </div>
-`;
+      <div class="image-container">
+        <img src="${annonceImage}" loading="lazy" alt="${escapeHTML(a.title||'Annonce')}" onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
+        ${isBoostActive(a)?'<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>':''}
+        <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
+        <span class="material-icons favorite ${isFav?'active':''}">${isFav?'favorite':'favorite_border'}</span>
+      </div>
+      <div class="content">
+        <p class="price">${escapeHTML(a.price?a.price+" FCFA":"Prix sur demande")}</p>
+        <h3 class="title">${escapeHTML(a.title||"Sans titre")}</h3>
+        <p class="location">📍 ${escapeHTML(a.city||"Ville non précisée")}${a.quartier?", "+escapeHTML(a.quartier):""}</p>
+      </div>
+      <div class="seller">
+        <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
+        <div class="seller-info">
+          <strong>${fullName}</strong>
+          ${isPro?'<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>':''}
+        </div>
+      </div>
+    `;
+
     const titleEl = card.querySelector('.title');
-    if ((a.title || "").length > 30) {
-      titleEl.classList.add('long-text');
-    }
+    if((a.title||"").length>30) titleEl.classList.add('long-text');
+
     const favBtn = card.querySelector(".favorite");
-    favBtn.addEventListener("click", async e => {
+    favBtn.addEventListener("click", async e=>{
       e.stopPropagation();
-      if (!currentUser) {
+      if(!currentUser){
         const msg = document.getElementById("notLoggedMsg");
         msg.style.display = "block";
-        setTimeout(() => { msg.style.display = "none"; }, 3000);
+        setTimeout(()=>{msg.style.display="none";},3000);
         return;
       }
-      const favRef = doc(db, "users", currentUser.uid);
-      if (favBtn.classList.contains("active")) {
+      const favRef = doc(db,"users",currentUser.uid);
+      if(favBtn.classList.contains("active")){
         favBtn.classList.remove("active");
-        favBtn.textContent = "favorite_border";
-        userFavorites = userFavorites.filter(id => id !== docId);
-        await updateDoc(favRef, { favorites: arrayRemove(docId) });
-      } else {
+        favBtn.textContent="favorite_border";
+        userFavorites=userFavorites.filter(id=>id!==docId);
+        await updateDoc(favRef,{favorites:arrayRemove(docId)});
+      }else{
         favBtn.classList.add("active");
-        favBtn.textContent = "favorite";
+        favBtn.textContent="favorite";
         userFavorites.push(docId);
-        await updateDoc(favRef, { favorites: arrayUnion(docId) });
+        await updateDoc(favRef,{favorites:arrayUnion(docId)});
       }
     });
-    card.addEventListener("click", e => {
-      if (e.target.classList.contains("favorite")) return;
-      window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
+
+    card.addEventListener("click", e=>{
+      if(e.target.classList.contains("favorite")) return;
+      window.location.href=`Details.html?id=${encodeURIComponent(docId)}`;
     });
+
     annoncesContainer.appendChild(card);
-  }
-  // Pas de pagination classique ici, on fait tout par scroll (infinite scroll)
+  });
 }
 
+// Lazy loading sur scroll
+window.addEventListener("scroll", ()=>{
+  if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 500){
+    loadAnnonces();
+  }
+});
 
+function isBoostActive(annonce){
+  if(!annonce.boost || !annonce.boostEnd) return false;
+  const now = new Date();
+  const boostEndDate = new Date(annonce.boostEnd.toDate?annonce.boostEnd.toDate():annonce.boostEnd);
+  return boostEndDate>now;
+}
 
+// === Setup Categories & Filters ===
 function setupCategoryFilters() {
   const allCategory = document.querySelector('.category[data-cat="all"]');
   if (allCategory) allCategory.classList.add("active");
 
   document.addEventListener("click", e => {
     const menu = document.getElementById("subDropdownMenu");
-    if (menu && !menu.parentElement.contains(e.target)) {
-      menu.style.display = "none";
-    }
+    if (menu && !menu.parentElement.contains(e.target)) menu.style.display = "none";
   });
 
   categoryElements.forEach(cat => {
@@ -633,47 +551,8 @@ function setupCategoryFilters() {
 
       selectedCategory = cat.dataset.cat;
       selectedSubcategory = null;
-      currentPage = 1;
-      const subs = categoriesData[selectedCategory] || [];
-      if (subs.length === 0) {
-        subContainer.innerHTML = "<p style='text-align:center;color:#777;'>Aucune sous-catégorie</p>";
-      } else {
-        subContainer.innerHTML = `
-          <div style="text-align:center; margin-top:10px; position:relative; display:inline-block;">
-            <button id="subDropdownBtn" style="padding:8px 12px; border-radius:8px; border:1px solid #ccc; background:#fff; cursor:pointer;">
-              Sélectionner une sous-catégorie ▼
-            </button>
-            <div id="subDropdownMenu" style="display:none; position:absolute; top:100%; left:0; background:#fff; border:1px solid #ccc; border-radius:8px; width:220px; box-shadow:0 2px 6px rgba(0,0,0,0.15); z-index:1000;">
-              ${subs.map(s => `<div class="sub-item" style="display:flex; align-items:center; gap:8px; padding:6px 10px; cursor:pointer;">
-                <i class="material-icons" style="color:#009688;">${s.icon}</i>
-                <span>${s.label}</span>
-              </div>`).join('')}
-            </div>
-          </div>
-        `;
-
-        const btn = document.getElementById("subDropdownBtn");
-        const items = document.querySelectorAll(".sub-item");
-
-        btn.addEventListener("click", () => {
-          const menu = document.getElementById("subDropdownMenu");
-          menu.style.display = menu.style.display === "block" ? "none" : "block";
-        });
-
-        items.forEach(item => {
-          item.addEventListener("click", () => {
-            items.forEach(i => { i.style.background = "#fff"; i.style.color = "#000"; });
-            item.style.background = "#009688";
-            item.style.color = "#fff";
-            selectedSubcategory = item.querySelector("span").textContent.trim();
-            btn.textContent = selectedSubcategory + " ▼";
-            document.getElementById("subDropdownMenu").style.display = "none";
-            currentPage = 1;
-            applyAllFilters();
-          });
-        });
-      }
-      applyAllFilters();
+      resetAnnonces();
+      loadAnnonces();
     });
   });
 }
@@ -683,43 +562,23 @@ function setupSearchAndSort(){
   const searchBtn = document.getElementById("search-btn");
 
   searchInput.addEventListener("input", ()=>{ searchText = searchInput.value; });
-  searchBtn.addEventListener("click", ()=>{ searchText = searchInput.value; currentPage = 1; applyAllFilters(); });
-  searchInput.addEventListener("keypress", e=>{ if(e.key==="Enter"){ searchText = searchInput.value; currentPage = 1; applyAllFilters(); } });
+  searchBtn.addEventListener("click", ()=>{ searchText = searchInput.value; resetAnnonces(); loadAnnonces(); });
+  searchInput.addEventListener("keypress", e=>{ if(e.key==="Enter"){ searchText = searchInput.value; resetAnnonces(); loadAnnonces(); } });
 }
 
 function setupFilterMenu(){
   if(!filterToggle) return;
 
   filterToggle.addEventListener("click", () => { filterMenu.style.display = filterMenu.style.display === "block" ? "none" : "block"; });
-  priceAscBtn.addEventListener("click", () => { sortOrder = "asc"; currentPage = 1; applyAllFilters(); filterMenu.style.display = "none"; });
-  priceDescBtn.addEventListener("click", () => { sortOrder = "desc"; currentPage = 1; applyAllFilters(); filterMenu.style.display = "none"; });
+  priceAscBtn.addEventListener("click", () => { sortOrder = "asc"; resetAnnonces(); loadAnnonces(); filterMenu.style.display = "none"; });
+  priceDescBtn.addEventListener("click", () => { sortOrder = "desc"; resetAnnonces(); loadAnnonces(); filterMenu.style.display = "none"; });
 
   document.addEventListener("click", (e) => {
     if (!filterMenu.contains(e.target) && e.target !== filterToggle) filterMenu.style.display = "none";
   });
 }
 
-function isBoostActive(annonce) {
-  if (!annonce.boost || !annonce.boostEnd) return false;
-  const now = new Date();
-  const boostEndDate = new Date(annonce.boostEnd.toDate ? annonce.boostEnd.toDate() : annonce.boostEnd);
-  return boostEndDate > now;
-}
-
-
-// Après avoir tout défini
-onAuthStateChanged(auth, async (user) => {
-  currentUser = user;
-  if(user){
-    const userRef = doc(db,"users",user.uid);
-    const userSnap = await getDoc(userRef);
-    userFavorites = userSnap.data()?.favorites || [];
-  } else {
-    userFavorites = [];
-  }
-  loadAnnonces();
-});
-
+// Initialisation
 setupCategoryFilters();
 setupSearchAndSort();
 setupFilterMenu();
