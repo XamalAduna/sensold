@@ -1,4 +1,3 @@
-
 <!DOCTYPE html> 
 <html lang="fr"> 
 <head> 
@@ -166,7 +165,7 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 </div>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-import { getFirestore, collection, getDocs, query, orderBy,startAfter, limit, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, query, orderBy, limit,startAfter, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
@@ -344,87 +343,75 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-let lastVisible = null; // pour pagination Firestore
-const batchSize = 100;  // nombre d'annonces à charger à chaque scroll
-let loadingAnnonces = false;
+// --- VARIABLES GLOBALES ---
+let lastVisible = null; // Pour garder la dernière annonce chargée
+let isLoading = false; // Empêche le double chargement
+const PAGE_SIZE = 100; // Nombre d'annonces à charger par lot
+let allAnnonces = []; // Liste cumulée des annonces chargées
 
-async function loadAnnonces(initial = true) {
-  if (loadingAnnonces) return;
-  loadingAnnonces = true;
-
-  if(initial){
-    annoncesContainer.innerHTML = "";
-    document.getElementById("spinner").style.display = "flex";
-    annoncesData = [];
-    lastVisible = null;
-  }
+// --- FONCTION DE CHARGEMENT PAGINÉ ---
+async function loadAnnonces(initialLoad = false) {
+  if (isLoading) return;
+  isLoading = true;
 
   try {
-    let annoncesQuery;
-    const annoncesCol = collection(db, "annonces");
+    let queryRef = db.collection("annonces")
+      .orderBy("timestamp", "desc")
+      .limit(PAGE_SIZE);
 
-    if(lastVisible){
-      annoncesQuery = query(annoncesCol, orderBy("createdAt","desc"), startAfter(lastVisible), limit(batchSize));
-    } else {
-      annoncesQuery = query(annoncesCol, orderBy("createdAt","desc"), limit(batchSize));
+    // Si ce n’est pas le premier chargement, on continue après la dernière annonce visible
+    if (!initialLoad && lastVisible) {
+      queryRef = queryRef.startAfter(lastVisible);
     }
 
-    const annoncesSnap = await getDocs(annoncesQuery);
+    const snapshot = await queryRef.get();
 
-    if(annoncesSnap.empty){
-      document.getElementById("spinner").style.display = "none";
-      loadingAnnonces = false;
-      return; // plus d'annonces
+    // Si plus d’annonces à charger
+    if (snapshot.empty) {
+      window.removeEventListener("scroll", handleScroll);
+      console.log("Toutes les annonces ont été chargées.");
+      return;
     }
 
-    lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
+    // Stocker la dernière annonce du lot
+    lastVisible = snapshot.docs[snapshot.docs.length - 1];
 
-    annoncesSnap.forEach(docSnap => {
-      const data = docSnap.data();
-      data.id = docSnap.id;
-      annoncesData.push(data);
-    });
+    // Convertir les données Firestore
+    const newAnnonces = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
 
-    // Charger users une seule fois
-    if (!window.__usersCache) {
-      try {
-        const usersSnap = await getDocs(collection(db, "users"));
-        const byEmail = {};
-        const byId = {};
-        usersSnap.forEach(uDoc => {
-          const u = uDoc.data() || {};
-          byId[uDoc.id] = u;
-          const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-          if(email) byEmail[email] = u;
-        });
-        window.__usersCache = { byEmail, byId };
-      } catch(err) {
-        console.error("Erreur chargement users:", err);
-        window.__usersCache = { byEmail: {}, byId: {} };
-      }
-    }
+    // Ajouter les nouvelles annonces à la liste existante
+    allAnnonces = [...allAnnonces, ...newAnnonces];
 
-    setupCategoryFilters();
-    setupSearchAndSort();
-    setupFilterMenu();
-    applyAllFilters();
+    // Afficher les annonces à l’écran
+    renderAnnonces(newAnnonces);
 
-  } catch(err){
-    console.error("Erreur chargement annonces:", err);
-    if(initial) annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
+  } catch (error) {
+    console.error("Erreur lors du chargement des annonces :", error);
   } finally {
-    document.getElementById("spinner").style.display = "none"; 
-    loadingAnnonces = false;
+    isLoading = false;
   }
 }
 
-// Détecter le scroll pour charger plus d'annonces
-window.addEventListener("scroll", () => {
-  if((window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 500)){
-    loadAnnonces(false);
-  }
-});
+// --- SCROLL INFINI ---
+function handleScroll() {
+  const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
 
+  // Quand on arrive à 90% du bas de la page → charger plus d’annonces
+  if (scrollTop + clientHeight >= scrollHeight * 0.9) {
+    loadAnnonces();
+  }
+}
+
+// Activer le lazy loading
+window.addEventListener("scroll", handleScroll);
+
+// Premier chargement
+window.addEventListener("DOMContentLoaded", () => loadAnnonces(true));
+
+  
 function escapeHTML(str) {
   if (!str) return "";
   return str
@@ -433,30 +420,27 @@ function escapeHTML(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
 }
-let isLoadingMore = false; // pour éviter les multiples chargements simultanés
-let filteredAnnonces = []; // conserver la liste filtrée globale
-
 async function renderAnnonces(filtered, append = false) {
-  if (!append) {
-    annoncesContainer.innerHTML = "";
-    filteredAnnonces = filtered; // stocke les annonces filtrées globalement
-    currentPage = 1;
-  }
+  if (!append) annoncesContainer.innerHTML = "";
 
-  const start = (currentPage - 1) * annoncesPerPage;
-  const end = start + annoncesPerPage;
-  const pageItems = filteredAnnonces.slice(start, end);
-
-  if (pageItems.length === 0) {
-    if (!append) annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
+  if (filtered.length === 0 && !append) {
+    annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
     return;
   }
 
+  // ⚙️ Pagination locale (si tu veux encore la garder pour les filtres)
+  const totalPages = Math.ceil(filtered.length / annoncesPerPage);
+  if (currentPage > totalPages) currentPage = 1;
+
+  const start = (currentPage - 1) * annoncesPerPage;
+  const end = start + annoncesPerPage;
+  const pageItems = filtered.slice(start, end);
+
+  // 📦 Cache des utilisateurs (ne se recharge qu’une fois)
   if (!window.__usersCache) {
     try {
       const usersSnap = await getDocs(collection(db, "users"));
-      const byEmail = {};
-      const byId = {};
+      const byEmail = {}, byId = {};
       usersSnap.forEach(uDoc => {
         const u = uDoc.data() || {};
         byId[uDoc.id] = u;
@@ -470,7 +454,9 @@ async function renderAnnonces(filtered, append = false) {
     }
   }
 
-  pageItems.forEach(a => {
+  const fragment = document.createDocumentFragment();
+
+  for (const a of pageItems) {
     const docId = escapeHTML(a.id || "");
     const card = document.createElement("div");
     card.className = "annonce-card";
@@ -493,16 +479,15 @@ async function renderAnnonces(filtered, append = false) {
 
     let fullName = "Utilisateur inconnu";
     if (sellerData) {
-      fullName =
-        escapeHTML(
-          sellerData.fullName ||
-          `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
-          sellerData.displayName ||
-          sellerData.name ||
-          sellerData.nom ||
-          sellerData.prenom ||
-          "Utilisateur"
-        );
+      fullName = escapeHTML(
+        sellerData.fullName ||
+        `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
+        sellerData.displayName ||
+        sellerData.name ||
+        sellerData.nom ||
+        sellerData.prenom ||
+        "Utilisateur"
+      );
     }
 
     let sellerPhoto =
@@ -519,7 +504,8 @@ async function renderAnnonces(filtered, append = false) {
       sellerPhoto = "https://via.placeholder.com/40";
     }
     sellerPhoto = escapeHTML(sellerPhoto);
-    let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
+
+    const annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
 
     card.innerHTML = `
       <div class="image-container">
@@ -550,6 +536,7 @@ async function renderAnnonces(filtered, append = false) {
     const titleEl = card.querySelector('.title');
     if ((a.title || "").length > 30) titleEl.classList.add('long-text');
 
+    // ❤️ Gestion du bouton favori
     const favBtn = card.querySelector(".favorite");
     favBtn.addEventListener("click", async e => {
       e.stopPropagation();
@@ -559,6 +546,7 @@ async function renderAnnonces(filtered, append = false) {
         setTimeout(() => { msg.style.display = "none"; }, 3000);
         return;
       }
+
       const favRef = doc(db, "users", currentUser.uid);
       if (favBtn.classList.contains("active")) {
         favBtn.classList.remove("active");
@@ -573,33 +561,23 @@ async function renderAnnonces(filtered, append = false) {
       }
     });
 
+    // 🖱️ Clic → Détails
     card.addEventListener("click", e => {
       if (e.target.classList.contains("favorite")) return;
       window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
     });
 
-    annoncesContainer.appendChild(card);
-  });
+    fragment.appendChild(card);
+  }
 
-  // Ajouter la détection de scroll pour lazy loading
+  annoncesContainer.appendChild(fragment);
+
+  // 🔁 Affichage pagination (uniquement si ce n’est pas du scroll infini)
   if (!append) {
-    window.removeEventListener("scroll", handleScroll);
-    window.addEventListener("scroll", handleScroll);
+    renderPagination(Math.ceil(filtered.length / annoncesPerPage));
   }
 }
 
-// Fonction pour détecter scroll et charger plus
-function handleScroll() {
-  if (isLoadingMore) return;
-  const scrollPosition = window.innerHeight + window.scrollY;
-  const threshold = document.body.offsetHeight - 300; // 300px avant le bas
-  if (scrollPosition >= threshold) {
-    if ((currentPage * annoncesPerPage) >= filteredAnnonces.length) return; // plus d'annonces
-    isLoadingMore = true;
-    currentPage++;
-    renderAnnonces(filteredAnnonces, true).then(() => { isLoadingMore = false; });
-  }
-}
 
 function renderPagination(totalPages){
   let paginationContainer = document.getElementById("pagination");
@@ -741,57 +719,56 @@ function isBoostActive(annonce) {
   return boostEndDate > now;
 }
 
-let filteredCache = []; // cache des annonces filtrées
-let lastIndexLoaded = 0;
-
-function applyAllFiltersLazy() {
-  let filtered = [...annoncesData];
-  const selectedCategory = categorySelect.value;
-  if (selectedCategory && selectedCategory !== "all") {
-    filtered = filtered.filter(a => a.category === selectedCategory);
+function applyAllFilters() {
+  if (!window.allAnnonces || window.allAnnonces.length === 0) {
+    console.warn("Aucune annonce à filtrer pour l’instant.");
+    return;
   }
 
-  const selectedSubCategory = subCategorySelect.value;
-  if (selectedSubCategory && selectedSubCategory !== "all") {
-    filtered = filtered.filter(a => a.subCategory === selectedSubCategory);
-  }
+  // 🔍 Récupérer les valeurs des filtres
+  const searchTerm = document.getElementById("searchInput")?.value.toLowerCase().trim() || "";
+  const selectedVille = document.getElementById("villeSelect")?.value || "";
+  const selectedCategorie = document.getElementById("categorieSelect")?.value || "";
+  const selectedSousCategorie = document.getElementById("sousCategorieSelect")?.value || "";
+  const livraisonChecked = document.getElementById("livraisonCheck")?.checked || false;
+  const minPrix = parseInt(document.getElementById("minPrix")?.value) || 0;
+  const maxPrix = parseInt(document.getElementById("maxPrix")?.value) || Infinity;
 
-  const selectedCity = citySelect.value;
-  if (selectedCity && selectedCity !== "all") {
-    filtered = filtered.filter(a => a.city === selectedCity);
-  }
+  // 🧠 Filtrage local (sans recharger depuis Firestore)
+  let filtered = window.allAnnonces.filter(a => {
+    if (!a) return false;
 
-  if (deliverySelect.value === "true") {
-    filtered = filtered.filter(a => a.delivery === true);
-  }
+    const titre = (a.title || "").toLowerCase();
+    const desc = (a.description || "").toLowerCase();
+    const ville = (a.city || "").toLowerCase();
+    const categorie = (a.categorie || "").toLowerCase();
+    const sousCategorie = (a.sousCategorie || "").toLowerCase();
+    const livraison = !!a.livraison;
+    const prix = parseInt(a.price) || 0;
 
-  const searchText = searchInput.value.toLowerCase().trim();
-  if (searchText) {
-    filtered = filtered.filter(a =>
-      (a.title || "").toLowerCase().includes(searchText) ||
-      (a.description || "").toLowerCase().includes(searchText)
-    );
-  }
+    // Conditions de filtre
+    const matchSearch = searchTerm === "" || titre.includes(searchTerm) || desc.includes(searchTerm);
+    const matchVille = selectedVille === "" || ville === selectedVille.toLowerCase();
+    const matchCat = selectedCategorie === "" || categorie === selectedCategorie.toLowerCase();
+    const matchSousCat = selectedSousCategorie === "" || sousCategorie === selectedSousCategorie.toLowerCase();
+    const matchLivraison = !livraisonChecked || livraison === true;
+    const matchPrix = prix >= minPrix && prix <= maxPrix;
 
-  // Tri boost puis date
-  filtered.sort((a, b) => {
-    const aBoost = isBoostActive(a) ? 1 : 0;
-    const bBoost = isBoostActive(b) ? 1 : 0;
-    if (bBoost !== aBoost) return bBoost - aBoost;
-    return b.createdAt?.toMillis?.() - a.createdAt?.toMillis?.() || 0;
+    return matchSearch && matchVille && matchCat && matchSousCat && matchLivraison && matchPrix;
   });
 
-  filteredCache = filtered;
-  lastIndexLoaded = 0;
-  loadNextPage(); // affiche les 100 premières annonces
-}
+  // 🔢 Réinitialiser la pagination ou le scroll
+  currentPage = 1;
 
-// Charger les 100 suivantes
-function loadNextPage() {
-  const nextIndex = lastIndexLoaded + annoncesPerPage;
-  const toRender = filteredCache.slice(lastIndexLoaded, nextIndex);
-  renderAnnonces(toRender, lastIndexLoaded > 0); // append si ce n’est pas la première page
-  lastIndexLoaded = nextIndex;
+  // 🧩 Afficher les annonces filtrées
+  annoncesContainer.innerHTML = ""; // Nettoyer avant affichage
+  renderAnnonces(filtered, false);
+
+  // 🚀 Lazy loading désactivé temporairement pour filtrage → à réactiver si tu veux
+  window.removeEventListener("scroll", handleScroll);
+
+  // ✅ Si tu veux réactiver le lazy loading même après filtrage :
+  // window.addEventListener("scroll", handleScroll);
 }
 
 </script>  
