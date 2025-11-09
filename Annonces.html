@@ -745,8 +745,7 @@ let filteredCache = []; // cache des annonces filtrées
 let lastIndexLoaded = 0;
 
 function applyAllFiltersLazy() {
-  let filtered = [...allAnnonces]; // copie complète
-
+  let filtered = [...annoncesData];
   const selectedCategory = categorySelect.value;
   if (selectedCategory && selectedCategory !== "all") {
     filtered = filtered.filter(a => a.category === selectedCategory);
