@@ -343,80 +343,77 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-// --- VARIABLES GLOBALES ---
-let lastVisible = null;
-let isLoading = false;
-const PAGE_SIZE = 100;
-let allAnnonces = [];
+let lastVisibleAnnonce = null; // pour Firestore pagination
+const annoncesBatchSize = 100; // nombre d'annonces à charger par batch
 
-// --- FONCTION DE CHARGEMENT PAGINÉ ---
-async function loadAnnonces(initialLoad = false) {
-  if (isLoading) return;
-  isLoading = true;
+async function loadAnnonces() {
+  annoncesContainer.innerHTML = "";
+  document.getElementById("spinner").style.display = "flex";
+  annoncesData = []; // reset
+  lastVisibleAnnonce = null; // reset pagination Firestore
 
   try {
-    let queryRef = query(
-      collection(db, "annonces"),
-      orderBy("timestamp", "desc"),
-      limit(PAGE_SIZE)
-    );
+    await loadNextBatch(); // charge le premier batch
 
-    if (!initialLoad && lastVisible) {
-      queryRef = query(
-        collection(db, "annonces"),
-        orderBy("timestamp", "desc"),
-        startAfter(lastVisible),
-        limit(PAGE_SIZE)
-      );
+    // setup du scroll pour lazy load suivant
+    window.onscroll = async () => {
+      if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 300) {
+        // près du bas de page
+        await loadNextBatch();
+      }
+    };
+
+    if (!window.__usersCache) {
+      try {
+        const usersSnap = await getDocs(collection(db, "users"));
+        const byEmail = {};
+        const byId = {};
+        usersSnap.forEach(uDoc => {
+          const u = uDoc.data() || {};
+          byId[uDoc.id] = u;
+          const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+          if(email) byEmail[email] = u;
+        });
+        window.__usersCache = { byEmail, byId };
+      } catch(err) {
+        console.error("Erreur chargement users:", err);
+        window.__usersCache = { byEmail: {}, byId: {} };
+      }
     }
 
-    const snapshot = await getDocs(queryRef);
-
-    if (snapshot.empty) {
-      console.log("Toutes les annonces ont été chargées.");
-      return;
-    }
-
-    lastVisible = snapshot.docs[snapshot.docs.length - 1];
-
-    const newAnnonces = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    allAnnonces = [...allAnnonces, ...newAnnonces];
-
-    renderAnnonces(newAnnonces, true);
-  } catch (error) {
-    console.error("Erreur lors du chargement des annonces :", error);
+    setupCategoryFilters();
+    setupSearchAndSort();
+    setupFilterMenu();
+    applyAllFilters();
+  } catch(err){
+    console.error("Erreur chargement annonces:", err);
+    annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   } finally {
-    isLoading = false;
+    document.getElementById("spinner").style.display = "none";
   }
 }
 
-// --- SCROLL INFINI ---
-function setupInfiniteScroll() {
-  let lastScrollTop = 0;
-
-  async function handleScroll() {
-    const scrollTop = window.scrollY || document.documentElement.scrollTop;
-    const windowHeight = window.innerHeight;
-    const fullHeight = document.documentElement.scrollHeight;
-
-    if (scrollTop > lastScrollTop && fullHeight - (scrollTop + windowHeight) < 400) {
-      await loadAnnonces(); // Charge le lot suivant
-    }
-
-    lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
+// Fonction pour charger le prochain batch depuis Firestore
+async function loadNextBatch() {
+  let annoncesQuery;
+  if(lastVisibleAnnonce){
+    annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt","desc"), startAfter(lastVisibleAnnonce), limit(annoncesBatchSize));
+  } else {
+    annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt","desc"), limit(annoncesBatchSize));
   }
 
-  window.removeEventListener("scroll", handleScroll);
-  window.addEventListener("scroll", handleScroll);
+  const annoncesSnap = await getDocs(annoncesQuery);
+  if(!annoncesSnap.empty){
+    lastVisibleAnnonce = annoncesSnap.docs[annoncesSnap.docs.length - 1];
+    annoncesSnap.forEach(docSnap => {
+      const data = docSnap.data();
+      data.id = docSnap.id;
+      annoncesData.push(data);
+    });
+    applyAllFilters(); // met à jour l'affichage avec le batch chargé
+  }
 }
 
-// --- INITIALISATION ---
-window.addEventListener("DOMContentLoaded", async () => {
-  await loadAnnonces(true);   // Premier lot
-  setupInfiniteScroll();       // Active le scroll infini
-});
-
-  
 function escapeHTML(str) {
   if (!str) return "";
   return str
@@ -425,15 +422,22 @@ function escapeHTML(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
 }
-async function renderAnnonces(annonces, append = false) {
-  if (!append) annoncesContainer.innerHTML = "";
 
-  if (!annonces || annonces.length === 0) {
-    if (!append) annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
+async function renderAnnonces(filtered) {
+  annoncesContainer.innerHTML = "";
+  if (filtered.length === 0) {
+    annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
     return;
   }
 
-  // ⚡ Cache utilisateur pour éviter les requêtes répétées
+  const totalPages = Math.ceil(filtered.length / annoncesPerPage);
+  if (currentPage > totalPages) currentPage = 1;
+
+  const start = (currentPage - 1) * annoncesPerPage;
+  const end = start + annoncesPerPage;
+  const pageItems = filtered.slice(start, end);
+
+  // Cache des users pour éviter des appels multiples
   if (!window.__usersCache) {
     try {
       const usersSnap = await getDocs(collection(db, "users"));
@@ -452,8 +456,7 @@ async function renderAnnonces(annonces, append = false) {
     }
   }
 
-  // ⚙️ Boucle d’affichage des cartes d’annonces
-  for (const a of annonces) {
+  for (const a of pageItems) {
     const docId = escapeHTML(a.id || "");
     const card = document.createElement("div");
     card.className = "annonce-card";
@@ -476,13 +479,16 @@ async function renderAnnonces(annonces, append = false) {
 
     let fullName = "Utilisateur inconnu";
     if (sellerData) {
-      fullName = escapeHTML(
-        sellerData.fullName ||
-        `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
-        sellerData.displayName ||
-        sellerData.name ||
-        "Utilisateur"
-      );
+      fullName =
+        escapeHTML(
+          sellerData.fullName ||
+          `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
+          sellerData.displayName ||
+          sellerData.name ||
+          sellerData.nom ||
+          sellerData.prenom ||
+          "Utilisateur"
+        );
     }
 
     let sellerPhoto =
@@ -498,17 +504,16 @@ async function renderAnnonces(annonces, append = false) {
     if (!sellerPhoto || typeof sellerPhoto !== "string" || sellerPhoto.startsWith("gs://") || sellerPhoto.startsWith("/")) {
       sellerPhoto = "https://via.placeholder.com/40";
     }
-
     sellerPhoto = escapeHTML(sellerPhoto);
+
     let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
 
-    // 🧩 Contenu HTML de la carte (identique à ton design)
     card.innerHTML = `
       <div class="image-container">
         <img src="${annonceImage}" 
-            loading="lazy"
-            alt="${escapeHTML(a.title || 'Annonce')}"
-            onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
+             loading="lazy"
+             alt="${escapeHTML(a.title || 'Annonce')}"
+             onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
         ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
         <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
         <span class="material-icons favorite ${isFav ? 'active' : ''}">
@@ -529,11 +534,11 @@ async function renderAnnonces(annonces, append = false) {
       </div>
     `;
 
-    // Gestion du texte long du titre
     const titleEl = card.querySelector('.title');
-    if ((a.title || "").length > 30) titleEl.classList.add('long-text');
+    if ((a.title || "").length > 30) {
+      titleEl.classList.add('long-text');
+    }
 
-    // Bouton favori ❤️
     const favBtn = card.querySelector(".favorite");
     favBtn.addEventListener("click", async e => {
       e.stopPropagation();
@@ -559,7 +564,6 @@ async function renderAnnonces(annonces, append = false) {
       }
     });
 
-    // Clic sur la carte → page détails
     card.addEventListener("click", e => {
       if (e.target.classList.contains("favorite")) return;
       window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
@@ -567,10 +571,11 @@ async function renderAnnonces(annonces, append = false) {
 
     annoncesContainer.appendChild(card);
   }
+
+  renderPagination(Math.ceil(filtered.length / annoncesPerPage));
 }
 
-
-
+  
 function renderPagination(totalPages){
   let paginationContainer = document.getElementById("pagination");
   if(!paginationContainer){
@@ -711,56 +716,60 @@ function isBoostActive(annonce) {
   return boostEndDate > now;
 }
 
+let filteredAnnonces = []; // Cache du filtre courant pour pagination
+
 function applyAllFilters() {
-  if (!window.allAnnonces || window.allAnnonces.length === 0) {
-    console.warn("Aucune annonce à filtrer pour l’instant.");
-    return;
+  // Ne recalculer les filtres que si la catégorie, sous-catégorie ou texte de recherche change
+  if (!applyAllFilters.lastCategory || 
+      applyAllFilters.lastCategory !== selectedCategory ||
+      applyAllFilters.lastSubcategory !== selectedSubcategory ||
+      applyAllFilters.lastSearchText !== searchText ||
+      applyAllFilters.lastSortOrder !== sortOrder) {
+
+    filteredAnnonces = annoncesData;
+
+    if (selectedCategory && selectedCategory !== "all")
+      filteredAnnonces = filteredAnnonces.filter(a => a.categorie === selectedCategory);
+
+    if (selectedSubcategory)
+      filteredAnnonces = filteredAnnonces.filter(a => a.souscategorie === selectedSubcategory);
+
+    if (searchText)
+      filteredAnnonces = filteredAnnonces.filter(a =>
+        (a.title?.toLowerCase().includes(searchText.toLowerCase())) ||
+        (a.city?.toLowerCase().includes(searchText.toLowerCase()))
+      );
+
+    filteredAnnonces.sort((a, b) => {
+      const aBoost = isBoostActive(a);
+      const bBoost = isBoostActive(b);
+      if (aBoost && !bBoost) return -1;
+      if (!aBoost && bBoost) return 1;
+      if (aBoost && bBoost) {
+        const aEnd = a.boostEnd ? (a.boostEnd.toDate ? a.boostEnd.toDate() : new Date(a.boostEnd)) : 0;
+        const bEnd = b.boostEnd ? (b.boostEnd.toDate ? b.boostEnd.toDate() : new Date(b.boostEnd)) : 0;
+        return bEnd - aEnd;
+      }
+      if (sortOrder === "asc") return (a.price || 0) - (b.price || 0);
+      if (sortOrder === "desc") return (b.price || 0) - (a.price || 0);
+      const aDate = a.createdAt ? a.createdAt.seconds * 1000 : 0;
+      const bDate = b.createdAt ? b.createdAt.seconds * 1000 : 0;
+      return bDate - aDate;
+    });
+
+    // Sauvegarde les derniers filtres
+    applyAllFilters.lastCategory = selectedCategory;
+    applyAllFilters.lastSubcategory = selectedSubcategory;
+    applyAllFilters.lastSearchText = searchText;
+    applyAllFilters.lastSortOrder = sortOrder;
   }
 
-  // 🔍 Récupérer les valeurs des filtres
-  const searchTerm = document.getElementById("searchInput")?.value.toLowerCase().trim() || "";
-  const selectedVille = document.getElementById("villeSelect")?.value || "";
-  const selectedCategorie = document.getElementById("categorieSelect")?.value || "";
-  const selectedSousCategorie = document.getElementById("sousCategorieSelect")?.value || "";
-  const livraisonChecked = document.getElementById("livraisonCheck")?.checked || false;
-  const minPrix = parseInt(document.getElementById("minPrix")?.value) || 0;
-  const maxPrix = parseInt(document.getElementById("maxPrix")?.value) || Infinity;
+  // Lazy loading par page
+  const start = (currentPage - 1) * annoncesPerPage;
+  const end = start + annoncesPerPage;
+  const pageItems = filteredAnnonces.slice(start, end);
 
-  // 🧠 Filtrage local (sans recharger depuis Firestore)
-  let filtered = window.allAnnonces.filter(a => {
-    if (!a) return false;
-
-    const titre = (a.title || "").toLowerCase();
-    const desc = (a.description || "").toLowerCase();
-    const ville = (a.city || "").toLowerCase();
-    const categorie = (a.categorie || "").toLowerCase();
-    const sousCategorie = (a.sousCategorie || "").toLowerCase();
-    const livraison = !!a.livraison;
-    const prix = parseInt(a.price) || 0;
-
-    // Conditions de filtre
-    const matchSearch = searchTerm === "" || titre.includes(searchTerm) || desc.includes(searchTerm);
-    const matchVille = selectedVille === "" || ville === selectedVille.toLowerCase();
-    const matchCat = selectedCategorie === "" || categorie === selectedCategorie.toLowerCase();
-    const matchSousCat = selectedSousCategorie === "" || sousCategorie === selectedSousCategorie.toLowerCase();
-    const matchLivraison = !livraisonChecked || livraison === true;
-    const matchPrix = prix >= minPrix && prix <= maxPrix;
-
-    return matchSearch && matchVille && matchCat && matchSousCat && matchLivraison && matchPrix;
-  });
-
-  // 🔢 Réinitialiser la pagination ou le scroll
-  currentPage = 1;
-
-  // 🧩 Afficher les annonces filtrées
-  annoncesContainer.innerHTML = ""; // Nettoyer avant affichage
-  renderAnnonces(filtered, false);
-
-  // 🚀 Lazy loading désactivé temporairement pour filtrage → à réactiver si tu veux
-  window.removeEventListener("scroll", handleScroll);
-
-  // ✅ Si tu veux réactiver le lazy loading même après filtrage :
-  // window.addEventListener("scroll", handleScroll);
+  renderAnnonces(pageItems, filteredAnnonces.length);
 }
 
 </script>  
