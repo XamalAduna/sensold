@@ -344,10 +344,10 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // --- VARIABLES GLOBALES ---
-let lastVisible = null; // Pour garder la dernière annonce chargée
-let isLoading = false; // Empêche le double chargement
-const PAGE_SIZE = 100; // Nombre d'annonces à charger par lot
-let allAnnonces = []; // Liste cumulée des annonces chargées
+let lastVisible = null;
+let isLoading = false;
+const PAGE_SIZE = 100;
+let allAnnonces = [];
 
 // --- FONCTION DE CHARGEMENT PAGINÉ ---
 async function loadAnnonces(initialLoad = false) {
@@ -355,39 +355,34 @@ async function loadAnnonces(initialLoad = false) {
   isLoading = true;
 
   try {
-    let queryRef = db.collection("annonces")
-      .orderBy("timestamp", "desc")
-      .limit(PAGE_SIZE);
+    let queryRef = query(
+      collection(db, "annonces"),
+      orderBy("timestamp", "desc"),
+      limit(PAGE_SIZE)
+    );
 
-    // Si ce n’est pas le premier chargement, on continue après la dernière annonce visible
     if (!initialLoad && lastVisible) {
-      queryRef = queryRef.startAfter(lastVisible);
+      queryRef = query(
+        collection(db, "annonces"),
+        orderBy("timestamp", "desc"),
+        startAfter(lastVisible),
+        limit(PAGE_SIZE)
+      );
     }
 
-    const snapshot = await queryRef.get();
+    const snapshot = await getDocs(queryRef);
 
-    // Si plus d’annonces à charger
     if (snapshot.empty) {
-      window.removeEventListener("scroll", handleScroll);
       console.log("Toutes les annonces ont été chargées.");
       return;
     }
 
-    // Stocker la dernière annonce du lot
     lastVisible = snapshot.docs[snapshot.docs.length - 1];
 
-    // Convertir les données Firestore
-    const newAnnonces = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-
-    // Ajouter les nouvelles annonces à la liste existante
+    const newAnnonces = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     allAnnonces = [...allAnnonces, ...newAnnonces];
 
-    // Afficher les annonces à l’écran
-    renderAnnonces(newAnnonces);
-
+    renderAnnonces(newAnnonces, true);
   } catch (error) {
     console.error("Erreur lors du chargement des annonces :", error);
   } finally {
@@ -396,20 +391,30 @@ async function loadAnnonces(initialLoad = false) {
 }
 
 // --- SCROLL INFINI ---
-function handleScroll() {
-  const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
+function setupInfiniteScroll() {
+  let lastScrollTop = 0;
 
-  // Quand on arrive à 90% du bas de la page → charger plus d’annonces
-  if (scrollTop + clientHeight >= scrollHeight * 0.9) {
-    loadAnnonces();
+  async function handleScroll() {
+    const scrollTop = window.scrollY || document.documentElement.scrollTop;
+    const windowHeight = window.innerHeight;
+    const fullHeight = document.documentElement.scrollHeight;
+
+    if (scrollTop > lastScrollTop && fullHeight - (scrollTop + windowHeight) < 400) {
+      await loadAnnonces(); // Charge le lot suivant
+    }
+
+    lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
   }
+
+  window.removeEventListener("scroll", handleScroll);
+  window.addEventListener("scroll", handleScroll);
 }
 
-// Activer le lazy loading
-window.addEventListener("scroll", handleScroll);
-
-// Premier chargement
-window.addEventListener("DOMContentLoaded", () => loadAnnonces(true));
+// --- INITIALISATION ---
+window.addEventListener("DOMContentLoaded", async () => {
+  await loadAnnonces(true);   // Premier lot
+  setupInfiniteScroll();       // Active le scroll infini
+});
 
   
 function escapeHTML(str) {
@@ -420,27 +425,20 @@ function escapeHTML(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
 }
-async function renderAnnonces(filtered, append = false) {
+async function renderAnnonces(annonces, append = false) {
   if (!append) annoncesContainer.innerHTML = "";
 
-  if (filtered.length === 0 && !append) {
-    annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
+  if (!annonces || annonces.length === 0) {
+    if (!append) annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
     return;
   }
 
-  // ⚙️ Pagination locale (si tu veux encore la garder pour les filtres)
-  const totalPages = Math.ceil(filtered.length / annoncesPerPage);
-  if (currentPage > totalPages) currentPage = 1;
-
-  const start = (currentPage - 1) * annoncesPerPage;
-  const end = start + annoncesPerPage;
-  const pageItems = filtered.slice(start, end);
-
-  // 📦 Cache des utilisateurs (ne se recharge qu’une fois)
+  // ⚡ Cache utilisateur pour éviter les requêtes répétées
   if (!window.__usersCache) {
     try {
       const usersSnap = await getDocs(collection(db, "users"));
-      const byEmail = {}, byId = {};
+      const byEmail = {};
+      const byId = {};
       usersSnap.forEach(uDoc => {
         const u = uDoc.data() || {};
         byId[uDoc.id] = u;
@@ -454,9 +452,8 @@ async function renderAnnonces(filtered, append = false) {
     }
   }
 
-  const fragment = document.createDocumentFragment();
-
-  for (const a of pageItems) {
+  // ⚙️ Boucle d’affichage des cartes d’annonces
+  for (const a of annonces) {
     const docId = escapeHTML(a.id || "");
     const card = document.createElement("div");
     card.className = "annonce-card";
@@ -484,8 +481,6 @@ async function renderAnnonces(filtered, append = false) {
         `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
         sellerData.displayName ||
         sellerData.name ||
-        sellerData.nom ||
-        sellerData.prenom ||
         "Utilisateur"
       );
     }
@@ -503,16 +498,17 @@ async function renderAnnonces(filtered, append = false) {
     if (!sellerPhoto || typeof sellerPhoto !== "string" || sellerPhoto.startsWith("gs://") || sellerPhoto.startsWith("/")) {
       sellerPhoto = "https://via.placeholder.com/40";
     }
+
     sellerPhoto = escapeHTML(sellerPhoto);
+    let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
 
-    const annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
-
+    // 🧩 Contenu HTML de la carte (identique à ton design)
     card.innerHTML = `
       <div class="image-container">
         <img src="${annonceImage}" 
-             loading="lazy"
-             alt="${escapeHTML(a.title || 'Annonce')}"
-             onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
+            loading="lazy"
+            alt="${escapeHTML(a.title || 'Annonce')}"
+            onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
         ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
         <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
         <span class="material-icons favorite ${isFav ? 'active' : ''}">
@@ -533,13 +529,15 @@ async function renderAnnonces(filtered, append = false) {
       </div>
     `;
 
+    // Gestion du texte long du titre
     const titleEl = card.querySelector('.title');
     if ((a.title || "").length > 30) titleEl.classList.add('long-text');
 
-    // ❤️ Gestion du bouton favori
+    // Bouton favori ❤️
     const favBtn = card.querySelector(".favorite");
     favBtn.addEventListener("click", async e => {
       e.stopPropagation();
+
       if (!currentUser) {
         const msg = document.getElementById("notLoggedMsg");
         msg.style.display = "block";
@@ -561,22 +559,16 @@ async function renderAnnonces(filtered, append = false) {
       }
     });
 
-    // 🖱️ Clic → Détails
+    // Clic sur la carte → page détails
     card.addEventListener("click", e => {
       if (e.target.classList.contains("favorite")) return;
       window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
     });
 
-    fragment.appendChild(card);
-  }
-
-  annoncesContainer.appendChild(fragment);
-
-  // 🔁 Affichage pagination (uniquement si ce n’est pas du scroll infini)
-  if (!append) {
-    renderPagination(Math.ceil(filtered.length / annoncesPerPage));
+    annoncesContainer.appendChild(card);
   }
 }
+
 
 
 function renderPagination(totalPages){
