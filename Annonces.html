@@ -343,41 +343,56 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-// Variables globales pour le lazy loading
-let annoncesPerPage = 100;
-let lastVisible = null; // Pour Firestore pagination
-let loading = false;    // Pour éviter les appels multiples
-let allAnnonces = [];   // Cache local pour filtrage
+// 🔹 Variables globales pour lazy loading et cache
+let allAnnonces = [];       // cache local pour toutes les annonces chargées
+let lastVisible = null;     // dernier document Firestore pour pagination
+let loading = false;        // évite les appels multiples
+const annoncesPerPage = 100; // nombre d'annonces à charger par "batch"
 
-// Charger les annonces depuis Firestore
+// 🔹 Charger les annonces depuis Firestore
 async function loadAnnonces(initial = true) {
   if (loading) return;
   loading = true;
+  document.getElementById("spinner").style.display = "flex";
 
-  let query = firestore.collection('annonces')
-    .orderBy('boosted', 'desc')   // Les annonces boostées d'abord
-    .orderBy('date', 'desc')      // Puis par date
-    .limit(annoncesPerPage);
+  try {
+    let q = query(
+      collection(db, "annonces"),
+      orderBy("boostEnd", "desc"), // boostées en premier
+      orderBy("createdAt", "desc"),
+      limit(annoncesPerPage)
+    );
 
-  if (!initial && lastVisible) {
-    query = query.startAfter(lastVisible);
-  }
+    if (!initial && lastVisible) {
+      q = query(
+        collection(db, "annonces"),
+        orderBy("boostEnd", "desc"),
+        orderBy("createdAt", "desc"),
+        startAfter(lastVisible),
+        limit(annoncesPerPage)
+      );
+    }
 
-  const snapshot = await query.get();
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) {
+      loading = false;
+      document.getElementById("spinner").style.display = "none";
+      return;
+    }
 
-  if (snapshot.empty) {
+    // 🔹 Mettre à jour le cache local et le dernier document
+    snapshot.docs.forEach(docSnap => allAnnonces.push({ id: docSnap.id, ...docSnap.data() }));
+    lastVisible = snapshot.docs[snapshot.docs.length - 1];
+
+    // 🔹 Afficher les annonces (compatible renderAnnonces)
+    renderAnnonces(allAnnonces);
+
+  } catch (err) {
+    console.error("Erreur loadAnnonces:", err);
+  } finally {
     loading = false;
-    return;
+    document.getElementById("spinner").style.display = "none";
   }
-
-  // Mettre à jour le cache local et le dernier document pour la pagination
-  snapshot.docs.forEach(doc => allAnnonces.push({ id: doc.id, ...doc.data() }));
-  lastVisible = snapshot.docs[snapshot.docs.length - 1];
-
-  // Afficher ces annonces (sera compatible avec renderAnnonces ou renderAnnonceCard)
-  renderAnnonces(allAnnonces);
-
-  loading = false;
 }
 
 
@@ -736,42 +751,47 @@ function isBoostActive(annonce) {
   return boostEndDate > now;
 }
 
-// Filtrer les annonces selon plusieurs critères
-function applyAllFilters(filters) {
-  if (!allAnnonces.length) return;
+function applyAllFilters(filters = {}) {
+  // 🔹 Commence avec le cache local
+  let filtered = [...allAnnonces];
 
-  let filtered = allAnnonces;
-
-  // Exemple de filtres possibles
+  // 🔹 Filtrage par catégorie
   if (filters.categorie) {
     filtered = filtered.filter(a => a.categorie === filters.categorie);
   }
 
+  // 🔹 Filtrage par sous-catégorie
   if (filters.sousCategorie) {
     filtered = filtered.filter(a => a.sousCategorie === filters.sousCategorie);
   }
 
+  // 🔹 Filtrage par ville
   if (filters.ville) {
     filtered = filtered.filter(a => a.ville === filters.ville);
   }
 
-  if (filters.minPrice !== undefined) {
-    filtered = filtered.filter(a => a.prix >= filters.minPrice);
-  }
-
-  if (filters.maxPrice !== undefined) {
-    filtered = filtered.filter(a => a.prix <= filters.maxPrice);
-  }
-
+  // 🔹 Filtrage par livraison
   if (filters.livraison !== undefined) {
     filtered = filtered.filter(a => a.livraison === filters.livraison);
   }
 
-  // Ici on peut ajouter d'autres filtres selon les besoins
-  // ...
+  // 🔹 Filtrage par prix
+  if (filters.minPrix !== undefined) {
+    filtered = filtered.filter(a => a.prix >= filters.minPrix);
+  }
+  if (filters.maxPrix !== undefined) {
+    filtered = filtered.filter(a => a.prix <= filters.maxPrix);
+  }
 
-  // On affiche uniquement les annonces filtrées
-  renderAnnonces(filtered);
+  // 🔹 Garder les annonces boostées en haut
+  filtered.sort((a, b) => {
+    const boostA = a.boostEnd ? new Date(a.boostEnd).getTime() : 0;
+    const boostB = b.boostEnd ? new Date(b.boostEnd).getTime() : 0;
+    return boostB - boostA; // boostées en premier
+  });
+
+  // 🔹 Afficher uniquement la portion du lazy loading
+  renderAnnonces(filtered.slice(0, annoncesPerPage));
 }
 
 </script>  
