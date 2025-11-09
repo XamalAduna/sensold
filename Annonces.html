@@ -1,3 +1,4 @@
+
 <!DOCTYPE html> 
 <html lang="fr"> 
 <head> 
@@ -165,7 +166,7 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 </div>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-import { getFirestore, collection, getDocs, query, orderBy, limit,startAfter, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, query, orderBy,startAfter, limit, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
@@ -343,105 +344,86 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-// 🔹 Variables globales pour lazy loading et cache
-let allAnnonces = [];       // cache local pour toutes les annonces chargées
-let lastVisible = null;     // dernier document Firestore pour pagination
-let loading = false;        // évite les appels multiples
-const annoncesPerPage = 100; // nombre d'annonces à charger par "batch"
+let lastVisible = null; // pour pagination Firestore
+const batchSize = 100;  // nombre d'annonces à charger à chaque scroll
+let loadingAnnonces = false;
 
-// 🔹 Charger les annonces depuis Firestore
 async function loadAnnonces(initial = true) {
-  if (loading) return;
-  loading = true;
-  document.getElementById("spinner").style.display = "flex";
+  if (loadingAnnonces) return;
+  loadingAnnonces = true;
 
-  try {
-    let q = query(
-      collection(db, "annonces"),
-      orderBy("boostEnd", "desc"), // boostées en premier
-      orderBy("createdAt", "desc"),
-      limit(annoncesPerPage)
-    );
-
-    if (!initial && lastVisible) {
-      q = query(
-        collection(db, "annonces"),
-        orderBy("boostEnd", "desc"),
-        orderBy("createdAt", "desc"),
-        startAfter(lastVisible),
-        limit(annoncesPerPage)
-      );
-    }
-
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) {
-      loading = false;
-      document.getElementById("spinner").style.display = "none";
-      return;
-    }
-
-    // 🔹 Mettre à jour le cache local et le dernier document
-    snapshot.docs.forEach(docSnap => allAnnonces.push({ id: docSnap.id, ...docSnap.data() }));
-    lastVisible = snapshot.docs[snapshot.docs.length - 1];
-
-    // 🔹 Afficher les annonces (compatible renderAnnonces)
-    renderAnnonces(allAnnonces);
-
-  } catch (err) {
-    console.error("Erreur loadAnnonces:", err);
-  } finally {
-    loading = false;
-    document.getElementById("spinner").style.display = "none";
+  if(initial){
+    annoncesContainer.innerHTML = "";
+    document.getElementById("spinner").style.display = "flex";
+    annoncesData = [];
+    lastVisible = null;
   }
-}
-
-
-// 🔹 Fonction pour charger les 100 annonces suivantes
-async function loadMoreAnnonces() {
-  if (!window._lastVisibleDoc) return;
-
-  window._isLoading = true;
-  document.getElementById("spinner").style.display = "flex";
 
   try {
-    const nextQuery = query(
-      collection(db, "annonces"),
-      orderBy("createdAt", "desc"),
-      startAfter(window._lastVisibleDoc),
-      limit(100)
-    );
+    let annoncesQuery;
+    const annoncesCol = collection(db, "annonces");
 
-    const snapshot = await getDocs(nextQuery);
-    if (snapshot.empty) {
-      window._hasMore = false;
-      document.getElementById("spinner").style.display = "none";
-      return;
+    if(lastVisible){
+      annoncesQuery = query(annoncesCol, orderBy("createdAt","desc"), startAfter(lastVisible), limit(batchSize));
+    } else {
+      annoncesQuery = query(annoncesCol, orderBy("createdAt","desc"), limit(batchSize));
     }
 
-    const newAnnonces = [];
-    snapshot.forEach((docSnap) => {
+    const annoncesSnap = await getDocs(annoncesQuery);
+
+    if(annoncesSnap.empty){
+      document.getElementById("spinner").style.display = "none";
+      loadingAnnonces = false;
+      return; // plus d'annonces
+    }
+
+    lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
+
+    annoncesSnap.forEach(docSnap => {
       const data = docSnap.data();
       data.id = docSnap.id;
-      newAnnonces.push(data);
+      annoncesData.push(data);
     });
 
-    // 🔹 Mémoriser le dernier document
-    window._lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
+    // Charger users une seule fois
+    if (!window.__usersCache) {
+      try {
+        const usersSnap = await getDocs(collection(db, "users"));
+        const byEmail = {};
+        const byId = {};
+        usersSnap.forEach(uDoc => {
+          const u = uDoc.data() || {};
+          byId[uDoc.id] = u;
+          const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+          if(email) byEmail[email] = u;
+        });
+        window.__usersCache = { byEmail, byId };
+      } catch(err) {
+        console.error("Erreur chargement users:", err);
+        window.__usersCache = { byEmail: {}, byId: {} };
+      }
+    }
 
-    // 🔹 Ajouter au cache global
-    window._loadedAnnonces.push(...newAnnonces);
-    annoncesData.push(...newAnnonces);
+    setupCategoryFilters();
+    setupSearchAndSort();
+    setupFilterMenu();
+    applyAllFilters();
 
-    // 🔹 Rendu des nouvelles annonces (sans recréer le DOM complet)
-    renderAnnonces(newAnnonces, true);
-  } catch (err) {
-    console.error("Erreur chargement lazy annonces:", err);
+  } catch(err){
+    console.error("Erreur chargement annonces:", err);
+    if(initial) annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   } finally {
-    window._isLoading = false;
-    document.getElementById("spinner").style.display = "none";
+    document.getElementById("spinner").style.display = "none"; 
+    loadingAnnonces = false;
   }
 }
 
+// Détecter le scroll pour charger plus d'annonces
+window.addEventListener("scroll", () => {
+  if((window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 500)){
+    loadAnnonces(false);
+  }
+});
 
 function escapeHTML(str) {
   if (!str) return "";
@@ -451,22 +433,25 @@ function escapeHTML(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
 }
-async function renderAnnonces(filtered, append = false) {
-  if (!append) annoncesContainer.innerHTML = "";
+let isLoadingMore = false; // pour éviter les multiples chargements simultanés
+let filteredAnnonces = []; // conserver la liste filtrée globale
 
-  if (!filtered || filtered.length === 0) {
+async function renderAnnonces(filtered, append = false) {
+  if (!append) {
+    annoncesContainer.innerHTML = "";
+    filteredAnnonces = filtered; // stocke les annonces filtrées globalement
+    currentPage = 1;
+  }
+
+  const start = (currentPage - 1) * annoncesPerPage;
+  const end = start + annoncesPerPage;
+  const pageItems = filteredAnnonces.slice(start, end);
+
+  if (pageItems.length === 0) {
     if (!append) annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
     return;
   }
 
-  const totalPages = Math.ceil(filtered.length / annoncesPerPage);
-  if (currentPage > totalPages) currentPage = 1;
-
-  const start = (currentPage - 1) * annoncesPerPage;
-  const end = start + annoncesPerPage;
-  const pageItems = filtered.slice(start, end);
-
-  // ✅ Mise en cache des utilisateurs
   if (!window.__usersCache) {
     try {
       const usersSnap = await getDocs(collection(db, "users"));
@@ -485,16 +470,13 @@ async function renderAnnonces(filtered, append = false) {
     }
   }
 
-  const fragment = document.createDocumentFragment(); // ⚙️ pour performance
-
-  for (const a of pageItems) {
+  pageItems.forEach(a => {
     const docId = escapeHTML(a.id || "");
     const card = document.createElement("div");
     card.className = "annonce-card";
 
     const isFav = currentUser && userFavorites.includes(a.id);
 
-    // 🔹 Récupérer les infos du vendeur
     let sellerData = null;
     const annonceEmail = (a.userEmail || "").toLowerCase().trim();
     if (annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
@@ -511,15 +493,16 @@ async function renderAnnonces(filtered, append = false) {
 
     let fullName = "Utilisateur inconnu";
     if (sellerData) {
-      fullName = escapeHTML(
-        sellerData.fullName ||
-        `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
-        sellerData.displayName ||
-        sellerData.name ||
-        sellerData.nom ||
-        sellerData.prenom ||
-        "Utilisateur"
-      );
+      fullName =
+        escapeHTML(
+          sellerData.fullName ||
+          `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
+          sellerData.displayName ||
+          sellerData.name ||
+          sellerData.nom ||
+          sellerData.prenom ||
+          "Utilisateur"
+        );
     }
 
     let sellerPhoto =
@@ -532,15 +515,12 @@ async function renderAnnonces(filtered, append = false) {
         sellerData.image ||
         sellerData.photo
       )) || "";
-
     if (!sellerPhoto || typeof sellerPhoto !== "string" || sellerPhoto.startsWith("gs://") || sellerPhoto.startsWith("/")) {
       sellerPhoto = "https://via.placeholder.com/40";
     }
     sellerPhoto = escapeHTML(sellerPhoto);
-
     let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
 
-    // 🧱 HTML de la carte (design intact)
     card.innerHTML = `
       <div class="image-container">
         <img src="${annonceImage}" 
@@ -570,17 +550,15 @@ async function renderAnnonces(filtered, append = false) {
     const titleEl = card.querySelector('.title');
     if ((a.title || "").length > 30) titleEl.classList.add('long-text');
 
-    // ❤️ Gestion favoris
     const favBtn = card.querySelector(".favorite");
     favBtn.addEventListener("click", async e => {
       e.stopPropagation();
       if (!currentUser) {
         const msg = document.getElementById("notLoggedMsg");
         msg.style.display = "block";
-        setTimeout(() => (msg.style.display = "none"), 3000);
+        setTimeout(() => { msg.style.display = "none"; }, 3000);
         return;
       }
-
       const favRef = doc(db, "users", currentUser.uid);
       if (favBtn.classList.contains("active")) {
         favBtn.classList.remove("active");
@@ -595,20 +573,32 @@ async function renderAnnonces(filtered, append = false) {
       }
     });
 
-    // 🔗 Clic sur la carte → page détails
     card.addEventListener("click", e => {
       if (e.target.classList.contains("favorite")) return;
       window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
     });
 
-    fragment.appendChild(card);
+    annoncesContainer.appendChild(card);
+  });
+
+  // Ajouter la détection de scroll pour lazy loading
+  if (!append) {
+    window.removeEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll);
   }
+}
 
-  // ⚙️ Ajout des annonces d’un coup (optimisé DOM)
-  annoncesContainer.appendChild(fragment);
-
-  // 📄 Affiche la pagination seulement si pas de lazy loading
-  if (!append) renderPagination(Math.ceil(filtered.length / annoncesPerPage));
+// Fonction pour détecter scroll et charger plus
+function handleScroll() {
+  if (isLoadingMore) return;
+  const scrollPosition = window.innerHeight + window.scrollY;
+  const threshold = document.body.offsetHeight - 300; // 300px avant le bas
+  if (scrollPosition >= threshold) {
+    if ((currentPage * annoncesPerPage) >= filteredAnnonces.length) return; // plus d'annonces
+    isLoadingMore = true;
+    currentPage++;
+    renderAnnonces(filteredAnnonces, true).then(() => { isLoadingMore = false; });
+  }
 }
 
 function renderPagination(totalPages){
@@ -751,47 +741,52 @@ function isBoostActive(annonce) {
   return boostEndDate > now;
 }
 
-function applyAllFilters(filters = {}) {
-  // 🔹 Commence avec le cache local
-  let filtered = [...allAnnonces];
+async function applyAllFilters() {
+  let filtered = [...allAnnonces]; // copie complète des annonces
 
-  // 🔹 Filtrage par catégorie
-  if (filters.categorie) {
-    filtered = filtered.filter(a => a.categorie === filters.categorie);
+  // Filtre par catégorie
+  const selectedCategory = categorySelect.value;
+  if (selectedCategory && selectedCategory !== "all") {
+    filtered = filtered.filter(a => a.category === selectedCategory);
   }
 
-  // 🔹 Filtrage par sous-catégorie
-  if (filters.sousCategorie) {
-    filtered = filtered.filter(a => a.sousCategorie === filters.sousCategorie);
+  // Filtre par sous-catégorie
+  const selectedSubCategory = subCategorySelect.value;
+  if (selectedSubCategory && selectedSubCategory !== "all") {
+    filtered = filtered.filter(a => a.subCategory === selectedSubCategory);
   }
 
-  // 🔹 Filtrage par ville
-  if (filters.ville) {
-    filtered = filtered.filter(a => a.ville === filters.ville);
+  // Filtre par ville
+  const selectedCity = citySelect.value;
+  if (selectedCity && selectedCity !== "all") {
+    filtered = filtered.filter(a => a.city === selectedCity);
   }
 
-  // 🔹 Filtrage par livraison
-  if (filters.livraison !== undefined) {
-    filtered = filtered.filter(a => a.livraison === filters.livraison);
+  // Filtre par livraison
+  if (deliverySelect.value === "true") {
+    filtered = filtered.filter(a => a.delivery === true);
   }
 
-  // 🔹 Filtrage par prix
-  if (filters.minPrix !== undefined) {
-    filtered = filtered.filter(a => a.prix >= filters.minPrix);
-  }
-  if (filters.maxPrix !== undefined) {
-    filtered = filtered.filter(a => a.prix <= filters.maxPrix);
+  // Filtre par texte
+  const searchText = searchInput.value.toLowerCase().trim();
+  if (searchText) {
+    filtered = filtered.filter(a =>
+      (a.title || "").toLowerCase().includes(searchText) ||
+      (a.description || "").toLowerCase().includes(searchText)
+    );
   }
 
-  // 🔹 Garder les annonces boostées en haut
+  // Tri par boost ou date
   filtered.sort((a, b) => {
-    const boostA = a.boostEnd ? new Date(a.boostEnd).getTime() : 0;
-    const boostB = b.boostEnd ? new Date(b.boostEnd).getTime() : 0;
-    return boostB - boostA; // boostées en premier
+    const aBoost = isBoostActive(a) ? 1 : 0;
+    const bBoost = isBoostActive(b) ? 1 : 0;
+    if (bBoost !== aBoost) return bBoost - aBoost; // boost d'abord
+    return b.createdAt?.toMillis?.() - a.createdAt?.toMillis?.() || 0;
   });
 
-  // 🔹 Afficher uniquement la portion du lazy loading
-  renderAnnonces(filtered.slice(0, annoncesPerPage));
+  // Reset pagination et afficher la première page
+  currentPage = 1;
+  renderAnnonces(filtered, false);
 }
 
 </script>  
