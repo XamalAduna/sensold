@@ -361,30 +361,30 @@ onAuthStateChanged(auth, async (user) => {
 
 // ------------------------ CONSTRUCTION DE LA QUERY FIRESTORE ------------------------
 function buildQuery(){
-  let q = collection(db, "annonces");
-
+  const qConstraints = [];
+  
   // FILTRE CATEGORIE
-  if(selectedCategory && selectedCategory!=="all") q = query(q, where("categorie", "==", selectedCategory));
-  if(selectedSubcategory) q = query(q, where("souscategorie", "==", selectedSubcategory));
+  if(selectedCategory && selectedCategory!=="all") qConstraints.push(where("categorie", "==", selectedCategory));
+  if(selectedSubcategory) qConstraints.push(where("souscategorie", "==", selectedSubcategory));
 
-  // RECHERCHE côté serveur (sur title ou city)
+  // RECHERCHE côté serveur (title)
   if(searchText){
-    // Firestore ne supporte pas "OR" simple => on fait title >= searchText AND title < searchText + "\uf8ff"
-    // pour city on peut faire un deuxième batch si nécessaire
     const searchLower = searchText.toLowerCase();
-    q = query(q, where("searchTitle","array-contains", searchLower));
+    qConstraints.push(where("searchTitle","array-contains", searchLower));
   }
 
   // TRI priorité boost, puis prix ou date
-  if(sortOrder==="asc") q = query(q, orderBy("boostEnd","desc"), orderBy("price","asc"));
-  else if(sortOrder==="desc") q = query(q, orderBy("boostEnd","desc"), orderBy("price","desc"));
-  else q = query(q, orderBy("boostEnd","desc"), orderBy("createdAt","desc"));
+  if(sortOrder==="asc") qConstraints.push(orderBy("boostEnd","desc"), orderBy("price","asc"));
+  else if(sortOrder==="desc") qConstraints.push(orderBy("boostEnd","desc"), orderBy("price","desc"));
+  else qConstraints.push(orderBy("boostEnd","desc"), orderBy("createdAt","desc"));
 
-  // Pagination
-  q = lastVisible ? query(q, startAfter(lastVisible), limit(annoncesPerBatch)) : query(q, limit(annoncesPerBatch));
+  // LIMIT et pagination
+  if(lastVisible) qConstraints.push(startAfter(lastVisible), limit(annoncesPerBatch));
+  else qConstraints.push(limit(annoncesPerBatch));
 
-  return q;
+  return query(collection(db, "annonces"), ...qConstraints);
 }
+
 
 // ------------------------ FETCH BATCH ------------------------
 async function fetchAnnoncesBatch(){
