@@ -1,4 +1,3 @@
-
 <!DOCTYPE html> 
 <html lang="fr"> 
 <head> 
@@ -301,6 +300,7 @@ const categoriesData = {
   ]
 };
 
+/* ----------------- Config & références DOM (ne touche pas au design) ----------------- */
 const annoncesContainer = document.getElementById("annonces");
 const subContainer = document.getElementById("subcategories-container");
 const categoryElements = document.querySelectorAll(".category");
@@ -310,149 +310,296 @@ const filterToggle = document.getElementById("filter-toggle");
 const filterMenu = document.getElementById("filter-menu");
 const priceAscBtn = document.getElementById("price-asc");
 const priceDescBtn = document.getElementById("price-desc");
+const spinnerEl = document.getElementById("spinner");
+const notLoggedMsg = document.getElementById("notLoggedMsg");
 
 let currentUser = null;
 let userFavorites = [];
-let annoncesData = [];
+let annoncesCache = []; // small local cache for current view
 let selectedCategory = "all";
 let selectedSubcategory = null;
 let searchText = "";
-let sortOrder = "default";
-let lastDoc = null; // pour pagination Firestore
-const annoncesPerPage = 1000; // 1000 annonces par lot
-let loading = false;
-let hasMore = true;
+let sortOrder = "default"; // "asc", "desc", "default"
+const BATCH_SIZE = 1000; // tu as demandé 1000; change si besoin
+let loadingInProgress = false;
+let allLoaded = false; // true when both boosted + regular exhausted with current filters
 
-function timeAgo(timestamp) {
-  if (!timestamp) return "Date inconnue";
-  const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
-  if (seconds < 60) return "à l’instant";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `il y a ${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `il y a ${hours} h`;
-  const days = Math.floor(hours / 24);
+// Cursors for server-side pagination. We use two streams: boosted (active) then regular.
+let lastBoostDoc = null;
+let lastRegularDoc = null;
+let hasMoreBoost = true;
+let hasMoreRegular = true;
+
+// Query lock to avoid parallel fetches
+let fetchMutex = false;
+
+// Debounce helper
+function debounce(fn, wait = 300){
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(()=>fn(...args), wait); };
+}
+
+/* ----------------- Utilitaires ----------------- */
+function escapeHTML(str) {
+  if (!str && str !== 0) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function timeAgo(timestamp){
+  if(!timestamp) return "Date inconnue";
+  // Accept Firestore Timestamp or JS Date or number
+  const t = timestamp.toDate ? timestamp.toDate().getTime() : (timestamp instanceof Date ? timestamp.getTime() : (typeof timestamp === "number" ? timestamp : Date.parse(timestamp)));
+  if (isNaN(t)) return "Date inconnue";
+  const seconds = Math.floor((Date.now() - t) / 1000);
+  if(seconds < 60) return "à l’instant";
+  const minutes = Math.floor(seconds/60);
+  if(minutes < 60) return `il y a ${minutes} min`;
+  const hours = Math.floor(minutes/60);
+  if(hours < 24) return `il y a ${hours} h`;
+  const days = Math.floor(hours/24);
   return `il y a ${days} j`;
 }
 
-// Auth
-onAuthStateChanged(auth, async (user) => {
-  currentUser = user;
-  if (user) {
-    const userSnap = await getDoc(doc(db, "users", user.uid));
-    userFavorites = userSnap.data()?.favorites || [];
-  } else userFavorites = [];
-  resetAnnonces();
-});
-
-// Reset annonces pour recharger depuis le serveur
-function resetAnnonces() {
-  annoncesContainer.innerHTML = "";
-  annoncesData = [];
-  lastDoc = null;
-  hasMore = true;
-  loadAnnonces();
+function isBoostActive(annonce){
+  if(!annonce || !annonce.boostEnd) return false;
+  const boostEnd = annonce.boostEnd.toDate ? annonce.boostEnd.toDate() : new Date(annonce.boostEnd);
+  return boostEnd > new Date();
 }
 
-// Fonction principale pour charger les annonces depuis Firestore
-async function loadAnnonces() {
-  if (loading || !hasMore) return;
-  loading = true;
-  document.getElementById("spinner").style.display = "flex";
-
-  try {
-    let annoncesRef = collection(db, "annonces");
-    let q;
-
-    // Filtrage côté serveur
-    if (selectedCategory && selectedCategory !== "all") {
-      q = query(
-        annoncesRef,
-        where("categorie", "==", selectedCategory),
-        orderBy("boostEnd", "desc"),
-        orderBy("createdAt", "desc"),
-        startAfter(lastDoc || 0),
-        limit(annoncesPerPage)
-      );
-    } else {
-      q = query(
-        annoncesRef,
-        orderBy("boostEnd", "desc"),
-        orderBy("createdAt", "desc"),
-        startAfter(lastDoc || 0),
-        limit(annoncesPerPage)
-      );
-    }
-
-    const annoncesSnap = await getDocs(q);
-
-    if (annoncesSnap.empty) {
-      hasMore = false;
-      if (annoncesData.length === 0) annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
-      return;
-    }
-
-    const batch = [];
-    annoncesSnap.forEach(docSnap => {
-      const data = docSnap.data();
-      data.id = docSnap.id;
-      batch.push(data);
+/* ----------------- Users cache (global) ----------------- */
+async function ensureUsersCache(){
+  if(window.__usersCache) return window.__usersCache;
+  try{
+    const usersSnap = await getDocs(collection(db, "users"));
+    const byEmail = {};
+    const byId = {};
+    usersSnap.forEach(uDoc => {
+      const u = uDoc.data() || {};
+      byId[uDoc.id] = u;
+      const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+      if(email) byEmail[email] = u;
     });
-
-    lastDoc = annoncesSnap.docs[annoncesSnap.docs.length - 1];
-    annoncesData.push(...batch);
-
-    renderAnnonces(batch, true);
-
-    // Précharger les utilisateurs en cache
-    if (!window.__usersCache) {
-      const usersSnap = await getDocs(collection(db, "users"));
-      const byEmail = {};
-      const byId = {};
-      usersSnap.forEach(uDoc => {
-        const u = uDoc.data() || {};
-        byId[uDoc.id] = u;
-        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-        if (email) byEmail[email] = u;
-      });
-      window.__usersCache = { byEmail, byId };
-    }
-  } catch (err) {
-    console.error("Erreur chargement annonces:", err);
-    if (annoncesData.length === 0) annoncesContainer.innerHTML = `<p>⚠️ Erreur : ${err.message}</p>`;
-  } finally {
-    loading = false;
-    document.getElementById("spinner").style.display = "none";
+    window.__usersCache = { byEmail, byId };
+    return window.__usersCache;
+  } catch(err){
+    console.error("Erreur chargement users:", err);
+    window.__usersCache = { byEmail: {}, byId: {} };
+    return window.__usersCache;
   }
 }
 
-// Fonction pour afficher les annonces
-function renderAnnonces(items, append = false) {
-  if (!append) annoncesContainer.innerHTML = "";
-  if (items.length === 0 && !append) {
-    annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
+/* ----------------- Auth listener ----------------- */
+onAuthStateChanged(auth, async (user) => {
+  currentUser = user;
+  if(user){
+    try{
+      const userRef = doc(db,"users",user.uid);
+      const userSnap = await getDoc(userRef);
+      userFavorites = userSnap.data()?.favorites || [];
+    } catch(e){
+      console.warn("Impossible récupérer favoris utilisateur:", e);
+      userFavorites = [];
+    }
+  } else {
+    userFavorites = [];
+  }
+  resetAndLoadInitial();
+});
+
+/* ----------------- Reset + initial load ----------------- */
+function resetAndLoadInitial(){
+  lastBoostDoc = null;
+  lastRegularDoc = null;
+  hasMoreBoost = true;
+  hasMoreRegular = true;
+  annoncesCache = [];
+  allLoaded = false;
+  currentPage = 1;
+  clearContainer();
+  loadNextBatch(); // start fetching from server
+}
+
+/* ----------------- Clear container ----------------- */
+function clearContainer(){
+  if(spinnerEl) spinnerEl.style.display = "none";
+  if(annoncesContainer) annoncesContainer.innerHTML = "";
+  const pagination = document.getElementById("pagination");
+  if(pagination) pagination.innerHTML = "";
+}
+
+/* ----------------- Server-side fetch (boosted then regular) ----------------- */
+/*
+ Strategy:
+ 1) Try to fetch boosted active annonces (where boostEnd > now) ordered by boostEnd desc.
+ 2) If boosted results < needed batch, fetch regular annonces ordered by createdAt desc to fill the batch.
+ 3) Maintain lastBoostDoc and lastRegularDoc cursors (startAfter) so subsequent scroll loads continue where left off.
+ 4) Apply category/subcategory and price ordering on server when possible.
+ 5) For searchText (free text), we filter client-side on the returned batch (because full-text server search requires dedicated index / Algolia).
+*/
+async function fetchBoostedBatch(limit = BATCH_SIZE){
+  if(!hasMoreBoost) return [];
+  const now = new Date();
+  let q = null;
+  try {
+    // base: annonces with boostEnd > now
+    q = query(
+      collection(db, "annonces"),
+      where("boostEnd", ">", now),
+      // order by boostEnd desc to prioritize those expiring later/higher priority
+      orderBy("boostEnd", "desc"),
+      // as tie-breaker, order by createdAt desc
+      orderBy("createdAt", "desc"),
+      limit(limit)
+    );
+    if (selectedCategory && selectedCategory !== "all") q = query(q, where("categorie", "==", selectedCategory));
+    if (selectedSubcategory) q = query(q, where("souscategorie", "==", selectedSubcategory));
+    // note: price sort will be applied later in merge (we prioritize boost first)
+    if (lastBoostDoc) q = query(q, startAfter(lastBoostDoc));
+
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      hasMoreBoost = false;
+      return [];
+    }
+    const docs = [];
+    snap.forEach(d => {
+      const data = d.data();
+      data.id = d.id;
+      docs.push({ docRef: d, data });
+    });
+    lastBoostDoc = snap.docs[snap.docs.length - 1];
+    // if fewer than requested, then we'll mark hasMoreBoost if returned less than limit
+    if (docs.length < limit) hasMoreBoost = false;
+    return docs.map(x => x.data);
+  } catch(err){
+    console.error("Erreur fetchBoostedBatch:", err);
+    // on error we avoid permanently blocking regular stream
+    hasMoreBoost = false;
+    return [];
+  }
+}
+
+async function fetchRegularBatch(limit = BATCH_SIZE){
+  if(!hasMoreRegular) return [];
+  try {
+    // fetch annonces regardless of boostEnd, ordered by createdAt desc
+    let q = query(
+      collection(db, "annonces"),
+      orderBy("createdAt", "desc"),
+      limit(limit)
+    );
+    if (selectedCategory && selectedCategory !== "all") q = query(q, where("categorie", "==", selectedCategory));
+    if (selectedSubcategory) q = query(q, where("souscategorie", "==", selectedSubcategory));
+    if (lastRegularDoc) q = query(q, startAfter(lastRegularDoc));
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      hasMoreRegular = false;
+      return [];
+    }
+    const docs = [];
+    snap.forEach(d => {
+      const data = d.data();
+      data.id = d.id;
+      docs.push({ docRef: d, data });
+    });
+    lastRegularDoc = snap.docs[snap.docs.length - 1];
+    if (docs.length < limit) hasMoreRegular = false;
+    return docs.map(x => x.data);
+  } catch(err){
+    console.error("Erreur fetchRegularBatch:", err);
+    hasMoreRegular = false;
+    return [];
+  }
+}
+
+/* ----------------- Merge strategy ----------------- */
+async function fetchNextMergedBatch(){
+  if(fetchMutex) return [];
+  fetchMutex = true;
+  spinner(true);
+  try {
+    // We attempt to fetch boosted first (prioritize)
+    let merged = [];
+    const boosted = await fetchBoostedBatch(BATCH_SIZE);
+    if (boosted && boosted.length) merged = merged.concat(boosted);
+
+    // If boosted didn't fill a full batch, fill with regular
+    if (merged.length < BATCH_SIZE && hasMoreRegular) {
+      const need = BATCH_SIZE - merged.length;
+      const regular = await fetchRegularBatch(need);
+      if (regular && regular.length) merged = merged.concat(regular);
+    }
+
+    // If merged empty and both streams exhausted -> mark allLoaded
+    if (merged.length === 0 && (!hasMoreBoost && !hasMoreRegular)) {
+      allLoaded = true;
+    }
+
+    // Apply server-side price sort only if requested; otherwise keep boosted priority order.
+    if (sortOrder === "asc") {
+      merged.sort((a,b) => (a.price || 0) - (b.price || 0));
+    } else if (sortOrder === "desc") {
+      merged.sort((a,b) => (b.price || 0) - (a.price || 0));
+    } else {
+      // keep boosted first (already fetched first), then by createdAt for regular ones
+      merged.sort((a,b) => {
+        const aBoost = isBoostActive(a);
+        const bBoost = isBoostActive(b);
+        if (aBoost && !bBoost) return -1;
+        if (!aBoost && bBoost) return 1;
+        const aDate = a.createdAt ? (a.createdAt.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt).getTime()) : 0;
+        const bDate = b.createdAt ? (b.createdAt.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt).getTime()) : 0;
+        return bDate - aDate;
+      });
+    }
+
+    // Save to cache (append)
+    annoncesCache = annoncesCache.concat(merged);
+    return merged;
+  } finally {
+    fetchMutex = false;
+    spinner(false);
+  }
+}
+
+/* ----------------- Rendering (batch-friendly) ----------------- */
+async function renderAnnoncesBatch(items){
+  if(!items || items.length === 0){
+    if(annoncesContainer.children.length === 0){
+      annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
+    }
     return;
   }
 
-  items.forEach(a => {
+  // ensure users cache ready
+  await ensureUsersCache();
+  const usersCache = window.__usersCache;
+
+  const frag = document.createDocumentFragment();
+  for(const a of items){
     const docId = escapeHTML(a.id || "");
     const card = document.createElement("div");
     card.className = "annonce-card";
 
     const isFav = currentUser && userFavorites.includes(a.id);
 
+    // find seller data from cache if possible
     let sellerData = null;
     const annonceEmail = (a.userEmail || "").toLowerCase().trim();
-    if (annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
-    if (!sellerData && a.userId) sellerData = window.__usersCache.byId[a.userId];
-    if (!sellerData && a.uid) sellerData = window.__usersCache.byId[a.uid];
+    if (annonceEmail) sellerData = usersCache.byEmail[annonceEmail];
+    if (!sellerData && a.userId) sellerData = usersCache.byId[a.userId];
+    if (!sellerData && a.uid) sellerData = usersCache.byId[a.uid];
     if (!sellerData && a.user && typeof a.user === "object") sellerData = a.user;
 
     let isPro = false;
     if (sellerData && sellerData.subscribe === true) {
       const now = new Date();
-      const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
-      if (subEnd > now) isPro = true;
+      const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : (sellerData.subscribeEnd ? new Date(sellerData.subscribeEnd) : null);
+      if (subEnd && subEnd > now) isPro = true;
     }
 
     let fullName = "Utilisateur inconnu";
@@ -468,7 +615,6 @@ function renderAnnonces(items, append = false) {
           "Utilisateur"
         );
     }
-
     let sellerPhoto =
       (sellerData && (
         sellerData.profileImage ||
@@ -485,12 +631,18 @@ function renderAnnonces(items, append = false) {
     sellerPhoto = escapeHTML(sellerPhoto);
     let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
 
+    // build innerHTML exactly as before to preserve design
     card.innerHTML = `
       <div class="image-container">
-        <img src="${annonceImage}" loading="lazy" alt="${escapeHTML(a.title || 'Annonce')}" onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
+        <img src="${annonceImage}" 
+             loading="lazy"
+             alt="${escapeHTML(a.title || 'Annonce')}"
+             onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
         ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
         <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
-        <span class="material-icons favorite ${isFav ? 'active' : ''}">${isFav ? 'favorite' : 'favorite_border'}</span>
+        <span class="material-icons favorite ${isFav ? 'active' : ''}">
+          ${isFav ? 'favorite' : 'favorite_border'}
+        </span>
       </div>
       <div class="content">
         <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
@@ -506,62 +658,230 @@ function renderAnnonces(items, append = false) {
       </div>
     `;
 
+    // length long title marker
+    const titleEl = card.querySelector('.title');
+    if ((a.title || "").length > 30) {
+      titleEl.classList.add('long-text');
+    }
+
+    // favorite action
     const favBtn = card.querySelector(".favorite");
-    favBtn.addEventListener("click", async e => {
+    favBtn.addEventListener("click", async (e) => {
       e.stopPropagation();
       if (!currentUser) {
-        const msg = document.getElementById("notLoggedMsg");
-        msg.style.display = "block";
-        setTimeout(() => { msg.style.display = "none"; }, 3000);
+        if(notLoggedMsg){ notLoggedMsg.style.display = "block"; setTimeout(()=> { notLoggedMsg.style.display = "none"; }, 3000); }
         return;
       }
-      const favRef = doc(db, "users", currentUser.uid);
-      if (favBtn.classList.contains("active")) {
-        favBtn.classList.remove("active");
-        favBtn.textContent = "favorite_border";
-        userFavorites = userFavorites.filter(id => id !== docId);
-        await updateDoc(favRef, { favorites: arrayRemove(docId) });
-      } else {
-        favBtn.classList.add("active");
-        favBtn.textContent = "favorite";
-        userFavorites.push(docId);
-        await updateDoc(favRef, { favorites: arrayUnion(docId) });
+      try {
+        const favRef = doc(db, "users", currentUser.uid);
+        // optimistic UI
+        if (favBtn.classList.contains("active")) {
+          favBtn.classList.remove("active");
+          favBtn.textContent = "favorite_border";
+          userFavorites = userFavorites.filter(id => id !== docId);
+          await updateDoc(favRef, { favorites: arrayRemove(docId) });
+        } else {
+          favBtn.classList.add("active");
+          favBtn.textContent = "favorite";
+          userFavorites.push(docId);
+          await updateDoc(favRef, { favorites: arrayUnion(docId) });
+        }
+      } catch (err) {
+        console.error("Erreur toggle fav:", err);
+        // rollback UI on error: refresh from server-snapshot
+        try {
+          const userRef = doc(db, "users", currentUser.uid);
+          const userSnap = await getDoc(userRef);
+          userFavorites = userSnap.data()?.favorites || [];
+          if (userFavorites.includes(docId)) {
+            favBtn.classList.add("active");
+            favBtn.textContent = "favorite";
+          } else {
+            favBtn.classList.remove("active");
+            favBtn.textContent = "favorite_border";
+          }
+        } catch(e){ console.warn("Impossible rafraîchir favoris"); }
       }
     });
 
+    // click to details
     card.addEventListener("click", e => {
       if (e.target.classList.contains("favorite")) return;
       window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
     });
 
-    annoncesContainer.appendChild(card);
+    frag.appendChild(card);
+  }
+
+  annoncesContainer.appendChild(frag);
+}
+
+/* ----------------- Infinite scroll (IntersectionObserver) ----------------- */
+const sentinel = document.createElement("div");
+sentinel.id = "scroll-sentinel";
+sentinel.style.height = "1px";
+sentinel.style.width = "100%";
+document.body.appendChild(sentinel);
+
+const io = new IntersectionObserver(async (entries) => {
+  for(const entry of entries){
+    if(entry.isIntersecting && !loadingInProgress && !allLoaded){
+      await loadNextBatch();
+    }
+  }
+}, { root: null, rootMargin: "400px", threshold: 0.01 });
+
+io.observe(sentinel);
+
+/* ----------------- Loader helper ----------------- */
+function spinner(show){
+  if(!spinnerEl) return;
+  spinnerEl.style.display = show ? "flex" : "none";
+  loadingInProgress = !!show;
+}
+
+/* ----------------- Load next batch wrapper ----------------- */
+async function loadNextBatch(){
+  if(allLoaded) return;
+  if (fetchMutex) return;
+  spinner(true);
+  try {
+    const merged = await fetchNextMergedBatch();
+    // If searchText exists, apply client-side filter on received merged batch
+    let toRender = merged;
+    if (searchText && searchText.trim().length > 0) {
+      const q = searchText.trim().toLowerCase();
+      toRender = merged.filter(a => 
+        (a.title || "").toLowerCase().includes(q) ||
+        (a.city || "").toLowerCase().includes(q)
+      );
+    }
+    // render only the items after last rendered index
+    await renderAnnoncesBatch(toRender);
+    // if allLoaded show a friendly message
+    if(allLoaded){
+      const endMsg = document.getElementById("endOfListMsg");
+      if(!endMsg){
+        const p = document.createElement("p");
+        p.id = "endOfListMsg";
+        p.style.textAlign = "center";
+        p.style.color = "#777";
+        p.style.margin = "18px 0";
+        p.textContent = "Vous avez atteint la fin des annonces.";
+        annoncesContainer.appendChild(p);
+      }
+    }
+  } catch(err){
+    console.error("Erreur loadNextBatch:", err);
+  } finally {
+    spinner(false);
+  }
+}
+
+/* ----------------- Filters / categories / search / sort (UI wiring) ----------------- */
+function setupCategoryFilters() {
+  const allCategory = document.querySelector('.category[data-cat="all"]');
+  if (allCategory) allCategory.classList.add("active");
+
+  document.addEventListener("click", e => {
+    const menu = document.getElementById("subDropdownMenu");
+    if (menu && !menu.parentElement.contains(e.target)) {
+      menu.style.display = "none";
+    }
+  });
+
+  categoryElements.forEach(cat => {
+    cat.addEventListener("click", () => {
+      categoryElements.forEach(c => c.classList.remove("active"));
+      cat.classList.add("active");
+
+      selectedCategory = cat.dataset.cat;
+      selectedSubcategory = null;
+      resetAndLoadInitial();
+      // build subcategories UI if you keep categoriesData available in scope
+      const subs = (window.categoriesData && window.categoriesData[selectedCategory]) || [];
+      if (subs.length === 0) {
+        subContainer.innerHTML = "<p style='text-align:center;color:#777;'>Aucune sous-catégorie</p>";
+      } else {
+        subContainer.innerHTML = `
+          <div style="text-align:center; margin-top:10px; position:relative; display:inline-block;">
+            <button id="subDropdownBtn" style="padding:8px 12px; border-radius:8px; border:1px solid #ccc; background:#fff; cursor:pointer;">
+              Sélectionner une sous-catégorie ▼
+            </button>
+            <div id="subDropdownMenu" style="display:none; position:absolute; top:100%; left:0; background:#fff; border:1px solid #ccc; border-radius:8px; width:220px; box-shadow:0 2px 6px rgba(0,0,0,0.15); z-index:1000;">
+              ${subs.map(s => `<div class="sub-item" style="display:flex; align-items:center; gap:8px; padding:6px 10px; cursor:pointer;">
+                <i class="material-icons" style="color:#009688;">${s.icon}</i>
+                <span>${s.label}</span>
+              </div>`).join('')}
+            </div>
+          </div>
+        `;
+        const btn = document.getElementById("subDropdownBtn");
+        const items = document.querySelectorAll(".sub-item");
+        btn.addEventListener("click", () => {
+          const menu = document.getElementById("subDropdownMenu");
+          menu.style.display = menu.style.display === "block" ? "none" : "block";
+        });
+        items.forEach(item => {
+          item.addEventListener("click", () => {
+            items.forEach(i => { i.style.background = "#fff"; i.style.color = "#000"; });
+            item.style.background = "#009688";
+            item.style.color = "#fff";
+            selectedSubcategory = item.querySelector("span").textContent.trim();
+            btn.textContent = selectedSubcategory + " ▼";
+            document.getElementById("subDropdownMenu").style.display = "none";
+            resetAndLoadInitial();
+          });
+        });
+      }
+    });
   });
 }
 
-// Scroll infini
-window.addEventListener("scroll", () => {
-  if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500) {
-    loadAnnonces();
+function setupSearchAndSort(){
+  const searchInput = document.getElementById("search-input");
+  const searchBtn = document.getElementById("search-btn");
+  const debouncedApply = debounce(() => {
+    searchText = searchInput.value || "";
+    // when search changes, we'll clear current rendered and attempt to apply client-side filter on newly fetched batches
+    // but to be accurate, reset server cursors because category/subcategory changed? Here we keep same server stream and filter client-side.
+    // Simpler: reset and reload to ensure consistent results with new criteria
+    resetAndLoadInitial();
+  }, 350);
+
+  if(searchInput){
+    searchInput.addEventListener("input", () => { searchText = searchInput.value || ""; debouncedApply(); });
+    searchInput.addEventListener("keypress", e => { if(e.key === "Enter"){ searchText = searchInput.value || ""; resetAndLoadInitial(); }});
   }
-});
-
-// Fonctions utilitaires
-function escapeHTML(str) {
-  if (!str) return "";
-  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  if(searchBtn){
+    searchBtn.addEventListener("click", () => { searchText = searchInput.value || ""; resetAndLoadInitial(); });
+  }
 }
 
-function isBoostActive(annonce) {
-  if (!annonce.boost || !annonce.boostEnd) return false;
-  const now = new Date();
-  const boostEndDate = new Date(annonce.boostEnd.toDate ? annonce.boostEnd.toDate() : annonce.boostEnd);
-  return boostEndDate > now;
+function setupFilterMenu(){
+  if(!filterToggle) return;
+  filterToggle.addEventListener("click", () => { filterMenu.style.display = filterMenu.style.display === "block" ? "none" : "block"; });
+  priceAscBtn.addEventListener("click", () => { sortOrder = "asc"; filterMenu.style.display = "none"; resetAndLoadInitial(); });
+  priceDescBtn.addEventListener("click", () => { sortOrder = "desc"; filterMenu.style.display = "none"; resetAndLoadInitial(); });
+
+  document.addEventListener("click", (e) => {
+    if (!filterMenu.contains(e.target) && e.target !== filterToggle) filterMenu.style.display = "none";
+  });
 }
 
-// TODO: garder setupCategoryFilters(), setupSearchAndSort(), setupFilterMenu() intactes
-setupCategoryFilters();
-setupSearchAndSort();
-setupFilterMenu();
+/* ----------------- Init UI wiring and load ----------------- */
+(function init(){
+  setupCategoryFilters();
+  setupSearchAndSort();
+  setupFilterMenu();
+  // initial load
+  resetAndLoadInitial();
+})();
+
+/* ----------------- Optional: expose a manual refresh function (dev) ----------------- */
+window.refreshAnnoncesServer = function(){
+  resetAndLoadInitial();
+};
 
 
 </script>  
