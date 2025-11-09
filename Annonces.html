@@ -343,84 +343,43 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-async function loadAnnonces() {
-  annoncesContainer.innerHTML = "";
-  document.getElementById("spinner").style.display = "flex";
+// Variables globales pour le lazy loading
+let annoncesPerPage = 100;
+let lastVisible = null; // Pour Firestore pagination
+let loading = false;    // Pour éviter les appels multiples
+let allAnnonces = [];   // Cache local pour filtrage
 
-  try {
-    // 🔹 On ne charge pas tout d’un coup — on garde un pointeur pour le lazy loading
-    window._lastVisibleDoc = null;
-    window._isLoading = false;
-    window._hasMore = true;
-    window._loadedAnnonces = [];
+// Charger les annonces depuis Firestore
+async function loadAnnonces(initial = true) {
+  if (loading) return;
+  loading = true;
 
-    // 🔹 Première requête : on charge uniquement les 100 premières annonces
-    const initialQuery = query(
-      collection(db, "annonces"),
-      orderBy("createdAt", "desc"),
-      limit(100)
-    );
+  let query = firestore.collection('annonces')
+    .orderBy('boosted', 'desc')   // Les annonces boostées d'abord
+    .orderBy('date', 'desc')      // Puis par date
+    .limit(annoncesPerPage);
 
-    const snapshot = await getDocs(initialQuery);
-    if (snapshot.empty) {
-      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
-      document.getElementById("spinner").style.display = "none";
-      return;
-    }
-
-    snapshot.forEach((docSnap) => {
-      const data = docSnap.data();
-      data.id = docSnap.id;
-      window._loadedAnnonces.push(data);
-    });
-
-    // 🔹 Mémoriser le dernier document pour le prochain chargement
-    window._lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
-
-    // 🔹 Charger les infos utilisateurs une seule fois (cache)
-    if (!window.__usersCache) {
-      try {
-        const usersSnap = await getDocs(collection(db, "users"));
-        const byEmail = {};
-        const byId = {};
-        usersSnap.forEach((uDoc) => {
-          const u = uDoc.data() || {};
-          byId[uDoc.id] = u;
-          const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-          if (email) byEmail[email] = u;
-        });
-        window.__usersCache = { byEmail, byId };
-      } catch (err) {
-        console.error("Erreur chargement users:", err);
-        window.__usersCache = { byEmail: {}, byId: {} };
-      }
-    }
-
-    // 🔹 Masquer le loader et afficher les 100 premières annonces
-    document.getElementById("spinner").style.display = "none";
-    annoncesData = [...window._loadedAnnonces];
-    setupCategoryFilters();
-    setupSearchAndSort();
-    setupFilterMenu();
-    applyAllFilters();
-
-    // 🔹 Ajouter l’écouteur de scroll pour le lazy loading
-    window.addEventListener("scroll", async () => {
-      const bottom =
-        window.innerHeight + window.scrollY >=
-        document.body.offsetHeight - 500;
-
-      if (bottom && window._hasMore && !window._isLoading) {
-        await loadMoreAnnonces();
-      }
-    });
-  } catch (err) {
-    console.error("Erreur chargement annonces:", err);
-    annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
-  } finally {
-    document.getElementById("spinner").style.display = "none";
+  if (!initial && lastVisible) {
+    query = query.startAfter(lastVisible);
   }
+
+  const snapshot = await query.get();
+
+  if (snapshot.empty) {
+    loading = false;
+    return;
+  }
+
+  // Mettre à jour le cache local et le dernier document pour la pagination
+  snapshot.docs.forEach(doc => allAnnonces.push({ id: doc.id, ...doc.data() }));
+  lastVisible = snapshot.docs[snapshot.docs.length - 1];
+
+  // Afficher ces annonces (sera compatible avec renderAnnonces ou renderAnnonceCard)
+  renderAnnonces(allAnnonces);
+
+  loading = false;
 }
+
 
 // 🔹 Fonction pour charger les 100 annonces suivantes
 async function loadMoreAnnonces() {
@@ -777,94 +736,44 @@ function isBoostActive(annonce) {
   return boostEndDate > now;
 }
 
-function applyAllFilters() {
-  if (!window._loadedAnnonces || window._loadedAnnonces.length === 0) return;
+// Filtrer les annonces selon plusieurs critères
+function applyAllFilters(filters) {
+  if (!allAnnonces.length) return;
 
-  const searchInput = document.getElementById("searchInput")?.value?.trim()?.toLowerCase() || "";
-  const selectedCategory = document.getElementById("categoryFilter")?.value || "all";
-  const selectedSubCategory = document.getElementById("subCategoryFilter")?.value || "all";
-  const selectedCity = document.getElementById("cityFilter")?.value || "all";
-  const livraisonFilter = document.getElementById("livraisonFilter")?.value || "all";
-  const sortOption = document.getElementById("sortSelect")?.value || "recent";
+  let filtered = allAnnonces;
 
-  // 🔹 1. On part de toutes les annonces déjà chargées (lazy loading)
-  let results = [...window._loadedAnnonces];
+  // Exemple de filtres possibles
+  if (filters.categorie) {
+    filtered = filtered.filter(a => a.categorie === filters.categorie);
+  }
 
-  // 🔹 2. Filtrage rapide et efficace
-  results = results.filter((a) => {
-    const title = (a.title || a.titre || "").toLowerCase();
-    const desc = (a.description || "").toLowerCase();
-    const city = (a.city || a.ville || "").toLowerCase();
-    const matchesSearch = !searchInput || title.includes(searchInput) || desc.includes(searchInput);
-    const matchesCategory = selectedCategory === "all" || a.category === selectedCategory;
-    const matchesSub = selectedSubCategory === "all" || a.subCategory === selectedSubCategory;
-    const matchesCity = selectedCity === "all" || city === selectedCity.toLowerCase();
-    const matchesLivraison =
-      livraisonFilter === "all" ||
-      (livraisonFilter === "yes" && a.livraison === true) ||
-      (livraisonFilter === "no" && !a.livraison);
-    return matchesSearch && matchesCategory && matchesSub && matchesCity && matchesLivraison;
-  });
+  if (filters.sousCategorie) {
+    filtered = filtered.filter(a => a.sousCategorie === filters.sousCategorie);
+  }
 
-  // 🔹 3. Tri intelligent : Boostées en haut selon la durée de boost
-  results.sort((a, b) => {
-    const aBoost = isBoostActive(a);
-    const bBoost = isBoostActive(b);
+  if (filters.ville) {
+    filtered = filtered.filter(a => a.ville === filters.ville);
+  }
 
-    if (aBoost && !bBoost) return -1;
-    if (!aBoost && bBoost) return 1;
+  if (filters.minPrice !== undefined) {
+    filtered = filtered.filter(a => a.prix >= filters.minPrice);
+  }
 
-    // Si les deux sont boostées → plus longue durée de boost en haut
-    if (aBoost && bBoost) {
-      const aEnd = a.boostEnd?.toDate ? a.boostEnd.toDate() : new Date(a.boostEnd || 0);
-      const bEnd = b.boostEnd?.toDate ? b.boostEnd.toDate() : new Date(b.boostEnd || 0);
-      return bEnd - aEnd; // boost actif le plus long en premier
-    }
+  if (filters.maxPrice !== undefined) {
+    filtered = filtered.filter(a => a.prix <= filters.maxPrice);
+  }
 
-    // Sinon tri par option choisie
-    if (sortOption === "recent") {
-      const aDate = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
-      const bDate = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
-      return bDate - aDate;
-    } else if (sortOption === "oldest") {
-      const aDate = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
-      const bDate = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
-      return aDate - bDate;
-    } else if (sortOption === "priceAsc") {
-      return (a.price || 0) - (b.price || 0);
-    } else if (sortOption === "priceDesc") {
-      return (b.price || 0) - (a.price || 0);
-    }
+  if (filters.livraison !== undefined) {
+    filtered = filtered.filter(a => a.livraison === filters.livraison);
+  }
 
-    return 0;
-  });
+  // Ici on peut ajouter d'autres filtres selon les besoins
+  // ...
 
-  // 🔹 4. On met à jour le cache des annonces filtrées
-  annoncesData = results;
-
-  // 🔹 5. On affiche les 100 premières sans recréer tout le DOM
-  const firstBatch = results.slice(0, 100);
-  renderAnnonces(firstBatch, false);
-
-  // 🔹 6. Lazy loading pour les filtres actifs
-  window._filteredIndex = 100;
-  window._filteredData = results;
-  window._hasMoreFiltered = results.length > 100;
-
-  window.addEventListener("scroll", async () => {
-    const nearBottom = window.innerHeight + window.scrollY >= document.body.offsetHeight - 600;
-    if (nearBottom && window._hasMoreFiltered && !window._isLoading) {
-      window._isLoading = true;
-      const next = window._filteredData.slice(window._filteredIndex, window._filteredIndex + 100);
-      if (next.length > 0) {
-        renderAnnonces(next, true);
-        window._filteredIndex += next.length;
-        if (window._filteredIndex >= window._filteredData.length) window._hasMoreFiltered = false;
-      }
-      window._isLoading = false;
-    }
-  });
+  // On affiche uniquement les annonces filtrées
+  renderAnnonces(filtered);
 }
+
 </script>  
 </body>
 </html>
