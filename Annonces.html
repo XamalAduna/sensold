@@ -314,6 +314,9 @@ const priceDescBtn = document.getElementById("price-desc");
 let currentUser = null;
 let userFavorites = [];
 let annoncesData = [];
+let lastVisible = null;       // ajouté
+const batchSize = 20;         // ajouté
+
 let selectedCategory = "all";
 let selectedSubcategory = null;
 let searchText = "";
