@@ -344,9 +344,6 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-let lastVisible = null; // pour pagination Firestore côté client
-const batchSize = 50;   // nombre d'annonces par requête Firestore
-
 async function loadAnnonces(reset = true) {
   if (reset) {
     annoncesContainer.innerHTML = "";
@@ -372,6 +369,7 @@ async function loadAnnonces(reset = true) {
     }
 
     const annoncesSnap = await getDocs(annoncesQueryRef);
+
     if (annoncesSnap.empty && annoncesData.length === 0) {
       annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
       document.getElementById("spinner").style.display = "none";
@@ -384,8 +382,12 @@ async function loadAnnonces(reset = true) {
       annoncesData.push(data);
     });
 
+    // Mettre à jour le cache global pour applyAllFilters()
+    window.__allAnnonces = annoncesData;
+
     lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
 
+    // Charger les utilisateurs pour les infos vendeur (si pas déjà)
     if (!window.__usersCache) {
       try {
         const usersSnap = await getDocs(collection(db, "users"));
@@ -404,17 +406,15 @@ async function loadAnnonces(reset = true) {
       }
     }
 
-    setupCategoryFilters();
-    setupSearchAndSort();
-    setupFilterMenu();
+    // Appliquer les filtres et afficher les annonces
     applyAllFilters();
 
-    // Ajouter scroll infini
+    // Scroll infini
     if (annoncesSnap.size === batchSize) {
       const observer = new IntersectionObserver(async ([entry]) => {
         if (entry.isIntersecting) {
           observer.disconnect();
-          await loadAnnonces(false); // charger le prochain batch
+          await loadAnnonces(false);
         }
       });
       observer.observe(document.getElementById("spinner"));
@@ -710,52 +710,38 @@ function isBoostActive(annonce) {
 function applyAllFilters() {
   if (!window.__allAnnonces) return;
 
-  let filtered = window.__allAnnonces;
+  let filtered = [...window.__allAnnonces];
 
   // Filtre par catégorie
-  const category = document.getElementById("category").value;
-  if (category && category !== "all") {
-    filtered = filtered.filter(a => a.category === category);
+  if (selectedCategory && selectedCategory !== "all") {
+    filtered = filtered.filter(a => a.category === selectedCategory);
   }
 
   // Filtre par sous-catégorie
-  const subCategory = document.getElementById("subCategory").value;
-  if (subCategory && subCategory !== "all") {
-    filtered = filtered.filter(a => a.subCategory === subCategory);
+  if (selectedSubcategory) {
+    filtered = filtered.filter(a => a.subCategory === selectedSubcategory);
   }
-
-  // Filtre par ville
-  const city = document.getElementById("city").value;
-  if (city && city !== "all") {
-    filtered = filtered.filter(a => a.city === city);
-  }
-
-  // Filtre par prix min/max
-  const minPrice = parseFloat(document.getElementById("minPrice").value) || 0;
-  const maxPrice = parseFloat(document.getElementById("maxPrice").value) || Infinity;
-  filtered = filtered.filter(a => {
-    const price = parseFloat(a.price) || 0;
-    return price >= minPrice && price <= maxPrice;
-  });
 
   // Filtre texte recherche
-  const searchText = document.getElementById("search").value.trim().toLowerCase();
   if (searchText) {
+    const txt = searchText.toLowerCase();
     filtered = filtered.filter(a => {
       const title = (a.title || "").toLowerCase();
       const desc = (a.description || "").toLowerCase();
-      return title.includes(searchText) || desc.includes(searchText);
+      return title.includes(txt) || desc.includes(txt);
     });
   }
 
-  // Filtre livraison
-  const delivery = document.getElementById("delivery").checked;
-  if (delivery) {
-    filtered = filtered.filter(a => a.delivery === true);
+  // Tri par prix
+  if (sortOrder === "asc") {
+    filtered.sort((a, b) => (parseFloat(a.price) || 0) - (parseFloat(b.price) || 0));
+  } else if (sortOrder === "desc") {
+    filtered.sort((a, b) => (parseFloat(b.price) || 0) - (parseFloat(a.price) || 0));
   }
 
-  // On réinitialise la page courante et on rend seulement les annonces de cette page
-  currentPage = 1;
+  // Pagination
+  currentPage = Math.min(currentPage, Math.ceil(filtered.length / annoncesPerPage) || 1);
+
   renderAnnonces(filtered);
 }
 </script>  
