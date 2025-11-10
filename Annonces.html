@@ -320,6 +320,10 @@ let sortOrder = "default";
 let currentPage = 1;
 const annoncesPerPage = 20;
 
+let lastVisible = null; // garde la dernière annonce chargée
+let isLoading = false;  // pour éviter de charger plusieurs fois en même temps
+const annoncesPerLoad = 20; // on charge 20 annonces à la fois
+
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
@@ -343,54 +347,47 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-let lastVisible = null; // pour pagination Firestore
-
-async function loadAnnonces(limitCount = 20) {
-  annoncesContainer.innerHTML = "";
+async function loadAnnonces() {
+  if(isLoading) return; // si on est déjà en train de charger, on attend
+  isLoading = true;
   document.getElementById("spinner").style.display = "flex";
 
   try {
-    let q;
-    if (lastVisible) {
-      q = query(
+    let annoncesQuery = query(
+      collection(db, "annonces"),
+      orderBy("createdAt","desc"),
+      limit(annoncesPerLoad)
+    );
+
+    if(lastVisible){
+      annoncesQuery = query(
         collection(db, "annonces"),
-        orderBy("createdAt", "desc"),
+        orderBy("createdAt","desc"),
         startAfter(lastVisible),
-        limit(limitCount)
-      );
-    } else {
-      q = query(
-        collection(db, "annonces"),
-        orderBy("createdAt", "desc"),
-        limit(limitCount)
+        limit(annoncesPerLoad)
       );
     }
 
-    const annoncesSnap = await getDocs(q);
-
-    if (annoncesSnap.empty) {
-      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
+    const annoncesSnap = await getDocs(annoncesQuery);
+    if(annoncesSnap.empty){
       document.getElementById("spinner").style.display = "none";
       return;
     }
 
     lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
 
-    const batch = [];
     annoncesSnap.forEach(docSnap => {
-      const data = docSnap.data();
-      data.id = docSnap.id;
-      batch.push(data);
+      const a = docSnap.data();
+      a.id = docSnap.id;
+      annoncesData.push(a);
+      renderAnnonces([a]); // on affiche uniquement le nouveau morceau
     });
 
-    annoncesData.push(...batch); // ajoute au tableau existant
-    applyAllFilters();
-
-  } catch(err) {
-    console.error("Erreur chargement annonces:", err);
-    annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
+  } catch(err){
+    console.error(err);
   } finally {
-    document.getElementById("spinner").style.display = "none"; 
+    isLoading = false;
+    document.getElementById("spinner").style.display = "none";
   }
 }
 function escapeHTML(str) {
@@ -715,11 +712,11 @@ function applyAllFilters() {
   });
   renderAnnonces(filtered);}
 
- window.addEventListener('scroll', () => {
+  window.addEventListener("scroll", () => {
   if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 500){
-    loadAnnonces(); // charge le prochain lot
+    loadAnnonces(); // charge le prochain petit lot
   }
-});
+}); 
 </script>  
 </body>
 </html>
