@@ -745,9 +745,7 @@ function isBoostActive(annonce) {
   return boostEndDate > now;
 }
 
-let lastVisibleDoc = null;      // pour pagination Firestore
-let isLoading = false;          // empêche les requêtes simultanées
-let hasMore = true;             // savoir si on a atteint la fin
+
 let filteredIdsCache = [];      // cache des annonces déjà affichées
 
 async function applyAllFilters(scrollLoad = false) {
