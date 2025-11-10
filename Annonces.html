@@ -320,10 +320,6 @@ let sortOrder = "default";
 let currentPage = 1;
 const annoncesPerPage = 20;
 
-let lastVisible = null; // garde la dernière annonce chargée
-let isLoading = false;  // pour éviter de charger plusieurs fois en même temps
-const annoncesPerLoad = 20; // on charge 20 annonces à la fois
-
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
@@ -348,46 +344,50 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 async function loadAnnonces() {
-  if(isLoading) return; // si on est déjà en train de charger, on attend
-  isLoading = true;
+  annoncesContainer.innerHTML = "";
   document.getElementById("spinner").style.display = "flex";
 
   try {
-    let annoncesQuery = query(
-      collection(db, "annonces"),
-      orderBy("createdAt","desc"),
-      limit(annoncesPerLoad)
-    );
-
-    if(lastVisible){
-      annoncesQuery = query(
-        collection(db, "annonces"),
-        orderBy("createdAt","desc"),
-        startAfter(lastVisible),
-        limit(annoncesPerLoad)
-      );
-    }
-
+    const annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt","desc"));
     const annoncesSnap = await getDocs(annoncesQuery);
-    if(annoncesSnap.empty){
+
+    if(annoncesSnap.empty){ 
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
       document.getElementById("spinner").style.display = "none";
-      return;
+      return; 
     }
-
-    lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
-
+    annoncesData = [];
     annoncesSnap.forEach(docSnap => {
-      const a = docSnap.data();
-      a.id = docSnap.id;
-      annoncesData.push(a);
-      renderAnnonces([a]); // on affiche uniquement le nouveau morceau
-    });
+    const data = docSnap.data();
+    data.id = docSnap.id;
+    annoncesData.push(data);});
 
+    if (!window.__usersCache) {
+      try {
+        const usersSnap = await getDocs(collection(db, "users"));
+        const byEmail = {};
+        const byId = {};
+        usersSnap.forEach(uDoc => {
+          const u = uDoc.data() || {};
+          byId[uDoc.id] = u;
+          const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+          if(email) byEmail[email] = u;
+        });
+        window.__usersCache = { byEmail, byId };
+      } catch(err) {
+        console.error("Erreur chargement users:", err);
+        window.__usersCache = { byEmail: {}, byId: {} };
+      }
+    }
+    setupCategoryFilters();
+    setupSearchAndSort();
+    setupFilterMenu();
+    applyAllFilters();
   } catch(err){
-    console.error(err);
+    console.error("Erreur chargement annonces:", err);
+    annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   } finally {
-    isLoading = false;
-    document.getElementById("spinner").style.display = "none";
+    document.getElementById("spinner").style.display = "none"; 
   }
 }
 function escapeHTML(str) {
@@ -711,12 +711,6 @@ function applyAllFilters() {
     return bDate - aDate;
   });
   renderAnnonces(filtered);}
-
-  window.addEventListener("scroll", () => {
-  if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 500){
-    loadAnnonces(); // charge le prochain petit lot
-  }
-}); 
 </script>  
 </body>
 </html>
