@@ -166,7 +166,7 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 </div>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-import { getFirestore, collection, getDocs, query, orderBy, limit,startAfter, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, query, orderBy, limit, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
@@ -344,90 +344,53 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-let lastVisibleDoc = null;
-let isLoading = false;
-let hasMore = true;
-const BATCH_SIZE = 1000;
-
-async function loadAnnonces(initial = false) {
-  if (isLoading || !hasMore) return;
-  isLoading = true;
-
-  if (initial) {
-    annoncesContainer.innerHTML = "";
-    document.getElementById("spinner").style.display = "flex";
-    lastVisibleDoc = null;
-    hasMore = true;
-  }
+async function loadAnnonces() {
+  annoncesContainer.innerHTML = "";
+  document.getElementById("spinner").style.display = "flex";
 
   try {
-    let annoncesQuery = query(
-      collection(db, "annonces"),
-      orderBy("createdAt", "desc"),
-      limit(BATCH_SIZE)
-    );
-
-    if (lastVisibleDoc) {
-      annoncesQuery = query(
-        collection(db, "annonces"),
-        orderBy("createdAt", "desc"),
-        startAfter(lastVisibleDoc),
-        limit(BATCH_SIZE)
-      );
-    }
-
+    const annoncesQuery = query(collection(db, "annonces"), orderBy("createdAt","desc"));
     const annoncesSnap = await getDocs(annoncesQuery);
 
-    if (annoncesSnap.empty) {
-      hasMore = false;
-      if (initial) {
-        annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
-      }
-      return;
+    if(annoncesSnap.empty){ 
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>"; 
+      document.getElementById("spinner").style.display = "none";
+      return; 
     }
-
-    const newAnnonces = [];
-    annoncesSnap.forEach((docSnap) => {
-      const data = docSnap.data();
-      data.id = docSnap.id;
-      newAnnonces.push(data);
-    });
-
-    lastVisibleDoc = annoncesSnap.docs[annoncesSnap.docs.length - 1];
-    annoncesData.push(...newAnnonces);
+    annoncesData = [];
+    annoncesSnap.forEach(docSnap => {
+    const data = docSnap.data();
+    data.id = docSnap.id;
+    annoncesData.push(data);});
 
     if (!window.__usersCache) {
-      const usersSnap = await getDocs(collection(db, "users"));
-      const byEmail = {};
-      const byId = {};
-      usersSnap.forEach((uDoc) => {
-        const u = uDoc.data() || {};
-        byId[uDoc.id] = u;
-        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-        if (email) byEmail[email] = u;
-      });
-      window.__usersCache = { byEmail, byId };
+      try {
+        const usersSnap = await getDocs(collection(db, "users"));
+        const byEmail = {};
+        const byId = {};
+        usersSnap.forEach(uDoc => {
+          const u = uDoc.data() || {};
+          byId[uDoc.id] = u;
+          const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+          if(email) byEmail[email] = u;
+        });
+        window.__usersCache = { byEmail, byId };
+      } catch(err) {
+        console.error("Erreur chargement users:", err);
+        window.__usersCache = { byEmail: {}, byId: {} };
+      }
     }
-
-    applyAllFilters(); // Garde ton design et la logique d’affichage
-  } catch (err) {
+    setupCategoryFilters();
+    setupSearchAndSort();
+    setupFilterMenu();
+    applyAllFilters();
+  } catch(err){
     console.error("Erreur chargement annonces:", err);
-    if (initial) {
-      annoncesContainer.innerHTML = `<p>⚠️ Erreur : ${err.message}</p>`;
-    }
+    annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   } finally {
-    document.getElementById("spinner").style.display = "none";
-    isLoading = false;
+    document.getElementById("spinner").style.display = "none"; 
   }
 }
-
-// 👇 Déclenche le chargement des annonces suivantes au scroll
-window.addEventListener("scroll", () => {
-  if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 800) {
-    loadAnnonces(false);
-  }
-});
-
 function escapeHTML(str) {
   if (!str) return "";
   return str
@@ -450,13 +413,12 @@ async function renderAnnonces(filtered) {
   const end = start + annoncesPerPage;
   const pageItems = filtered.slice(start, end);
 
-  // Cache utilisateurs
   if (!window.__usersCache) {
     try {
       const usersSnap = await getDocs(collection(db, "users"));
       const byEmail = {};
       const byId = {};
-      usersSnap.forEach((uDoc) => {
+      usersSnap.forEach(uDoc => {
         const u = uDoc.data() || {};
         byId[uDoc.id] = u;
         const email = (u.email || u.emailAddress || "").toLowerCase().trim();
@@ -469,8 +431,6 @@ async function renderAnnonces(filtered) {
     }
   }
 
-  const fragment = document.createDocumentFragment();
-
   for (const a of pageItems) {
     const docId = escapeHTML(a.id || "");
     const card = document.createElement("div");
@@ -478,7 +438,6 @@ async function renderAnnonces(filtered) {
 
     const isFav = currentUser && userFavorites.includes(a.id);
 
-    // Données vendeur
     let sellerData = null;
     const annonceEmail = (a.userEmail || "").toLowerCase().trim();
     if (annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
@@ -489,53 +448,37 @@ async function renderAnnonces(filtered) {
     let isPro = false;
     if (sellerData && sellerData.subscribe === true) {
       const now = new Date();
-      const subEnd = sellerData.subscribeEnd?.toDate
-        ? sellerData.subscribeEnd.toDate()
-        : new Date(sellerData.subscribeEnd);
-      if (subEnd > now) isPro = true;
-    }
+      const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
+      if (subEnd > now) isPro = true;}
 
     let fullName = "Utilisateur inconnu";
     if (sellerData) {
       fullName =
         escapeHTML(
           sellerData.fullName ||
-            `${sellerData.firstName || sellerData.prenom || ""} ${
-              sellerData.lastName || sellerData.nom || ""
-            }`.trim() ||
-            sellerData.displayName ||
-            sellerData.name ||
-            sellerData.nom ||
-            sellerData.prenom ||
-            "Utilisateur"
+          `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
+          sellerData.displayName ||
+          sellerData.name ||
+          sellerData.nom ||
+          sellerData.prenom ||
+          "Utilisateur"
         );
     }
-
     let sellerPhoto =
-      (sellerData &&
-        (sellerData.profileImage ||
-          sellerData.profilePic ||
-          sellerData.profile ||
-          sellerData.photoURL ||
-          sellerData.avatar ||
-          sellerData.image ||
-          sellerData.photo)) ||
-      "";
-    if (
-      !sellerPhoto ||
-      typeof sellerPhoto !== "string" ||
-      sellerPhoto.startsWith("gs://") ||
-      sellerPhoto.startsWith("/")
-    ) {
+      (sellerData && (
+        sellerData.profileImage ||
+        sellerData.profilePic ||
+        sellerData.profile ||
+        sellerData.photoURL ||
+        sellerData.avatar ||
+        sellerData.image ||
+        sellerData.photo
+      )) || "";
+    if (!sellerPhoto || typeof sellerPhoto !== "string" || sellerPhoto.startsWith("gs://") || sellerPhoto.startsWith("/")) {
       sellerPhoto = "https://via.placeholder.com/40";
     }
     sellerPhoto = escapeHTML(sellerPhoto);
-
-    let annonceImage = escapeHTML(
-      a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce"
-    );
-
-    // 🧩 Ton design original inchangé
+    let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
     card.innerHTML = `
   <div class="image-container">
     <img src="${annonceImage}" 
@@ -561,27 +504,25 @@ async function renderAnnonces(filtered) {
     </div>
   </div>
 `;
-
-    const titleEl = card.querySelector(".title");
-    if ((a.title || "").length > 30) titleEl.classList.add("long-text");
-
+    const titleEl = card.querySelector('.title');
+      if ((a.title || "").length > 30) {
+      titleEl.classList.add('long-text');}
     const favBtn = card.querySelector(".favorite");
-    favBtn.addEventListener("click", async (e) => {
+    favBtn.addEventListener("click", async e => {
       e.stopPropagation();
-      if (!currentUser) {
-        const msg = document.getElementById("notLoggedMsg");
-        msg.style.display = "block";
-        setTimeout(() => {
-          msg.style.display = "none";
-        }, 3000);
-        return;
-      }
 
+      if (!currentUser) {
+      const msg = document.getElementById("notLoggedMsg");
+      msg.style.display = "block";
+      setTimeout(() => { msg.style.display = "none"; }, 3000);
+      return;}
+
+      
       const favRef = doc(db, "users", currentUser.uid);
       if (favBtn.classList.contains("active")) {
         favBtn.classList.remove("active");
         favBtn.textContent = "favorite_border";
-        userFavorites = userFavorites.filter((id) => id !== docId);
+        userFavorites = userFavorites.filter(id => id !== docId);
         await updateDoc(favRef, { favorites: arrayRemove(docId) });
       } else {
         favBtn.classList.add("active");
@@ -591,16 +532,13 @@ async function renderAnnonces(filtered) {
       }
     });
 
-    card.addEventListener("click", (e) => {
+    card.addEventListener("click", e => {
       if (e.target.classList.contains("favorite")) return;
       window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
     });
 
-    fragment.appendChild(card);
+    annoncesContainer.appendChild(card);
   }
-
-  // Insertion DOM groupée (rapide)
-  annoncesContainer.appendChild(fragment);
 
   renderPagination(Math.ceil(filtered.length / annoncesPerPage));
 }
@@ -745,105 +683,36 @@ function isBoostActive(annonce) {
   return boostEndDate > now;
 }
 
+function applyAllFilters() {
+  let filtered = annoncesData;
+  if(selectedCategory && selectedCategory !== "all") 
+      filtered = filtered.filter(a => a.categorie === selectedCategory);
+  if(selectedSubcategory) 
+      filtered = filtered.filter(a => a.souscategorie === selectedSubcategory);
+  if(searchText) 
+      filtered = filtered.filter(a => 
+        (a.title?.toLowerCase().includes(searchText.toLowerCase())) || 
+        (a.city?.toLowerCase().includes(searchText.toLowerCase()))
+      );
 
-let filteredIdsCache = [];      // cache des annonces déjà affichées
-
-async function applyAllFilters(scrollLoad = false) {
-  if (isLoading || !hasMore) return;
-  isLoading = true;
-
-  const searchTerm = document.getElementById("searchInput")?.value?.toLowerCase() || "";
-  const city = document.getElementById("filterVille")?.value || "";
-  const category = document.getElementById("filterCategorie")?.value || "";
-  const subCategory = document.getElementById("filterSousCategorie")?.value || "";
-  const livraison = document.getElementById("filterLivraison")?.value || "";
-  const prixMin = parseFloat(document.getElementById("filterPrixMin")?.value) || 0;
-  const prixMax = parseFloat(document.getElementById("filterPrixMax")?.value) || Infinity;
-
-  const annoncesRef = collection(db, "annonces");
-
-  let q = query(
-    annoncesRef,
-    orderBy("boostExpireAt", "desc"),   // boostées en premier
-    orderBy("createdAt", "desc"),
-    limit(50)
-  );
-
-  if (lastVisibleDoc) {
-    q = query(q, startAfter(lastVisibleDoc));
-  }
-
-  try {
-    const querySnap = await getDocs(q);
-    if (querySnap.empty) {
-      hasMore = false;
-      if (!scrollLoad && filteredIdsCache.length === 0) {
-        annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
-      }
-      isLoading = false;
-      return;
+  filtered.sort((a, b) => {
+    const aBoost = isBoostActive(a);
+    const bBoost = isBoostActive(b);
+    if(aBoost && !bBoost) return -1;
+    if(!aBoost && bBoost) return 1;
+    if(aBoost && bBoost){
+      const aEnd = a.boostEnd ? a.boostEnd.toDate ? a.boostEnd.toDate() : new Date(a.boostEnd) : 0;
+      const bEnd = b.boostEnd ? b.boostEnd.toDate ? b.boostEnd.toDate() : new Date(b.boostEnd) : 0;
+      return bEnd - aEnd;
     }
-
-    lastVisibleDoc = querySnap.docs[querySnap.docs.length - 1];
-
-    let filtered = [];
-    querySnap.forEach(docSnap => {
-      const a = docSnap.data();
-      a.id = docSnap.id;
-
-      // ⚙️ Filtrage client léger pour search, prix et texte
-      const titre = (a.title || "").toLowerCase();
-      const desc = (a.description || "").toLowerCase();
-      const ville = (a.city || "").toLowerCase();
-      const cat = (a.categorie || "").toLowerCase();
-      const sousCat = (a.sousCategorie || "").toLowerCase();
-      const liv = (a.livraison || "").toLowerCase();
-      const prix = parseFloat(a.price) || 0;
-
-      if (
-        (!searchTerm || titre.includes(searchTerm) || desc.includes(searchTerm)) &&
-        (!city || ville === city.toLowerCase()) &&
-        (!category || cat === category.toLowerCase()) &&
-        (!subCategory || sousCat === subCategory.toLowerCase()) &&
-        (!livraison || liv === livraison.toLowerCase()) &&
-        prix >= prixMin && prix <= prixMax
-      ) {
-        filtered.push(a);
-      }
-    });
-
-    // 🔥 On ne redessine que les nouvelles annonces
-    const newFilteredIds = filtered.map(f => f.id).filter(id => !filteredIdsCache.includes(id));
-    if (newFilteredIds.length > 0) {
-      filteredIdsCache.push(...newFilteredIds);
-      const newFiltered = filtered.filter(f => newFilteredIds.includes(f.id));
-      renderAnnonces(newFiltered, true);  // true = append, pas replace
-    }
-
-  } catch (err) {
-    console.error("Erreur applyAllFilters:", err);
-  } finally {
-    isLoading = false;
-  }
-}
-
-// 📜 Scroll infini
-window.addEventListener("scroll", () => {
-  if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 200) {
-    applyAllFilters(true);
-  }
-});
-
-// 🔄 Reset avant nouvelle recherche
-document.querySelectorAll("#searchInput, #filterVille, #filterCategorie, #filterSousCategorie, #filterLivraison, #filterPrixMin, #filterPrixMax")
-.forEach(el => el.addEventListener("input", () => {
-  lastVisibleDoc = null;
-  hasMore = true;
-  filteredIdsCache = [];
-  annoncesContainer.innerHTML = ""; 
-  applyAllFilters();
-}));
-
+    if(sortOrder === "asc") return (a.price || 0) - (b.price || 0);
+    if(sortOrder === "desc") return (b.price || 0) - (a.price || 0);
+    const aDate = a.createdAt ? a.createdAt.seconds * 1000 : 0;
+    const bDate = b.createdAt ? b.createdAt.seconds * 1000 : 0;
+    return bDate - aDate;
+  });
+  renderAnnonces(filtered);}
 </script>  
 </body>
 </html>
+
