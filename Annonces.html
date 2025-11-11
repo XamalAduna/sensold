@@ -459,7 +459,7 @@ function escapeHTML(str) {
 }
 
 // ✅ VERSION VIRTUAL SCROLL : supporte 100 000+ annonces
-function renderAnnoncesVirtual(filtered) {
+async function renderAnnonces(filtered) {
   const container = annoncesContainer;
   container.innerHTML = "";
   if (filtered.length === 0) {
