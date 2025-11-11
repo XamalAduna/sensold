@@ -73,6 +73,12 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 .material-symbols-outlined {font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0, 'opsz' 24; font-size: 30px; color: #1f1f1f; }
 .image-container {position: relative; display: block;}
 .boost-icon {position: absolute;bottom: 8px;right: 8px;font-size: 40px;color: #00796B;background: transparent; border-radius: 0; padding: 0; z-index: 20;display: flex; align-items: center;justify-content: center; line-height: 1;}
+#annoncesContainer {
+  position: relative;
+  overflow-y: auto;
+  height: 100vh; /* ou la hauteur que tu veux */
+}
+
 </style>
 </head>
 <body>
@@ -458,22 +464,22 @@ function escapeHTML(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
 }
-// ✅ VERSION OPTIMISÉE : renderAnnonces pour +20 000 annonces
+// ✅ VERSION VIRTUAL SCROLLING — 100 000+ annonces sans lag, sans changer ton design
 async function renderAnnonces(filtered) {
-  annoncesContainer.innerHTML = ""; // vide le conteneur avant affichage du lot actuel
+  const container = annoncesContainer;
+  container.innerHTML = "";
+
   if (filtered.length === 0) {
-    annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
+    container.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
     return;
   }
 
-  const totalPages = Math.ceil(filtered.length / annoncesPerPage);
-  if (currentPage > totalPages) currentPage = 1;
+  // ⚙️ Hauteur moyenne estimée d’une carte (ajuste selon ton CSS)
+  const CARD_HEIGHT = 310;
+  const BUFFER = 5; // marge de sécurité (cartes supplémentaires)
+  const visibleCount = Math.ceil(container.clientHeight / CARD_HEIGHT) + BUFFER;
 
-  const start = (currentPage - 1) * annoncesPerPage;
-  const end = start + annoncesPerPage;
-  const pageItems = filtered.slice(start, end);
-
-  // ⚡ On ne recharge le cache utilisateurs que si nécessaire
+  // Cache utilisateurs (inchangé)
   if (!window.__usersCache) {
     try {
       const usersSnap = await getDocs(collection(db, "users"));
@@ -492,13 +498,32 @@ async function renderAnnonces(filtered) {
     }
   }
 
-  // ⚡ Création des cards en batch pour améliorer la performance
-  const fragment = document.createDocumentFragment();
+  // Conteneur "spacer" pour conserver la hauteur totale
+  const spacer = document.createElement("div");
+  spacer.style.height = filtered.length * CARD_HEIGHT + "px";
+  spacer.style.position = "relative";
+  container.appendChild(spacer);
 
-  for (const a of pageItems) {
+  // Sous-conteneur pour les cartes visibles
+  const visibleContainer = document.createElement("div");
+  visibleContainer.style.position = "absolute";
+  visibleContainer.style.top = "0";
+  visibleContainer.style.left = "0";
+  visibleContainer.style.right = "0";
+  spacer.appendChild(visibleContainer);
+
+  let startIndex = 0;
+  let endIndex = visibleCount;
+
+  // --- fonction interne pour générer les cartes visibles ---
+  function createCard(a, i) {
     const docId = escapeHTML(a.id || "");
     const card = document.createElement("div");
     card.className = "annonce-card";
+    card.style.position = "absolute";
+    card.style.top = i * CARD_HEIGHT + "px";
+    card.style.left = "0";
+    card.style.right = "0";
 
     const isFav = currentUser && userFavorites.includes(a.id);
 
@@ -512,7 +537,9 @@ async function renderAnnonces(filtered) {
     let isPro = false;
     if (sellerData && sellerData.subscribe === true) {
       const now = new Date();
-      const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
+      const subEnd = sellerData.subscribeEnd?.toDate
+        ? sellerData.subscribeEnd.toDate()
+        : new Date(sellerData.subscribeEnd);
       if (subEnd > now) isPro = true;
     }
 
@@ -521,28 +548,30 @@ async function renderAnnonces(filtered) {
       fullName =
         escapeHTML(
           sellerData.fullName ||
-          `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
-          sellerData.displayName ||
-          sellerData.name ||
-          sellerData.nom ||
-          sellerData.prenom ||
-          "Utilisateur"
+            `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
+            sellerData.displayName ||
+            sellerData.name ||
+            sellerData.nom ||
+            sellerData.prenom ||
+            "Utilisateur"
         );
     }
 
     let sellerPhoto =
-      (sellerData && (
-        sellerData.profileImage ||
-        sellerData.profilePic ||
-        sellerData.profile ||
-        sellerData.photoURL ||
-        sellerData.avatar ||
-        sellerData.image ||
-        sellerData.photo
-      )) || "https://via.placeholder.com/40";
+      (sellerData &&
+        (sellerData.profileImage ||
+          sellerData.profilePic ||
+          sellerData.profile ||
+          sellerData.photoURL ||
+          sellerData.avatar ||
+          sellerData.image ||
+          sellerData.photo)) ||
+      "https://via.placeholder.com/40";
 
     sellerPhoto = escapeHTML(sellerPhoto);
-    let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
+    let annonceImage = escapeHTML(
+      a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce"
+    );
 
     card.innerHTML = `
       <div class="image-container">
@@ -570,10 +599,8 @@ async function renderAnnonces(filtered) {
       </div>
     `;
 
-    const titleEl = card.querySelector('.title');
-    if ((a.title || "").length > 30) {
-      titleEl.classList.add('long-text');
-    }
+    const titleEl = card.querySelector(".title");
+    if ((a.title || "").length > 30) titleEl.classList.add("long-text");
 
     const favBtn = card.querySelector(".favorite");
     favBtn.addEventListener("click", async e => {
@@ -581,7 +608,7 @@ async function renderAnnonces(filtered) {
       if (!currentUser) {
         const msg = document.getElementById("notLoggedMsg");
         msg.style.display = "block";
-        setTimeout(() => { msg.style.display = "none"; }, 3000);
+        setTimeout(() => (msg.style.display = "none"), 3000);
         return;
       }
 
@@ -604,11 +631,26 @@ async function renderAnnonces(filtered) {
       window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
     });
 
-    fragment.appendChild(card);
+    return card;
   }
 
-  annoncesContainer.appendChild(fragment); // ⚡ Ajout batch pour fluidité
-  renderPagination(Math.ceil(filtered.length / annoncesPerPage));
+  // --- mise à jour dynamique au scroll ---
+  function updateVisible() {
+    const scrollTop = container.scrollTop;
+    startIndex = Math.floor(scrollTop / CARD_HEIGHT) - BUFFER;
+    if (startIndex < 0) startIndex = 0;
+    endIndex = startIndex + visibleCount;
+    if (endIndex > filtered.length) endIndex = filtered.length;
+
+    visibleContainer.innerHTML = "";
+    for (let i = startIndex; i < endIndex; i++) {
+      visibleContainer.appendChild(createCard(filtered[i], i));
+    }
+  }
+
+  container.addEventListener("scroll", updateVisible);
+  window.addEventListener("resize", updateVisible);
+  updateVisible();
 }
 
 function renderPagination(totalPages){
