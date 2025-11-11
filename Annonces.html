@@ -459,7 +459,7 @@ function escapeHTML(str) {
 }
 // ✅ VERSION OPTIMISÉE : renderAnnonces pour +20 000 annonces
 async function renderAnnonces(filtered) {
-  //annoncesContainer.innerHTML = ""; // vide le conteneur avant affichage du lot actuel
+  annoncesContainer.innerHTML = ""; // vide le conteneur avant affichage du lot actuel
   if (filtered.length === 0) {
     annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
     return;
