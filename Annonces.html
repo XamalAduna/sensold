@@ -73,12 +73,6 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 .material-symbols-outlined {font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0, 'opsz' 24; font-size: 30px; color: #1f1f1f; }
 .image-container {position: relative; display: block;}
 .boost-icon {position: absolute;bottom: 8px;right: 8px;font-size: 40px;color: #00796B;background: transparent; border-radius: 0; padding: 0; z-index: 20;display: flex; align-items: center;justify-content: center; line-height: 1;}
-#annoncesContainer {
-  position: relative;
-  overflow-y: auto;
-  height: 100vh; /* ou la hauteur que tu veux */
-}
-
 </style>
 </head>
 <body>
@@ -464,22 +458,16 @@ function escapeHTML(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
 }
-// ✅ VERSION VIRTUAL SCROLLING — 100 000+ annonces sans lag, sans changer ton design
+// ✅ VERSION ULTIME VIRTUAL SCROLL avec requestAnimationFrame
 async function renderAnnonces(filtered) {
-  const container = annoncesContainer;
-  container.innerHTML = "";
+  annoncesContainer.innerHTML = "";
 
   if (filtered.length === 0) {
-    container.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
+    annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
     return;
   }
 
-  // ⚙️ Hauteur moyenne estimée d’une carte (ajuste selon ton CSS)
-  const CARD_HEIGHT = 310;
-  const BUFFER = 5; // marge de sécurité (cartes supplémentaires)
-  const visibleCount = Math.ceil(container.clientHeight / CARD_HEIGHT) + BUFFER;
-
-  // Cache utilisateurs (inchangé)
+  // ⚡ Précharge cache users si nécessaire
   if (!window.__usersCache) {
     try {
       const usersSnap = await getDocs(collection(db, "users"));
@@ -498,159 +486,173 @@ async function renderAnnonces(filtered) {
     }
   }
 
-  // Conteneur "spacer" pour conserver la hauteur totale
-  const spacer = document.createElement("div");
-  spacer.style.height = filtered.length * CARD_HEIGHT + "px";
-  spacer.style.position = "relative";
-  container.appendChild(spacer);
+  const CARD_HEIGHT = 320; // approx hauteur d'une annonce
+  const BUFFER = 5; // nombre de cartes tampon au-dessus et en-dessous
 
-  // Sous-conteneur pour les cartes visibles
-  const visibleContainer = document.createElement("div");
-  visibleContainer.style.position = "absolute";
-  visibleContainer.style.top = "0";
-  visibleContainer.style.left = "0";
-  visibleContainer.style.right = "0";
-  spacer.appendChild(visibleContainer);
+  annoncesContainer.style.position = "relative";
+  annoncesContainer.style.height = filtered.length * CARD_HEIGHT + "px";
 
-  let startIndex = 0;
-  let endIndex = visibleCount;
+  let renderedCards = {};
+  let ticking = false;
 
-  // --- fonction interne pour générer les cartes visibles ---
-  function createCard(a, i) {
-    const docId = escapeHTML(a.id || "");
-    const card = document.createElement("div");
-    card.className = "annonce-card";
-    card.style.position = "absolute";
-    card.style.top = i * CARD_HEIGHT + "px";
-    card.style.left = "0";
-    card.style.right = "0";
+  function escapeHTML(str) {
+    if (!str) return "";
+    return str
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
 
-    const isFav = currentUser && userFavorites.includes(a.id);
+  function render() {
+    const scrollTop = annoncesContainer.scrollTop || document.documentElement.scrollTop;
+    const containerHeight = annoncesContainer.clientHeight || window.innerHeight;
 
-    let sellerData = null;
-    const annonceEmail = (a.userEmail || "").toLowerCase().trim();
-    if (annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
-    if (!sellerData && a.userId) sellerData = window.__usersCache.byId[a.userId];
-    if (!sellerData && a.uid) sellerData = window.__usersCache.byId[a.uid];
-    if (!sellerData && a.user && typeof a.user === "object") sellerData = a.user;
+    const startIndex = Math.max(0, Math.floor(scrollTop / CARD_HEIGHT) - BUFFER);
+    const endIndex = Math.min(filtered.length, Math.ceil((scrollTop + containerHeight) / CARD_HEIGHT) + BUFFER);
 
-    let isPro = false;
-    if (sellerData && sellerData.subscribe === true) {
-      const now = new Date();
-      const subEnd = sellerData.subscribeEnd?.toDate
-        ? sellerData.subscribeEnd.toDate()
-        : new Date(sellerData.subscribeEnd);
-      if (subEnd > now) isPro = true;
+    // Supprime les cartes hors viewport
+    for (const key in renderedCards) {
+      const idx = parseInt(key);
+      if (idx < startIndex || idx >= endIndex) {
+        annoncesContainer.removeChild(renderedCards[key]);
+        delete renderedCards[key];
+      }
     }
 
-    let fullName = "Utilisateur inconnu";
-    if (sellerData) {
-      fullName =
-        escapeHTML(
-          sellerData.fullName ||
+    // Ajoute les cartes visibles
+    for (let i = startIndex; i < endIndex; i++) {
+      if (renderedCards[i]) continue;
+
+      const a = filtered[i];
+      const docId = escapeHTML(a.id || "");
+      const card = document.createElement("div");
+      card.className = "annonce-card";
+      card.style.position = "absolute";
+      card.style.top = i * CARD_HEIGHT + "px";
+      card.style.width = "100%";
+
+      const isFav = currentUser && userFavorites.includes(a.id);
+
+      let sellerData = null;
+      const annonceEmail = (a.userEmail || "").toLowerCase().trim();
+      if (annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
+      if (!sellerData && a.userId) sellerData = window.__usersCache.byId[a.userId];
+      if (!sellerData && a.uid) sellerData = window.__usersCache.byId[a.uid];
+      if (!sellerData && a.user && typeof a.user === "object") sellerData = a.user;
+
+      let isPro = false;
+      if (sellerData && sellerData.subscribe === true) {
+        const now = new Date();
+        const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
+        if (subEnd > now) isPro = true;
+      }
+
+      let fullName = "Utilisateur inconnu";
+      if (sellerData) {
+        fullName =
+          escapeHTML(
+            sellerData.fullName ||
             `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
             sellerData.displayName ||
             sellerData.name ||
             sellerData.nom ||
             sellerData.prenom ||
             "Utilisateur"
-        );
-    }
+          );
+      }
 
-    let sellerPhoto =
-      (sellerData &&
-        (sellerData.profileImage ||
+      let sellerPhoto =
+        (sellerData && (
+          sellerData.profileImage ||
           sellerData.profilePic ||
           sellerData.profile ||
           sellerData.photoURL ||
           sellerData.avatar ||
           sellerData.image ||
-          sellerData.photo)) ||
-      "https://via.placeholder.com/40";
+          sellerData.photo
+        )) || "https://via.placeholder.com/40";
 
-    sellerPhoto = escapeHTML(sellerPhoto);
-    let annonceImage = escapeHTML(
-      a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce"
-    );
+      sellerPhoto = escapeHTML(sellerPhoto);
+      let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
 
-    card.innerHTML = `
-      <div class="image-container">
-        <img src="${annonceImage}" 
-             loading="lazy"
-             alt="${escapeHTML(a.title || 'Annonce')}"
-             onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
-        ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
-        <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
-        <span class="material-icons favorite ${isFav ? 'active' : ''}">
-          ${isFav ? 'favorite' : 'favorite_border'}
-        </span>
-      </div>
-      <div class="content">
-        <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
-        <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
-        <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
-      </div>
-      <div class="seller">
-        <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
-        <div class="seller-info">
-          <strong>${fullName}</strong>
-          ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
+      card.innerHTML = `
+        <div class="image-container">
+          <img src="${annonceImage}" 
+               loading="lazy"
+               alt="${escapeHTML(a.title || 'Annonce')}"
+               onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
+          ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
+          <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
+          <span class="material-icons favorite ${isFav ? 'active' : ''}">
+            ${isFav ? 'favorite' : 'favorite_border'}
+          </span>
         </div>
-      </div>
-    `;
+        <div class="content">
+          <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
+          <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
+          <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
+        </div>
+        <div class="seller">
+          <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
+          <div class="seller-info">
+            <strong>${fullName}</strong>
+            ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
+          </div>
+        </div>
+      `;
 
-    const titleEl = card.querySelector(".title");
-    if ((a.title || "").length > 30) titleEl.classList.add("long-text");
-
-    const favBtn = card.querySelector(".favorite");
-    favBtn.addEventListener("click", async e => {
-      e.stopPropagation();
-      if (!currentUser) {
-        const msg = document.getElementById("notLoggedMsg");
-        msg.style.display = "block";
-        setTimeout(() => (msg.style.display = "none"), 3000);
-        return;
+      const titleEl = card.querySelector('.title');
+      if ((a.title || "").length > 30) {
+        titleEl.classList.add('long-text');
       }
 
-      const favRef = doc(db, "users", currentUser.uid);
-      if (favBtn.classList.contains("active")) {
-        favBtn.classList.remove("active");
-        favBtn.textContent = "favorite_border";
-        userFavorites = userFavorites.filter(id => id !== docId);
-        await updateDoc(favRef, { favorites: arrayRemove(docId) });
-      } else {
-        favBtn.classList.add("active");
-        favBtn.textContent = "favorite";
-        userFavorites.push(docId);
-        await updateDoc(favRef, { favorites: arrayUnion(docId) });
-      }
-    });
+      const favBtn = card.querySelector(".favorite");
+      favBtn.addEventListener("click", async e => {
+        e.stopPropagation();
+        if (!currentUser) {
+          const msg = document.getElementById("notLoggedMsg");
+          msg.style.display = "block";
+          setTimeout(() => { msg.style.display = "none"; }, 3000);
+          return;
+        }
 
-    card.addEventListener("click", e => {
-      if (e.target.classList.contains("favorite")) return;
-      window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
-    });
+        const favRef = doc(db, "users", currentUser.uid);
+        if (favBtn.classList.contains("active")) {
+          favBtn.classList.remove("active");
+          favBtn.textContent = "favorite_border";
+          userFavorites = userFavorites.filter(id => id !== docId);
+          await updateDoc(favRef, { favorites: arrayRemove(docId) });
+        } else {
+          favBtn.classList.add("active");
+          favBtn.textContent = "favorite";
+          userFavorites.push(docId);
+          await updateDoc(favRef, { favorites: arrayUnion(docId) });
+        }
+      });
 
-    return card;
+      card.addEventListener("click", e => {
+        if (e.target.classList.contains("favorite")) return;
+        window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
+      });
+
+      annoncesContainer.appendChild(card);
+      renderedCards[i] = card;
+    }
+
+    ticking = false;
   }
 
-  // --- mise à jour dynamique au scroll ---
-  function updateVisible() {
-    const scrollTop = container.scrollTop;
-    startIndex = Math.floor(scrollTop / CARD_HEIGHT) - BUFFER;
-    if (startIndex < 0) startIndex = 0;
-    endIndex = startIndex + visibleCount;
-    if (endIndex > filtered.length) endIndex = filtered.length;
-
-    visibleContainer.innerHTML = "";
-    for (let i = startIndex; i < endIndex; i++) {
-      visibleContainer.appendChild(createCard(filtered[i], i));
+  function onScroll() {
+    if (!ticking) {
+      requestAnimationFrame(render);
+      ticking = true;
     }
   }
 
-  container.addEventListener("scroll", updateVisible);
-  window.addEventListener("resize", updateVisible);
-  updateVisible();
+  annoncesContainer.addEventListener("scroll", onScroll);
+  render(); // rendu initial
 }
 
 function renderPagination(totalPages){
