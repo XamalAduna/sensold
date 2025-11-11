@@ -459,7 +459,7 @@ function escapeHTML(str) {
     .replace(/"/g, "&quot;")
 }
 
-// ✅ VERSION ULTRA OPTIMISÉE VIRTUAL SCROLL — supporte 100 000+ annonces sans changer ton design
+// ✅ Virtual scroll sans toucher aux cartes
 async function renderAnnonces(filtered) {
   const container = annoncesContainer;
   container.innerHTML = "";
@@ -469,7 +469,7 @@ async function renderAnnonces(filtered) {
     return;
   }
 
-  // ⚡ On prépare le cache des utilisateurs une seule fois
+  // ⚡ Cache users inchangé
   if (!window.__usersCache) {
     try {
       const usersSnap = await getDocs(collection(db, "users"));
@@ -487,21 +487,20 @@ async function renderAnnonces(filtered) {
     }
   }
 
-  // ---- Virtual scroll config ----
-  const CARD_HEIGHT = 340; // hauteur moyenne d'une carte (ajuste si besoin)
-  const BUFFER_ROWS = 6; // lignes supplémentaires au-dessus/dessous de la zone visible
-  const NB_COLS = window.innerWidth >= 768 ? 4 : 2; // 4 colonnes sur PC, 2 sur mobile
+  // ---- Virtual scroll wrapper ----
+  const CARD_HEIGHT = 340; // approx. hauteur d'une carte
+  const BUFFER_ROWS = 6; // buffer de lignes avant/après viewport
+  const NB_COLS = window.innerWidth >= 768 ? 4 : 2;
   const totalRows = Math.ceil(filtered.length / NB_COLS);
   const totalHeight = totalRows * CARD_HEIGHT;
 
-  // ---- Conteneur virtuel ----
+  // Spacer pour simuler toute la hauteur
   const spacer = document.createElement("div");
-  spacer.style.position = "relative";
-  spacer.style.width = "100%";
   spacer.style.height = totalHeight + "px";
-  spacer.style.display = "block";
+  spacer.style.position = "relative";
   container.appendChild(spacer);
 
+  // Grid absolute pour placer seulement les cartes visibles
   const grid = document.createElement("div");
   grid.style.position = "absolute";
   grid.style.top = "0";
@@ -514,19 +513,23 @@ async function renderAnnonces(filtered) {
 
   let startIndex = 0, endIndex = 0;
 
-  function renderVisibleCards() {
+  function renderVisible() {
     const scrollTop = container.scrollTop;
     const visibleHeight = container.clientHeight;
     const firstRow = Math.floor(scrollTop / CARD_HEIGHT);
     const lastRow = Math.floor((scrollTop + visibleHeight) / CARD_HEIGHT);
-    const newStartIndex = Math.max(0, (firstRow - BUFFER_ROWS) * NB_COLS);
-    const newEndIndex = Math.min(filtered.length, (lastRow + BUFFER_ROWS) * NB_COLS);
-    if (newStartIndex === startIndex && newEndIndex === endIndex) return;
+    const newStart = Math.max(0, (firstRow - BUFFER_ROWS) * NB_COLS);
+    const newEnd = Math.min(filtered.length, (lastRow + BUFFER_ROWS) * NB_COLS);
 
-    startIndex = newStartIndex;
-    endIndex = newEndIndex;
+    if (newStart === startIndex && newEnd === endIndex) return;
+    startIndex = newStart;
+    endIndex = newEnd;
+
     grid.style.transform = `translateY(${Math.floor(startIndex / NB_COLS) * CARD_HEIGHT}px)`;
     grid.innerHTML = "";
+
+    // 🔥 On reprend EXACTEMENT ton code original de création de cartes
+    const fragment = document.createDocumentFragment();
 
     for (let i = startIndex; i < endIndex; i++) {
       const a = filtered[i];
@@ -554,15 +557,16 @@ async function renderAnnonces(filtered) {
 
       let fullName = "Utilisateur inconnu";
       if (sellerData) {
-        fullName = escapeHTML(
-          sellerData.fullName ||
-          `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
-          sellerData.displayName ||
-          sellerData.name ||
-          sellerData.nom ||
-          sellerData.prenom ||
-          "Utilisateur"
-        );
+        fullName =
+          escapeHTML(
+            sellerData.fullName ||
+            `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
+            sellerData.displayName ||
+            sellerData.name ||
+            sellerData.nom ||
+            sellerData.prenom ||
+            "Utilisateur"
+          );
       }
 
       let sellerPhoto =
@@ -575,13 +579,13 @@ async function renderAnnonces(filtered) {
           sellerData.image ||
           sellerData.photo
         )) || "https://via.placeholder.com/40";
+
       sellerPhoto = escapeHTML(sellerPhoto);
       let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
 
-      // 🔥 même design que ta version d'origine
       card.innerHTML = `
         <div class="image-container">
-          <img src="${annonceImage}"
+          <img src="${annonceImage}" 
                loading="lazy"
                alt="${escapeHTML(a.title || 'Annonce')}"
                onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
@@ -597,8 +601,7 @@ async function renderAnnonces(filtered) {
           <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
         </div>
         <div class="seller">
-          <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur"
-               onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
+          <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
           <div class="seller-info">
             <strong>${fullName}</strong>
             ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
@@ -618,6 +621,7 @@ async function renderAnnonces(filtered) {
           setTimeout(() => { msg.style.display = "none"; }, 3000);
           return;
         }
+
         const favRef = doc(db, "users", currentUser.uid);
         if (favBtn.classList.contains("active")) {
           favBtn.classList.remove("active");
@@ -637,15 +641,15 @@ async function renderAnnonces(filtered) {
         window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
       });
 
-      grid.appendChild(card);
+      fragment.appendChild(card);
     }
+
+    grid.appendChild(fragment);
   }
 
-  // ---- Scroll listener ----
-  container.addEventListener("scroll", renderVisibleCards);
+  container.addEventListener("scroll", renderVisible);
   window.addEventListener("resize", () => location.reload());
-
-  renderVisibleCards(); // premier rendu
+  renderVisible();
 }
 
   
