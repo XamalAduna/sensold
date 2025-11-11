@@ -1,3 +1,4 @@
+
 <!DOCTYPE html> 
 <html lang="fr"> 
 <head> 
@@ -458,198 +459,200 @@ function escapeHTML(str) {
     .replace(/"/g, "&quot;")
 }
 
-// ✅ VERSION VIRTUAL SCROLL : supporte 100 000+ annonces
+// ✅ VERSION VIRTUAL SCROLL : supporte 100 000+ annonces sans toucher au design
 async function renderAnnonces(filtered) {
-  const container = annoncesContainer;
-  container.innerHTML = "";
+  annoncesContainer.innerHTML = "";
   if (filtered.length === 0) {
-    container.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
+    annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
     return;
   }
 
-  const rowHeight = 320; // hauteur approximative d'une carte avec marge
-  const buffer = 5;      // nombre de lignes supplémentaires à afficher au-dessus et en-dessous
-  let scrollTop = 0;
-
-  // Détecter le nombre de colonnes selon largeur écran
-  const getCols = () => window.innerWidth > 768 ? 4 : 2;
-
-  let cols = getCols();
-
-  // ⚡ Cache utilisateurs
-  const loadUsersCache = async () => {
-    if (!window.__usersCache) {
-      try {
-        const usersSnap = await getDocs(collection(db, "users"));
-        const byEmail = {};
-        const byId = {};
-        usersSnap.forEach(uDoc => {
-          const u = uDoc.data() || {};
-          byId[uDoc.id] = u;
-          const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-          if (email) byEmail[email] = u;
-        });
-        window.__usersCache = { byEmail, byId };
-      } catch (err) {
-        console.error("Erreur chargement users:", err);
-        window.__usersCache = { byEmail: {}, byId: {} };
-      }
+  // ⚡ Préparer cache utilisateurs si pas encore fait
+  if (!window.__usersCache) {
+    try {
+      const usersSnap = await getDocs(collection(db, "users"));
+      const byEmail = {};
+      const byId = {};
+      usersSnap.forEach(uDoc => {
+        const u = uDoc.data() || {};
+        byId[uDoc.id] = u;
+        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+        if (email) byEmail[email] = u;
+      });
+      window.__usersCache = { byEmail, byId };
+    } catch (err) {
+      console.error("Erreur chargement users:", err);
+      window.__usersCache = { byEmail: {}, byId: {} };
     }
-  };
+  }
 
-  loadUsersCache().then(() => {
-    // ⚡ Création d'un container de virtual scroll
-    const spacer = document.createElement("div");
-    const totalRows = Math.ceil(filtered.length / cols);
-    spacer.style.height = totalRows * rowHeight + "px";
-    container.appendChild(spacer);
+  // ⚡ CONFIG VIRTUAL SCROLL
+  const rowHeight = 360; // hauteur approximative d'une carte
+  const containerHeight = annoncesContainer.clientHeight || window.innerHeight;
+  const buffer = 8; // nombre de cartes au-dessus et en dessous du viewport
+  const totalItems = filtered.length;
 
-    const visibleCards = new Map();
+  // calcul du nombre de cartes visibles
+  const visibleCount = Math.ceil(containerHeight / rowHeight) * 4; // 4 colonnes sur PC
+  let startIndex = 0;
+  let endIndex = Math.min(totalItems, visibleCount + buffer);
 
-    const renderChunk = () => {
-      const scrollTop = container.scrollTop;
-      const startRow = Math.max(0, Math.floor(scrollTop / rowHeight) - buffer);
-      const endRow = Math.min(totalRows, Math.ceil((scrollTop + container.clientHeight) / rowHeight) + buffer);
+  // créer un conteneur interne pour "simuler" le scroll total
+  const scroller = document.createElement("div");
+  scroller.style.position = "relative";
+  scroller.style.height = `${totalItems / 4 * rowHeight}px`; // total height du scroll
+  annoncesContainer.appendChild(scroller);
 
-      // supprimer les cartes hors zone
-      for (const [key, el] of visibleCards) {
-        const row = Math.floor(key / cols);
-        if (row < startRow || row > endRow) {
-          el.remove();
-          visibleCards.delete(key);
-        }
+  // fonction pour générer une card (exactement comme ton design)
+  function createCard(a) {
+    const docId = escapeHTML(a.id || "");
+    const card = document.createElement("div");
+    card.className = "annonce-card";
+
+    const isFav = currentUser && userFavorites.includes(a.id);
+
+    let sellerData = null;
+    const annonceEmail = (a.userEmail || "").toLowerCase().trim();
+    if (annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
+    if (!sellerData && a.userId) sellerData = window.__usersCache.byId[a.userId];
+    if (!sellerData && a.uid) sellerData = window.__usersCache.byId[a.uid];
+    if (!sellerData && a.user && typeof a.user === "object") sellerData = a.user;
+
+    let isPro = false;
+    if (sellerData && sellerData.subscribe === true) {
+      const now = new Date();
+      const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
+      if (subEnd > now) isPro = true;
+    }
+
+    let fullName = "Utilisateur inconnu";
+    if (sellerData) {
+      fullName =
+        escapeHTML(
+          sellerData.fullName ||
+          `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
+          sellerData.displayName ||
+          sellerData.name ||
+          sellerData.nom ||
+          sellerData.prenom ||
+          "Utilisateur"
+        );
+    }
+
+    let sellerPhoto =
+      (sellerData && (
+        sellerData.profileImage ||
+        sellerData.profilePic ||
+        sellerData.profile ||
+        sellerData.photoURL ||
+        sellerData.avatar ||
+        sellerData.image ||
+        sellerData.photo
+      )) || "https://via.placeholder.com/40";
+
+    sellerPhoto = escapeHTML(sellerPhoto);
+    let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
+
+    card.innerHTML = `
+      <div class="image-container">
+        <img src="${annonceImage}" 
+             loading="lazy"
+             alt="${escapeHTML(a.title || 'Annonce')}"
+             onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
+        ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
+        <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
+        <span class="material-icons favorite ${isFav ? 'active' : ''}">
+          ${isFav ? 'favorite' : 'favorite_border'}
+        </span>
+      </div>
+      <div class="content">
+        <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
+        <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
+        <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
+      </div>
+      <div class="seller">
+        <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
+        <div class="seller-info">
+          <strong>${fullName}</strong>
+          ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
+        </div>
+      </div>
+    `;
+
+    const titleEl = card.querySelector('.title');
+    if ((a.title || "").length > 30) {
+      titleEl.classList.add('long-text');
+    }
+
+    const favBtn = card.querySelector(".favorite");
+    favBtn.addEventListener("click", async e => {
+      e.stopPropagation();
+      if (!currentUser) {
+        const msg = document.getElementById("notLoggedMsg");
+        msg.style.display = "block";
+        setTimeout(() => { msg.style.display = "none"; }, 3000);
+        return;
       }
 
-      // ajouter les cartes visibles
-      for (let i = startRow * cols; i < endRow * cols && i < filtered.length; i++) {
-        if (!visibleCards.has(i)) {
-          const a = filtered[i];
-          const docId = escapeHTML(a.id || "");
-          const card = document.createElement("div");
-          card.className = "annonce-card";
-          card.style.position = "absolute";
-          card.style.top = `${Math.floor(i / cols) * rowHeight}px`;
-          card.style.width = `${100 / cols}%`;
-          card.style.left = `${(i % cols) * (100 / cols)}%`;
-
-          const isFav = currentUser && userFavorites.includes(a.id);
-
-          let sellerData = null;
-          const annonceEmail = (a.userEmail || "").toLowerCase().trim();
-          if (annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
-          if (!sellerData && a.userId) sellerData = window.__usersCache.byId[a.userId];
-          if (!sellerData && a.uid) sellerData = window.__usersCache.byId[a.uid];
-          if (!sellerData && a.user && typeof a.user === "object") sellerData = a.user;
-
-          let isPro = false;
-          if (sellerData && sellerData.subscribe === true) {
-            const now = new Date();
-            const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
-            if (subEnd > now) isPro = true;
-          }
-
-          let fullName = "Utilisateur inconnu";
-          if (sellerData) {
-            fullName =
-              escapeHTML(
-                sellerData.fullName ||
-                `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
-                sellerData.displayName ||
-                sellerData.name ||
-                sellerData.nom ||
-                sellerData.prenom ||
-                "Utilisateur"
-              );
-          }
-
-          let sellerPhoto =
-            (sellerData && (
-              sellerData.profileImage ||
-              sellerData.profilePic ||
-              sellerData.profile ||
-              sellerData.photoURL ||
-              sellerData.avatar ||
-              sellerData.image ||
-              sellerData.photo
-            )) || "https://via.placeholder.com/40";
-
-          sellerPhoto = escapeHTML(sellerPhoto);
-          let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
-
-          card.innerHTML = `
-            <div class="image-container">
-              <img src="${annonceImage}" 
-                   loading="lazy"
-                   alt="${escapeHTML(a.title || 'Annonce')}"
-                   onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
-              ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
-              <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
-              <span class="material-icons favorite ${isFav ? 'active' : ''}">
-                ${isFav ? 'favorite' : 'favorite_border'}
-              </span>
-            </div>
-            <div class="content">
-              <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
-              <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
-              <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
-            </div>
-            <div class="seller">
-              <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
-              <div class="seller-info">
-                <strong>${fullName}</strong>
-                ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
-              </div>
-            </div>
-          `;
-
-          const titleEl = card.querySelector('.title');
-          if ((a.title || "").length > 30) titleEl.classList.add('long-text');
-
-          const favBtn = card.querySelector(".favorite");
-          favBtn.addEventListener("click", async e => {
-            e.stopPropagation();
-            if (!currentUser) {
-              const msg = document.getElementById("notLoggedMsg");
-              msg.style.display = "block";
-              setTimeout(() => { msg.style.display = "none"; }, 3000);
-              return;
-            }
-            const favRef = doc(db, "users", currentUser.uid);
-            if (favBtn.classList.contains("active")) {
-              favBtn.classList.remove("active");
-              favBtn.textContent = "favorite_border";
-              userFavorites = userFavorites.filter(id => id !== docId);
-              await updateDoc(favRef, { favorites: arrayRemove(docId) });
-            } else {
-              favBtn.classList.add("active");
-              favBtn.textContent = "favorite";
-              userFavorites.push(docId);
-              await updateDoc(favRef, { favorites: arrayUnion(docId) });
-            }
-          });
-
-          card.addEventListener("click", e => {
-            if (e.target.classList.contains("favorite")) return;
-            window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
-          });
-
-          container.appendChild(card);
-          visibleCards.set(i, card);
-        }
+      const favRef = doc(db, "users", currentUser.uid);
+      if (favBtn.classList.contains("active")) {
+        favBtn.classList.remove("active");
+        favBtn.textContent = "favorite_border";
+        userFavorites = userFavorites.filter(id => id !== docId);
+        await updateDoc(favRef, { favorites: arrayRemove(docId) });
+      } else {
+        favBtn.classList.add("active");
+        favBtn.textContent = "favorite";
+        userFavorites.push(docId);
+        await updateDoc(favRef, { favorites: arrayUnion(docId) });
       }
-    };
-
-    container.addEventListener("scroll", renderChunk);
-    window.addEventListener("resize", () => {
-      cols = getCols();
-      renderChunk();
     });
 
-    renderChunk();
-  });
-}
+    card.addEventListener("click", e => {
+      if (e.target.classList.contains("favorite")) return;
+      window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
+    });
 
-const renderAnnonces = renderAnnoncesVirtual;
+    card.style.position = "absolute";
+    return card;
+  }
+
+  // ⚡ pool de cartes visibles
+  const renderedCards = new Map();
+
+  function updateVisibleCards() {
+    const scrollTop = annoncesContainer.scrollTop;
+    const firstRow = Math.floor(scrollTop / rowHeight);
+    startIndex = Math.max(0, firstRow * 4 - buffer);
+    endIndex = Math.min(totalItems, startIndex + visibleCount + 2 * buffer);
+
+    // supprimer cartes non visibles
+    for (const [index, card] of renderedCards.entries()) {
+      if (index < startIndex || index >= endIndex) {
+        scroller.removeChild(card);
+        renderedCards.delete(index);
+      }
+    }
+
+    // ajouter cartes visibles
+    for (let i = startIndex; i < endIndex; i++) {
+      if (!renderedCards.has(i)) {
+        const a = filtered[i];
+        const card = createCard(a);
+        const col = i % 4;
+        const row = Math.floor(i / 4);
+        card.style.top = `${row * rowHeight}px`;
+        card.style.left = `${(col * 25)}%`; // 4 colonnes
+        card.style.width = "25%";
+        scroller.appendChild(card);
+        renderedCards.set(i, card);
+      }
+    }
+  }
+
+  annoncesContainer.addEventListener("scroll", updateVisibleCards);
+  updateVisibleCards();
+}
 
 function renderPagination(totalPages){
   let paginationContainer = document.getElementById("pagination");
