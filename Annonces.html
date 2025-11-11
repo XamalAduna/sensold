@@ -459,22 +459,21 @@ function escapeHTML(str) {
     .replace(/"/g, "&quot;")
 }
 
-// ✅ VERSION VIRTUAL SCROLL : supporte +100 000 annonces sans lag
+// ✅ VERSION ULTRA OPTIMISÉE VIRTUAL SCROLL — supporte 100 000+ annonces sans changer ton design
 async function renderAnnonces(filtered) {
   const container = annoncesContainer;
   container.innerHTML = "";
 
-  if (filtered.length === 0) {
+  if (!filtered || filtered.length === 0) {
     container.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
     return;
   }
 
-  // ⚡ Prépare le cache des utilisateurs si non existant
+  // ⚡ On prépare le cache des utilisateurs une seule fois
   if (!window.__usersCache) {
     try {
       const usersSnap = await getDocs(collection(db, "users"));
-      const byEmail = {};
-      const byId = {};
+      const byEmail = {}, byId = {};
       usersSnap.forEach(uDoc => {
         const u = uDoc.data() || {};
         byId[uDoc.id] = u;
@@ -488,43 +487,51 @@ async function renderAnnonces(filtered) {
     }
   }
 
-  // 🔥 Virtual Scroll Configuration
-  const ROW_HEIGHT = 320; // hauteur approximative d’une carte
-  const BUFFER = 6; // nombre de rangées en avance à afficher
-  const ITEMS_PER_ROW = window.innerWidth >= 768 ? 4 : 2; // 4 sur PC, 2 sur mobile
-  const ITEM_HEIGHT = ROW_HEIGHT;
-  const totalItems = filtered.length;
-  const totalRows = Math.ceil(totalItems / ITEMS_PER_ROW);
+  // ---- Virtual scroll config ----
+  const CARD_HEIGHT = 340; // hauteur moyenne d'une carte (ajuste si besoin)
+  const BUFFER_ROWS = 6; // lignes supplémentaires au-dessus/dessous de la zone visible
+  const NB_COLS = window.innerWidth >= 768 ? 4 : 2; // 4 colonnes sur PC, 2 sur mobile
+  const totalRows = Math.ceil(filtered.length / NB_COLS);
+  const totalHeight = totalRows * CARD_HEIGHT;
 
-  container.style.position = "relative";
-  container.style.height = `${totalRows * ITEM_HEIGHT}px`;
-  container.style.overflowY = "auto";
+  // ---- Conteneur virtuel ----
+  const spacer = document.createElement("div");
+  spacer.style.position = "relative";
+  spacer.style.width = "100%";
+  spacer.style.height = totalHeight + "px";
+  spacer.style.display = "block";
+  container.appendChild(spacer);
 
-  // Élément pour les cartes visibles
-  let visibleWrapper = document.createElement("div");
-  visibleWrapper.style.position = "absolute";
-  visibleWrapper.style.top = "0";
-  visibleWrapper.style.left = "0";
-  visibleWrapper.style.right = "0";
-  container.appendChild(visibleWrapper);
+  const grid = document.createElement("div");
+  grid.style.position = "absolute";
+  grid.style.top = "0";
+  grid.style.left = "0";
+  grid.style.width = "100%";
+  grid.style.display = "grid";
+  grid.style.gridTemplateColumns = `repeat(${NB_COLS}, 1fr)`;
+  grid.style.gap = "15px";
+  spacer.appendChild(grid);
 
-  // Fonction de rendu partiel
-  function renderVisible() {
+  let startIndex = 0, endIndex = 0;
+
+  function renderVisibleCards() {
     const scrollTop = container.scrollTop;
-    const containerHeight = container.clientHeight;
-    const startRow = Math.floor(scrollTop / ITEM_HEIGHT);
-    const endRow = Math.min(totalRows, startRow + Math.ceil(containerHeight / ITEM_HEIGHT) + BUFFER);
-    const startIdx = startRow * ITEMS_PER_ROW;
-    const endIdx = Math.min(totalItems, endRow * ITEMS_PER_ROW);
+    const visibleHeight = container.clientHeight;
+    const firstRow = Math.floor(scrollTop / CARD_HEIGHT);
+    const lastRow = Math.floor((scrollTop + visibleHeight) / CARD_HEIGHT);
+    const newStartIndex = Math.max(0, (firstRow - BUFFER_ROWS) * NB_COLS);
+    const newEndIndex = Math.min(filtered.length, (lastRow + BUFFER_ROWS) * NB_COLS);
+    if (newStartIndex === startIndex && newEndIndex === endIndex) return;
 
-    // On ne recrée que la portion visible
-    const fragment = document.createDocumentFragment();
-    visibleWrapper.innerHTML = "";
-    visibleWrapper.style.transform = `translateY(${startRow * ITEM_HEIGHT}px)`;
+    startIndex = newStartIndex;
+    endIndex = newEndIndex;
+    grid.style.transform = `translateY(${Math.floor(startIndex / NB_COLS) * CARD_HEIGHT}px)`;
+    grid.innerHTML = "";
 
-    for (let i = startIdx; i < endIdx; i++) {
+    for (let i = startIndex; i < endIndex; i++) {
       const a = filtered[i];
       if (!a) continue;
+
       const docId = escapeHTML(a.id || "");
       const card = document.createElement("div");
       card.className = "annonce-card";
@@ -568,16 +575,16 @@ async function renderAnnonces(filtered) {
           sellerData.image ||
           sellerData.photo
         )) || "https://via.placeholder.com/40";
-
       sellerPhoto = escapeHTML(sellerPhoto);
       let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
 
+      // 🔥 même design que ta version d'origine
       card.innerHTML = `
         <div class="image-container">
-          <img src="${annonceImage}" 
-              loading="lazy"
-              alt="${escapeHTML(a.title || 'Annonce')}"
-              onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
+          <img src="${annonceImage}"
+               loading="lazy"
+               alt="${escapeHTML(a.title || 'Annonce')}"
+               onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
           ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
           <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
           <span class="material-icons favorite ${isFav ? 'active' : ''}">
@@ -590,7 +597,8 @@ async function renderAnnonces(filtered) {
           <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
         </div>
         <div class="seller">
-          <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
+          <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur"
+               onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
           <div class="seller-info">
             <strong>${fullName}</strong>
             ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
@@ -599,9 +607,7 @@ async function renderAnnonces(filtered) {
       `;
 
       const titleEl = card.querySelector('.title');
-      if ((a.title || "").length > 30) {
-        titleEl.classList.add('long-text');
-      }
+      if ((a.title || "").length > 30) titleEl.classList.add('long-text');
 
       const favBtn = card.querySelector(".favorite");
       favBtn.addEventListener("click", async e => {
@@ -612,7 +618,6 @@ async function renderAnnonces(filtered) {
           setTimeout(() => { msg.style.display = "none"; }, 3000);
           return;
         }
-
         const favRef = doc(db, "users", currentUser.uid);
         if (favBtn.classList.contains("active")) {
           favBtn.classList.remove("active");
@@ -632,18 +637,15 @@ async function renderAnnonces(filtered) {
         window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
       });
 
-      fragment.appendChild(card);
+      grid.appendChild(card);
     }
-
-    visibleWrapper.appendChild(fragment);
   }
 
-  // Premier rendu + écoute du scroll
-  renderVisible();
-  container.addEventListener("scroll", renderVisible);
+  // ---- Scroll listener ----
+  container.addEventListener("scroll", renderVisibleCards);
+  window.addEventListener("resize", () => location.reload());
 
-  // Pagination simulée (facultative)
-  renderPagination(Math.ceil(filtered.length / annoncesPerPage));
+  renderVisibleCards(); // premier rendu
 }
 
   
