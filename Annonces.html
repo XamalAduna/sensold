@@ -436,22 +436,26 @@ function escapeHTML(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
 }
-// ✅ VERSION OPTIMISÉE : renderAnnonces pour +20 000 annonces
-async function renderAnnonces(filtered) {
-  annoncesContainer.innerHTML = ""; // vide le conteneur avant affichage du lot actuel
-  if (filtered.length === 0) {
+let currentPage = 1;
+const annoncesPerPage = 20; // nombre d'annonces par lot
+let isLoading = false; // pour éviter les appels multiples lors du scroll
+
+async function renderAnnonces(filtered, append = false) {
+  if (!append) annoncesContainer.innerHTML = ""; // si pas append, on reset le conteneur
+
+  if (filtered.length === 0 && !append) {
     annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
     return;
   }
 
   const totalPages = Math.ceil(filtered.length / annoncesPerPage);
-  if (currentPage > totalPages) currentPage = 1;
+  if (currentPage > totalPages) return; // plus de pages à afficher
 
   const start = (currentPage - 1) * annoncesPerPage;
   const end = start + annoncesPerPage;
   const pageItems = filtered.slice(start, end);
 
-  // ⚡ On ne recharge le cache utilisateurs que si nécessaire
+  // ⚡ Chargement cache utilisateurs si nécessaire
   if (!window.__usersCache) {
     try {
       const usersSnap = await getDocs(collection(db, "users"));
@@ -470,7 +474,6 @@ async function renderAnnonces(filtered) {
     }
   }
 
-  // ⚡ Création des cards en batch pour améliorer la performance
   const fragment = document.createDocumentFragment();
 
   for (const a of pageItems) {
@@ -585,9 +588,21 @@ async function renderAnnonces(filtered) {
     fragment.appendChild(card);
   }
 
-  annoncesContainer.appendChild(fragment); // ⚡ Ajout batch pour fluidité
-  renderPagination(Math.ceil(filtered.length / annoncesPerPage));
+  annoncesContainer.appendChild(fragment);
+
+  renderPagination(totalPages); // continue de gérer la pagination
+  isLoading = false; // permet de recharger plus tard
 }
+
+// ⚡ Gestion du scroll infini
+window.addEventListener('scroll', () => {
+  if (isLoading) return;
+  if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
+    isLoading = true;
+    currentPage++;
+    renderAnnonces(filteredAnnonces, true); // append = true
+  }
+});
 
 function renderPagination(totalPages){
   let paginationContainer = document.getElementById("pagination");
