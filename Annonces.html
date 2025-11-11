@@ -459,21 +459,27 @@ function escapeHTML(str) {
     .replace(/"/g, "&quot;")
 }
 
-// ✅ Virtual scroll sans toucher aux cartes
+// ✅ VERSION OPTIMISÉE : renderAnnonces pour +20 000 annonces
 async function renderAnnonces(filtered) {
-  const container = annoncesContainer;
-  container.innerHTML = "";
-
-  if (!filtered || filtered.length === 0) {
-    container.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
+  annoncesContainer.innerHTML = ""; // vide le conteneur avant affichage du lot actuel
+  if (filtered.length === 0) {
+    annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
     return;
   }
 
-  // ⚡ Cache users inchangé
+  const totalPages = Math.ceil(filtered.length / annoncesPerPage);
+  if (currentPage > totalPages) currentPage = 1;
+
+  const start = (currentPage - 1) * annoncesPerPage;
+  const end = start + annoncesPerPage;
+  const pageItems = filtered.slice(start, end);
+
+  // ⚡ On ne recharge le cache utilisateurs que si nécessaire
   if (!window.__usersCache) {
     try {
       const usersSnap = await getDocs(collection(db, "users"));
-      const byEmail = {}, byId = {};
+      const byEmail = {};
+      const byId = {};
       usersSnap.forEach(uDoc => {
         const u = uDoc.data() || {};
         byId[uDoc.id] = u;
@@ -487,172 +493,125 @@ async function renderAnnonces(filtered) {
     }
   }
 
-  // ---- Virtual scroll wrapper ----
-  const CARD_HEIGHT = 340; // approx. hauteur d'une carte
-  const BUFFER_ROWS = 6; // buffer de lignes avant/après viewport
-  const NB_COLS = window.innerWidth >= 768 ? 4 : 2;
-  const totalRows = Math.ceil(filtered.length / NB_COLS);
-  const totalHeight = totalRows * CARD_HEIGHT;
+  // ⚡ Création des cards en batch pour améliorer la performance
+  const fragment = document.createDocumentFragment();
 
-  // Spacer pour simuler toute la hauteur
-  const spacer = document.createElement("div");
-  spacer.style.height = totalHeight + "px";
-  spacer.style.position = "relative";
-  container.appendChild(spacer);
+  for (const a of pageItems) {
+    const docId = escapeHTML(a.id || "");
+    const card = document.createElement("div");
+    card.className = "annonce-card";
 
-  // Grid absolute pour placer seulement les cartes visibles
-  const grid = document.createElement("div");
-  grid.style.position = "absolute";
-  grid.style.top = "0";
-  grid.style.left = "0";
-  grid.style.width = "100%";
-  grid.style.display = "grid";
-  grid.style.gridTemplateColumns = `repeat(${NB_COLS}, 1fr)`;
-  grid.style.gap = "15px";
-  spacer.appendChild(grid);
+    const isFav = currentUser && userFavorites.includes(a.id);
 
-  let startIndex = 0, endIndex = 0;
+    let sellerData = null;
+    const annonceEmail = (a.userEmail || "").toLowerCase().trim();
+    if (annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
+    if (!sellerData && a.userId) sellerData = window.__usersCache.byId[a.userId];
+    if (!sellerData && a.uid) sellerData = window.__usersCache.byId[a.uid];
+    if (!sellerData && a.user && typeof a.user === "object") sellerData = a.user;
 
-  function renderVisible() {
-    const scrollTop = container.scrollTop;
-    const visibleHeight = container.clientHeight;
-    const firstRow = Math.floor(scrollTop / CARD_HEIGHT);
-    const lastRow = Math.floor((scrollTop + visibleHeight) / CARD_HEIGHT);
-    const newStart = Math.max(0, (firstRow - BUFFER_ROWS) * NB_COLS);
-    const newEnd = Math.min(filtered.length, (lastRow + BUFFER_ROWS) * NB_COLS);
-
-    if (newStart === startIndex && newEnd === endIndex) return;
-    startIndex = newStart;
-    endIndex = newEnd;
-
-    grid.style.transform = `translateY(${Math.floor(startIndex / NB_COLS) * CARD_HEIGHT}px)`;
-    grid.innerHTML = "";
-
-    // 🔥 On reprend EXACTEMENT ton code original de création de cartes
-    const fragment = document.createDocumentFragment();
-
-    for (let i = startIndex; i < endIndex; i++) {
-      const a = filtered[i];
-      if (!a) continue;
-
-      const docId = escapeHTML(a.id || "");
-      const card = document.createElement("div");
-      card.className = "annonce-card";
-
-      const isFav = currentUser && userFavorites.includes(a.id);
-
-      let sellerData = null;
-      const annonceEmail = (a.userEmail || "").toLowerCase().trim();
-      if (annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
-      if (!sellerData && a.userId) sellerData = window.__usersCache.byId[a.userId];
-      if (!sellerData && a.uid) sellerData = window.__usersCache.byId[a.uid];
-      if (!sellerData && a.user && typeof a.user === "object") sellerData = a.user;
-
-      let isPro = false;
-      if (sellerData && sellerData.subscribe === true) {
-        const now = new Date();
-        const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
-        if (subEnd > now) isPro = true;
-      }
-
-      let fullName = "Utilisateur inconnu";
-      if (sellerData) {
-        fullName =
-          escapeHTML(
-            sellerData.fullName ||
-            `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
-            sellerData.displayName ||
-            sellerData.name ||
-            sellerData.nom ||
-            sellerData.prenom ||
-            "Utilisateur"
-          );
-      }
-
-      let sellerPhoto =
-        (sellerData && (
-          sellerData.profileImage ||
-          sellerData.profilePic ||
-          sellerData.profile ||
-          sellerData.photoURL ||
-          sellerData.avatar ||
-          sellerData.image ||
-          sellerData.photo
-        )) || "https://via.placeholder.com/40";
-
-      sellerPhoto = escapeHTML(sellerPhoto);
-      let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
-
-      card.innerHTML = `
-        <div class="image-container">
-          <img src="${annonceImage}" 
-               loading="lazy"
-               alt="${escapeHTML(a.title || 'Annonce')}"
-               onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
-          ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
-          <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
-          <span class="material-icons favorite ${isFav ? 'active' : ''}">
-            ${isFav ? 'favorite' : 'favorite_border'}
-          </span>
-        </div>
-        <div class="content">
-          <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
-          <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
-          <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
-        </div>
-        <div class="seller">
-          <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
-          <div class="seller-info">
-            <strong>${fullName}</strong>
-            ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
-          </div>
-        </div>
-      `;
-
-      const titleEl = card.querySelector('.title');
-      if ((a.title || "").length > 30) titleEl.classList.add('long-text');
-
-      const favBtn = card.querySelector(".favorite");
-      favBtn.addEventListener("click", async e => {
-        e.stopPropagation();
-        if (!currentUser) {
-          const msg = document.getElementById("notLoggedMsg");
-          msg.style.display = "block";
-          setTimeout(() => { msg.style.display = "none"; }, 3000);
-          return;
-        }
-
-        const favRef = doc(db, "users", currentUser.uid);
-        if (favBtn.classList.contains("active")) {
-          favBtn.classList.remove("active");
-          favBtn.textContent = "favorite_border";
-          userFavorites = userFavorites.filter(id => id !== docId);
-          await updateDoc(favRef, { favorites: arrayRemove(docId) });
-        } else {
-          favBtn.classList.add("active");
-          favBtn.textContent = "favorite";
-          userFavorites.push(docId);
-          await updateDoc(favRef, { favorites: arrayUnion(docId) });
-        }
-      });
-
-      card.addEventListener("click", e => {
-        if (e.target.classList.contains("favorite")) return;
-        window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
-      });
-
-      fragment.appendChild(card);
+    let isPro = false;
+    if (sellerData && sellerData.subscribe === true) {
+      const now = new Date();
+      const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
+      if (subEnd > now) isPro = true;
     }
 
-    grid.appendChild(fragment);
+    let fullName = "Utilisateur inconnu";
+    if (sellerData) {
+      fullName =
+        escapeHTML(
+          sellerData.fullName ||
+          `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
+          sellerData.displayName ||
+          sellerData.name ||
+          sellerData.nom ||
+          sellerData.prenom ||
+          "Utilisateur"
+        );
+    }
+
+    let sellerPhoto =
+      (sellerData && (
+        sellerData.profileImage ||
+        sellerData.profilePic ||
+        sellerData.profile ||
+        sellerData.photoURL ||
+        sellerData.avatar ||
+        sellerData.image ||
+        sellerData.photo
+      )) || "https://via.placeholder.com/40";
+
+    sellerPhoto = escapeHTML(sellerPhoto);
+    let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
+
+    card.innerHTML = `
+      <div class="image-container">
+        <img src="${annonceImage}" 
+             loading="lazy"
+             alt="${escapeHTML(a.title || 'Annonce')}"
+             onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
+        ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
+        <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
+        <span class="material-icons favorite ${isFav ? 'active' : ''}">
+          ${isFav ? 'favorite' : 'favorite_border'}
+        </span>
+      </div>
+      <div class="content">
+        <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
+        <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
+        <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
+      </div>
+      <div class="seller">
+        <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
+        <div class="seller-info">
+          <strong>${fullName}</strong>
+          ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
+        </div>
+      </div>
+    `;
+
+    const titleEl = card.querySelector('.title');
+    if ((a.title || "").length > 30) {
+      titleEl.classList.add('long-text');
+    }
+
+    const favBtn = card.querySelector(".favorite");
+    favBtn.addEventListener("click", async e => {
+      e.stopPropagation();
+      if (!currentUser) {
+        const msg = document.getElementById("notLoggedMsg");
+        msg.style.display = "block";
+        setTimeout(() => { msg.style.display = "none"; }, 3000);
+        return;
+      }
+
+      const favRef = doc(db, "users", currentUser.uid);
+      if (favBtn.classList.contains("active")) {
+        favBtn.classList.remove("active");
+        favBtn.textContent = "favorite_border";
+        userFavorites = userFavorites.filter(id => id !== docId);
+        await updateDoc(favRef, { favorites: arrayRemove(docId) });
+      } else {
+        favBtn.classList.add("active");
+        favBtn.textContent = "favorite";
+        userFavorites.push(docId);
+        await updateDoc(favRef, { favorites: arrayUnion(docId) });
+      }
+    });
+
+    card.addEventListener("click", e => {
+      if (e.target.classList.contains("favorite")) return;
+      window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
+    });
+
+    fragment.appendChild(card);
   }
 
-  container.addEventListener("scroll", renderVisible);
-  window.addEventListener("resize", () => location.reload());
-  renderVisible();
+  annoncesContainer.appendChild(fragment); // ⚡ Ajout batch pour fluidité
+  renderPagination(Math.ceil(filtered.length / annoncesPerPage));
 }
 
-  
 function renderPagination(totalPages){
   let paginationContainer = document.getElementById("pagination");
   if(!paginationContainer){
