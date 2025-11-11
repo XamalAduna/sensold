@@ -458,89 +458,69 @@ function escapeHTML(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
 }
-// ⚡ VRAIE VERSION VIRTUAL SCROLL EN 2 COLONNES
-function renderAnnoncesVirtual(filtered) {
+// ⚡ VRAIE VERSION VIRTUAL SCROLL 2 COLONNES
+async function renderAnnoncesVirtual(filtered) {
   const container = annoncesContainer;
   container.innerHTML = "";
-  if (!filtered.length) {
+  if (filtered.length === 0) {
     container.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
     return;
   }
 
-  const cardHeight = 250; // hauteur approximative d'une annonce (en px)
-  const buffer = 5;       // nombre de cards supplémentaires à rendre au-dessus et en-dessous
-  const colCount = 2;     // nombre de colonnes
-
-  container.style.position = "relative";
-  container.style.height = "100%";
-  container.style.overflowY = "auto";
-
-  const spacer = document.createElement("div");
-  spacer.style.height = Math.ceil(filtered.length / colCount) * cardHeight + "px";
-  container.appendChild(spacer);
-
-  const fragment = document.createDocumentFragment();
-  const rendered = new Map();
-
-  async function loadUsersCache() {
-    if (!window.__usersCache) {
-      try {
-        const usersSnap = await getDocs(collection(db, "users"));
-        const byEmail = {};
-        const byId = {};
-        usersSnap.forEach(uDoc => {
-          const u = uDoc.data() || {};
-          byId[uDoc.id] = u;
-          const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-          if (email) byEmail[email] = u;
-        });
-        window.__usersCache = { byEmail, byId };
-      } catch (err) {
-        console.error("Erreur chargement users:", err);
-        window.__usersCache = { byEmail: {}, byId: {} };
-      }
+  // ⚡ Cache utilisateurs
+  if (!window.__usersCache) {
+    try {
+      const usersSnap = await getDocs(collection(db, "users"));
+      const byEmail = {};
+      const byId = {};
+      usersSnap.forEach(uDoc => {
+        const u = uDoc.data() || {};
+        byId[uDoc.id] = u;
+        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+        if (email) byEmail[email] = u;
+      });
+      window.__usersCache = { byEmail, byId };
+    } catch (err) {
+      console.error("Erreur chargement users:", err);
+      window.__usersCache = { byEmail: {}, byId: {} };
     }
   }
 
-  async function renderChunk() {
-    await loadUsersCache();
-    const scrollTop = container.scrollTop;
-    const containerHeight = container.clientHeight;
+  const column1 = document.createElement("div");
+  const column2 = document.createElement("div");
+  column1.className = "annonce-column";
+  column2.className = "annonce-column";
+  container.style.display = "flex";
+  container.style.gap = "10px";
+  container.appendChild(column1);
+  container.appendChild(column2);
 
-    const totalRows = Math.ceil(filtered.length / colCount);
-    const startRow = Math.max(0, Math.floor(scrollTop / cardHeight) - buffer);
-    const endRow = Math.min(totalRows, Math.ceil((scrollTop + containerHeight) / cardHeight) + buffer);
+  const cardHeight = 350; // hauteur approximative d'une carte pour le virtual scroll
+  const viewportHeight = window.innerHeight;
+  const buffer = 6; // nombre de cartes supplémentaires pour le scroll
+  let startIndex = 0;
 
-    // Supprimer les cards qui ne sont plus visibles
-    for (const [i, card] of rendered.entries()) {
-      const rowIndex = Math.floor(i / colCount);
-      if (rowIndex < startRow || rowIndex >= endRow) {
-        container.removeChild(card);
-        rendered.delete(i);
-      }
-    }
+  function renderBatch() {
+    column1.innerHTML = "";
+    column2.innerHTML = "";
 
-    // Ajouter les cards visibles
-    const colWidth = container.clientWidth / colCount;
-    for (let i = startRow * colCount; i < Math.min(endRow * colCount, filtered.length); i++) {
-      if (rendered.has(i)) continue;
+    const visibleCount = Math.ceil(viewportHeight / cardHeight) + buffer;
+    const endIndex = Math.min(startIndex + visibleCount * 2, filtered.length);
 
+    for (let i = startIndex; i < endIndex; i++) {
       const a = filtered[i];
       const docId = escapeHTML(a.id || "");
       const card = document.createElement("div");
       card.className = "annonce-card";
 
-      const colIndex = i % colCount;
-      const rowIndex = Math.floor(i / colCount);
+      const isFav = currentUser && userFavorites.includes(a.id);
 
-      card.style.position = "absolute";
-      card.style.width = colWidth + "px";
-      card.style.left = colIndex * colWidth + "px";
-      card.style.top = rowIndex * cardHeight + "px";
-
-      // Seller et images
+      let sellerData = null;
       const annonceEmail = (a.userEmail || "").toLowerCase().trim();
-      let sellerData = window.__usersCache.byEmail[annonceEmail] || window.__usersCache.byId[a.userId] || window.__usersCache.byId[a.uid] || (a.user && typeof a.user === "object" ? a.user : null);
+      if (annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
+      if (!sellerData && a.userId) sellerData = window.__usersCache.byId[a.userId];
+      if (!sellerData && a.uid) sellerData = window.__usersCache.byId[a.uid];
+      if (!sellerData && a.user && typeof a.user === "object") sellerData = a.user;
 
       let isPro = false;
       if (sellerData && sellerData.subscribe === true) {
@@ -576,8 +556,6 @@ function renderAnnoncesVirtual(filtered) {
 
       sellerPhoto = escapeHTML(sellerPhoto);
       let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
-
-      const isFav = currentUser && userFavorites.includes(a.id);
 
       card.innerHTML = `
         <div class="image-container">
@@ -637,15 +615,20 @@ function renderAnnoncesVirtual(filtered) {
         window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
       });
 
-      container.appendChild(card);
-      rendered.set(i, card);
+      // ⚡ Alternance colonnes
+      if ((i - startIndex) % 2 === 0) column1.appendChild(card);
+      else column2.appendChild(card);
     }
   }
 
-  container.addEventListener("scroll", () => renderChunk());
-  renderChunk(); // affichage initial
-}
+  renderBatch();
 
+  container.addEventListener("scroll", () => {
+    const scrollTop = container.scrollTop;
+    startIndex = Math.floor(scrollTop / cardHeight) * 2;
+    renderBatch();
+  });
+}
 
 function renderPagination(totalPages){
   let paginationContainer = document.getElementById("pagination");
