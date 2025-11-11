@@ -459,10 +459,10 @@ function escapeHTML(str) {
     .replace(/"/g, "&quot;")
 }
 
-// ✅ VERSION VIRTUAL SCROLL : supporte 100 000+ annonces sans lag
+// ✅ VERSION VIRTUAL SCROLL MULTI-COLONNES : supporte 100 000+ annonces
 async function renderAnnonces(filtered) {
   const container = annoncesContainer;
-  container.innerHTML = ""; // vide le conteneur avant affichage
+  container.innerHTML = "";
 
   if (filtered.length === 0) {
     container.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
@@ -488,27 +488,32 @@ async function renderAnnonces(filtered) {
     }
   }
 
-  // ⚡ Virtual scroll setup
-  const rowHeight = 320; // hauteur approximative d'une card (ajuste si nécessaire)
-  const buffer = 8; // nombre de cartes avant/après la vue pour le rendu
+  // ⚡ Virtual scroll multi-colonnes
+  const rowHeight = 320; // Hauteur approximative d'une card
+  const buffer = 8; // lignes avant/après le viewport
   const totalItems = filtered.length;
 
   container.style.position = "relative";
-  container.style.height = "100%";
   container.style.overflowY = "auto";
 
-  // Création d'un wrapper pour simuler le scroll total
+  // Wrapper qui simule la hauteur totale
   const scrollWrapper = document.createElement("div");
-  scrollWrapper.style.height = `${rowHeight * totalItems}px`;
   scrollWrapper.style.position = "relative";
   container.appendChild(scrollWrapper);
 
   const renderedCards = new Map();
 
-  function renderChunk(startIndex, endIndex) {
+  function getColumns() {
+    return window.innerWidth >= 768 ? 4 : 2; // 4 colonnes PC, 2 mobile
+  }
+
+  function renderChunk(startLine, endLine) {
+    const cols = getColumns();
+
     // Supprime les cartes hors buffer
     for (const [index, el] of renderedCards.entries()) {
-      if (index < startIndex || index >= endIndex) {
+      const line = Math.floor(index / cols);
+      if (line < startLine || line >= endLine) {
         scrollWrapper.removeChild(el);
         renderedCards.delete(index);
       }
@@ -516,17 +521,21 @@ async function renderAnnonces(filtered) {
 
     const fragment = document.createDocumentFragment();
 
-    for (let i = startIndex; i < endIndex; i++) {
-      if (renderedCards.has(i)) continue; // déjà rendu
+    for (let i = startLine * cols; i < Math.min(totalItems, endLine * cols); i++) {
+      if (renderedCards.has(i)) continue;
 
       const a = filtered[i];
       const docId = escapeHTML(a.id || "");
       const card = document.createElement("div");
       card.className = "annonce-card";
       card.style.position = "absolute";
-      card.style.top = `${i * rowHeight}px`;
-      card.style.left = "0";
-      card.style.right = "0";
+
+      const line = Math.floor(i / cols);
+      const col = i % cols;
+      const colWidth = 100 / cols;
+      card.style.width = `calc(${colWidth}% - 10px)`;
+      card.style.left = `calc(${col * colWidth}% + 5px)`;
+      card.style.top = `${line * rowHeight}px`;
 
       const isFav = currentUser && userFavorites.includes(a.id);
 
@@ -599,9 +608,7 @@ async function renderAnnonces(filtered) {
       `;
 
       const titleEl = card.querySelector('.title');
-      if ((a.title || "").length > 30) {
-        titleEl.classList.add('long-text');
-      }
+      if ((a.title || "").length > 30) titleEl.classList.add('long-text');
 
       const favBtn = card.querySelector(".favorite");
       favBtn.addEventListener("click", async e => {
@@ -639,17 +646,27 @@ async function renderAnnonces(filtered) {
     scrollWrapper.appendChild(fragment);
   }
 
-  // ⚡ Scroll listener
-  container.addEventListener("scroll", () => {
-    const scrollTop = container.scrollTop;
+  function updateScroll() {
+    const cols = getColumns();
     const viewportHeight = container.clientHeight;
-    const startIndex = Math.max(0, Math.floor(scrollTop / rowHeight) - buffer);
-    const endIndex = Math.min(totalItems, Math.ceil((scrollTop + viewportHeight) / rowHeight) + buffer);
-    renderChunk(startIndex, endIndex);
-  });
+    const scrollTop = container.scrollTop;
+    const startLine = Math.max(0, Math.floor(scrollTop / rowHeight) - buffer);
+    const endLine = Math.min(Math.ceil(totalItems / cols), Math.ceil((scrollTop + viewportHeight) / rowHeight) + buffer);
+    renderChunk(startLine, endLine);
+  }
 
-  // Render initial viewport
-  renderChunk(0, Math.min(totalItems, Math.ceil(container.clientHeight / rowHeight) + buffer));
+  container.addEventListener("scroll", updateScroll);
+  window.addEventListener("resize", updateScroll);
+
+  // Définir la hauteur totale du scrollWrapper
+  function updateWrapperHeight() {
+    const cols = getColumns();
+    const totalLines = Math.ceil(totalItems / cols);
+    scrollWrapper.style.height = `${totalLines * rowHeight}px`;
+  }
+
+  updateWrapperHeight();
+  updateScroll();
 }
 
 function renderPagination(totalPages){
