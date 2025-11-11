@@ -458,89 +458,80 @@ function escapeHTML(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
 }
-// ✅ VERSION ULTIME VIRTUAL SCROLL avec requestAnimationFrame
-async function renderAnnonces(filtered) {
-  annoncesContainer.innerHTML = "";
-
-  if (filtered.length === 0) {
-    annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
+// ⚡ VRAIE VERSION VIRTUAL SCROLL
+function renderAnnoncesVirtual(filtered) {
+  const container = annoncesContainer;
+  container.innerHTML = "";
+  if (!filtered.length) {
+    container.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
     return;
   }
 
-  // ⚡ Précharge cache users si nécessaire
-  if (!window.__usersCache) {
-    try {
-      const usersSnap = await getDocs(collection(db, "users"));
-      const byEmail = {};
-      const byId = {};
-      usersSnap.forEach(uDoc => {
-        const u = uDoc.data() || {};
-        byId[uDoc.id] = u;
-        const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-        if (email) byEmail[email] = u;
-      });
-      window.__usersCache = { byEmail, byId };
-    } catch (err) {
-      console.error("Erreur chargement users:", err);
-      window.__usersCache = { byEmail: {}, byId: {} };
+  const cardHeight = 250; // hauteur approximative d'une annonce (en px)
+  const buffer = 5;       // nombre de cards supplémentaires à rendre au-dessus et en-dessous
+
+  container.style.position = "relative";
+  container.style.height = "100%";
+  container.style.overflowY = "auto";
+
+  const spacer = document.createElement("div");
+  spacer.style.height = filtered.length * cardHeight + "px";
+  container.appendChild(spacer);
+
+  const fragment = document.createDocumentFragment();
+  const rendered = new Map();
+
+  // ⚡ Chargement cache users si nécessaire
+  async function loadUsersCache() {
+    if (!window.__usersCache) {
+      try {
+        const usersSnap = await getDocs(collection(db, "users"));
+        const byEmail = {};
+        const byId = {};
+        usersSnap.forEach(uDoc => {
+          const u = uDoc.data() || {};
+          byId[uDoc.id] = u;
+          const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+          if (email) byEmail[email] = u;
+        });
+        window.__usersCache = { byEmail, byId };
+      } catch (err) {
+        console.error("Erreur chargement users:", err);
+        window.__usersCache = { byEmail: {}, byId: {} };
+      }
     }
   }
 
-  const CARD_HEIGHT = 320; // approx hauteur d'une annonce
-  const BUFFER = 5; // nombre de cartes tampon au-dessus et en-dessous
+  async function renderChunk() {
+    await loadUsersCache();
+    const scrollTop = container.scrollTop;
+    const containerHeight = container.clientHeight;
 
-  annoncesContainer.style.position = "relative";
-  annoncesContainer.style.height = filtered.length * CARD_HEIGHT + "px";
+    const startIndex = Math.max(0, Math.floor(scrollTop / cardHeight) - buffer);
+    const endIndex = Math.min(filtered.length, Math.ceil((scrollTop + containerHeight) / cardHeight) + buffer);
 
-  let renderedCards = {};
-  let ticking = false;
-
-  function escapeHTML(str) {
-    if (!str) return "";
-    return str
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
-  }
-
-  function render() {
-    const scrollTop = annoncesContainer.scrollTop || document.documentElement.scrollTop;
-    const containerHeight = annoncesContainer.clientHeight || window.innerHeight;
-
-    const startIndex = Math.max(0, Math.floor(scrollTop / CARD_HEIGHT) - BUFFER);
-    const endIndex = Math.min(filtered.length, Math.ceil((scrollTop + containerHeight) / CARD_HEIGHT) + BUFFER);
-
-    // Supprime les cartes hors viewport
-    for (const key in renderedCards) {
-      const idx = parseInt(key);
-      if (idx < startIndex || idx >= endIndex) {
-        annoncesContainer.removeChild(renderedCards[key]);
-        delete renderedCards[key];
+    // Supprimer les cards qui ne sont plus visibles
+    for (const [i, card] of rendered.entries()) {
+      if (i < startIndex || i >= endIndex) {
+        container.removeChild(card);
+        rendered.delete(i);
       }
     }
 
-    // Ajoute les cartes visibles
+    // Ajouter les cards visibles
     for (let i = startIndex; i < endIndex; i++) {
-      if (renderedCards[i]) continue;
-
+      if (rendered.has(i)) continue;
       const a = filtered[i];
       const docId = escapeHTML(a.id || "");
       const card = document.createElement("div");
       card.className = "annonce-card";
       card.style.position = "absolute";
-      card.style.top = i * CARD_HEIGHT + "px";
+      card.style.top = i * cardHeight + "px";
       card.style.width = "100%";
 
-      const isFav = currentUser && userFavorites.includes(a.id);
-
-      let sellerData = null;
+      // Seller et images
       const annonceEmail = (a.userEmail || "").toLowerCase().trim();
-      if (annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
-      if (!sellerData && a.userId) sellerData = window.__usersCache.byId[a.userId];
-      if (!sellerData && a.uid) sellerData = window.__usersCache.byId[a.uid];
-      if (!sellerData && a.user && typeof a.user === "object") sellerData = a.user;
+      let sellerData = window.__usersCache.byEmail[annonceEmail] || window.__usersCache.byId[a.userId] || window.__usersCache.byId[a.uid] || (a.user && typeof a.user === "object" ? a.user : null);
 
       let isPro = false;
       if (sellerData && sellerData.subscribe === true) {
@@ -577,6 +568,8 @@ async function renderAnnonces(filtered) {
       sellerPhoto = escapeHTML(sellerPhoto);
       let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
 
+      const isFav = currentUser && userFavorites.includes(a.id);
+
       card.innerHTML = `
         <div class="image-container">
           <img src="${annonceImage}" 
@@ -604,9 +597,7 @@ async function renderAnnonces(filtered) {
       `;
 
       const titleEl = card.querySelector('.title');
-      if ((a.title || "").length > 30) {
-        titleEl.classList.add('long-text');
-      }
+      if ((a.title || "").length > 30) titleEl.classList.add('long-text');
 
       const favBtn = card.querySelector(".favorite");
       favBtn.addEventListener("click", async e => {
@@ -637,22 +628,13 @@ async function renderAnnonces(filtered) {
         window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
       });
 
-      annoncesContainer.appendChild(card);
-      renderedCards[i] = card;
-    }
-
-    ticking = false;
-  }
-
-  function onScroll() {
-    if (!ticking) {
-      requestAnimationFrame(render);
-      ticking = true;
+      container.appendChild(card);
+      rendered.set(i, card);
     }
   }
 
-  annoncesContainer.addEventListener("scroll", onScroll);
-  render(); // rendu initial
+  container.addEventListener("scroll", () => renderChunk());
+  renderChunk(); // affichage initial
 }
 
 function renderPagination(totalPages){
