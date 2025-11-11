@@ -368,6 +368,16 @@ async function loadAnnonces(limitCount = 100) {
     }
 
     const annoncesSnap = await getDocs(annoncesQuery);
+    
+    if (annoncesSnap.empty) {
+      console.log("Toutes les annonces ont été chargées ✅");
+      window.allAnnoncesLoaded = true;
+
+      document.getElementById("spinner").style.display = "none"; // 👈 ajoute ceci
+      
+      return;
+     }
+
 
     if (annoncesSnap.empty && window.annoncesData.length === 0) {
       annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
@@ -420,12 +430,24 @@ async function loadAnnonces(limitCount = 100) {
   }
 }
 
-// ⚡ Infinite scroll pour charger automatiquement les lots suivants
+// ⚡ Scroll infini pour charger automatiquement les lots suivants
 window.addEventListener("scroll", () => {
+  // 🛑 Stoppe le chargement si toutes les annonces sont déjà récupérées
+  if (window.allAnnoncesLoaded) return;
+
+  // 📦 Si on arrive à 500px du bas de la page → on charge la suite
   if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
-    loadAnnonces(); // charge le prochain lot de 100 annonces
+    loadAnnonces();
   }
 });
+
+
+// ⚡ Infinite scroll pour charger automatiquement les lots suivants
+//window.addEventListener("scroll", () => {
+ // if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
+  //  loadAnnonces(); // charge le prochain lot de 100 annonces
+ // }
+//});
 
 function escapeHTML(str) {
   if (!str) return "";
