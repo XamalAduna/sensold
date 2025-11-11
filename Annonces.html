@@ -458,7 +458,7 @@ function escapeHTML(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
 }
-// ⚡ VRAIE VERSION VIRTUAL SCROLL
+// ⚡ VRAIE VERSION VIRTUAL SCROLL MULTI-COLONNES
 function renderAnnoncesVirtual(filtered) {
   const container = annoncesContainer;
   container.innerHTML = "";
@@ -467,21 +467,19 @@ function renderAnnoncesVirtual(filtered) {
     return;
   }
 
-  const cardHeight = 250; // hauteur approximative d'une annonce (en px)
-  const buffer = 5;       // nombre de cards supplémentaires à rendre au-dessus et en-dessous
+  const cardHeight = 300; // Hauteur approximative d'une annonce
+  const cardWidth = 250;  // Largeur approximative
+  const buffer = 5;       // Nombre de lignes supplémentaires à rendre au-dessus et en-dessous
 
   container.style.position = "relative";
   container.style.height = "100%";
   container.style.overflowY = "auto";
 
   const spacer = document.createElement("div");
-  spacer.style.height = filtered.length * cardHeight + "px";
   container.appendChild(spacer);
 
-  const fragment = document.createDocumentFragment();
   const rendered = new Map();
 
-  // ⚡ Chargement cache users si nécessaire
   async function loadUsersCache() {
     if (!window.__usersCache) {
       try {
@@ -506,11 +504,21 @@ function renderAnnoncesVirtual(filtered) {
     await loadUsersCache();
     const scrollTop = container.scrollTop;
     const containerHeight = container.clientHeight;
+    const containerWidth = container.clientWidth;
 
-    const startIndex = Math.max(0, Math.floor(scrollTop / cardHeight) - buffer);
-    const endIndex = Math.min(filtered.length, Math.ceil((scrollTop + containerHeight) / cardHeight) + buffer);
+    // Calcul du nombre de colonnes dynamiquement
+    const columns = Math.max(Math.floor(containerWidth / cardWidth), 1);
+    const rowHeight = cardHeight;
+    const totalRows = Math.ceil(filtered.length / columns);
+    spacer.style.height = totalRows * rowHeight + "px";
 
-    // Supprimer les cards qui ne sont plus visibles
+    const startRow = Math.max(0, Math.floor(scrollTop / rowHeight) - buffer);
+    const endRow = Math.min(totalRows, Math.ceil((scrollTop + containerHeight) / rowHeight) + buffer);
+
+    const startIndex = startRow * columns;
+    const endIndex = Math.min(filtered.length, endRow * columns);
+
+    // Supprimer les cards hors viewport
     for (const [i, card] of rendered.entries()) {
       if (i < startIndex || i >= endIndex) {
         container.removeChild(card);
@@ -525,11 +533,16 @@ function renderAnnoncesVirtual(filtered) {
       const docId = escapeHTML(a.id || "");
       const card = document.createElement("div");
       card.className = "annonce-card";
-      card.style.position = "absolute";
-      card.style.top = i * cardHeight + "px";
-      card.style.width = "100%";
 
-      // Seller et images
+      // Positionnement multi-colonnes
+      const row = Math.floor(i / columns);
+      const col = i % columns;
+      card.style.position = "absolute";
+      card.style.top = row * rowHeight + "px";
+      card.style.left = col * (containerWidth / columns) + "px";
+      card.style.width = containerWidth / columns - 10 + "px"; // -10 pour un petit gap
+
+      // === Contenu de la card (inchangé) ===
       const annonceEmail = (a.userEmail || "").toLowerCase().trim();
       let sellerData = window.__usersCache.byEmail[annonceEmail] || window.__usersCache.byId[a.userId] || window.__usersCache.byId[a.uid] || (a.user && typeof a.user === "object" ? a.user : null);
 
@@ -634,6 +647,7 @@ function renderAnnoncesVirtual(filtered) {
   }
 
   container.addEventListener("scroll", () => renderChunk());
+  window.addEventListener("resize", () => renderChunk()); // recalcul colonnes si resize
   renderChunk(); // affichage initial
 }
 
