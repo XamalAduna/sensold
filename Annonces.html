@@ -462,12 +462,13 @@ function escapeHTML(str) {
 // ✅ VRAI VIRTUAL SCROLL + LAZY LOADING pour 200 000+ annonces
 async function renderAnnonces(filtered) {
   annoncesContainer.innerHTML = ""; // vide le conteneur
+
   if (filtered.length === 0) {
     annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
     return;
   }
 
-  // ⚡ Cache utilisateurs (inchangé)
+  // ⚡ Cache utilisateurs
   if (!window.__usersCache) {
     try {
       const usersSnap = await getDocs(collection(db, "users"));
@@ -486,158 +487,162 @@ async function renderAnnonces(filtered) {
     }
   }
 
-  // ⚡ Virtual Scroll optimisé
-  const cardHeight = 320; // hauteur approximative d'une carte (à ajuster selon ton CSS)
-  const buffer = 10; // nombre de cartes avant/après la vue
+  const cardHeight = 320;       // Hauteur approximative d'une carte
+  const buffer = 20;            // Nombre de cartes avant/après la vue
   const containerHeight = annoncesContainer.clientHeight;
   const totalHeight = filtered.length * cardHeight;
 
-  // ⚡ conteneur "vide" pour simuler la hauteur totale
-  const spacer = document.createElement("div");
-  spacer.style.height = totalHeight + "px";
-  annoncesContainer.appendChild(spacer);
+  // Container interne pour positionner les cartes en absolute
+  const innerContainer = document.createElement("div");
+  innerContainer.style.position = "relative";
+  innerContainer.style.height = totalHeight + "px";
+  annoncesContainer.appendChild(innerContainer);
 
-  let renderedRange = { start: 0, end: 0 };
-  const cardsMap = new Map();
+  let rendered = {}; // cartes actuellement rendues
 
-  const render = () => {
+  const renderCards = () => {
     const scrollTop = annoncesContainer.scrollTop;
-    const visibleStart = Math.max(0, Math.floor(scrollTop / cardHeight) - buffer);
-    const visibleEnd = Math.min(filtered.length, Math.ceil((scrollTop + containerHeight) / cardHeight) + buffer);
+    const startIndex = Math.max(0, Math.floor(scrollTop / cardHeight) - buffer);
+    const endIndex = Math.min(filtered.length, Math.ceil((scrollTop + containerHeight) / cardHeight) + buffer);
 
-    // ⚡ Retirer les cartes qui ne sont plus visibles
-    for (let [index, card] of cardsMap.entries()) {
-      if (index < visibleStart || index >= visibleEnd) {
-        card.remove();
-        cardsMap.delete(index);
+    // Supprimer les cartes hors buffer
+    Object.keys(rendered).forEach(i => {
+      const idx = parseInt(i);
+      if (idx < startIndex || idx >= endIndex) {
+        innerContainer.removeChild(rendered[i]);
+        delete rendered[i];
       }
-    }
+    });
 
-    // ⚡ Ajouter les cartes visibles
-    for (let i = visibleStart; i < visibleEnd; i++) {
-      if (!cardsMap.has(i)) {
-        const a = filtered[i];
-        const docId = escapeHTML(a.id || "");
-        const card = document.createElement("div");
-        card.className = "annonce-card";
-        card.style.position = "absolute";
-        card.style.top = i * cardHeight + "px";
-        card.style.width = "100%";
+    // Ajouter les cartes visibles
+    for (let i = startIndex; i < endIndex; i++) {
+      if (rendered[i]) continue;
 
-        const isFav = currentUser && userFavorites.includes(a.id);
+      const a = filtered[i];
+      const docId = escapeHTML(a.id || "");
+      const card = document.createElement("div");
+      card.className = "annonce-card";
+      card.style.position = "absolute";
+      card.style.top = i * cardHeight + "px";
+      card.style.width = "100%";
 
-        let sellerData = null;
-        const annonceEmail = (a.userEmail || "").toLowerCase().trim();
-        if (annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
-        if (!sellerData && a.userId) sellerData = window.__usersCache.byId[a.userId];
-        if (!sellerData && a.uid) sellerData = window.__usersCache.byId[a.uid];
-        if (!sellerData && a.user && typeof a.user === "object") sellerData = a.user;
+      const isFav = currentUser && userFavorites.includes(a.id);
 
-        let isPro = false;
-        if (sellerData && sellerData.subscribe === true) {
-          const now = new Date();
-          const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
-          if (subEnd > now) isPro = true;
-        }
+      // ⚡ Récupération vendeur
+      let sellerData = null;
+      const annonceEmail = (a.userEmail || "").toLowerCase().trim();
+      if (annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
+      if (!sellerData && a.userId) sellerData = window.__usersCache.byId[a.userId];
+      if (!sellerData && a.uid) sellerData = window.__usersCache.byId[a.uid];
+      if (!sellerData && a.user && typeof a.user === "object") sellerData = a.user;
 
-        let fullName = "Utilisateur inconnu";
-        if (sellerData) {
-          fullName =
-            escapeHTML(
-              sellerData.fullName ||
-              `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
-              sellerData.displayName ||
-              sellerData.name ||
-              sellerData.nom ||
-              sellerData.prenom ||
-              "Utilisateur"
-            );
-        }
-
-        let sellerPhoto =
-          (sellerData && (
-            sellerData.profileImage ||
-            sellerData.profilePic ||
-            sellerData.profile ||
-            sellerData.photoURL ||
-            sellerData.avatar ||
-            sellerData.image ||
-            sellerData.photo
-          )) || "https://via.placeholder.com/40";
-
-        sellerPhoto = escapeHTML(sellerPhoto);
-        let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
-
-        card.innerHTML = `
-          <div class="image-container">
-            <img src="${annonceImage}" 
-                 loading="lazy"
-                 alt="${escapeHTML(a.title || 'Annonce')}"
-                 onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
-            ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
-            <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
-            <span class="material-icons favorite ${isFav ? 'active' : ''}">
-              ${isFav ? 'favorite' : 'favorite_border'}
-            </span>
-          </div>
-          <div class="content">
-            <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
-            <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
-            <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
-          </div>
-          <div class="seller">
-            <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
-            <div class="seller-info">
-              <strong>${fullName}</strong>
-              ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
-            </div>
-          </div>
-        `;
-
-        const titleEl = card.querySelector('.title');
-        if ((a.title || "").length > 30) titleEl.classList.add('long-text');
-
-        const favBtn = card.querySelector(".favorite");
-        favBtn.addEventListener("click", async e => {
-          e.stopPropagation();
-          if (!currentUser) {
-            const msg = document.getElementById("notLoggedMsg");
-            msg.style.display = "block";
-            setTimeout(() => { msg.style.display = "none"; }, 3000);
-            return;
-          }
-          const favRef = doc(db, "users", currentUser.uid);
-          if (favBtn.classList.contains("active")) {
-            favBtn.classList.remove("active");
-            favBtn.textContent = "favorite_border";
-            userFavorites = userFavorites.filter(id => id !== docId);
-            await updateDoc(favRef, { favorites: arrayRemove(docId) });
-          } else {
-            favBtn.classList.add("active");
-            favBtn.textContent = "favorite";
-            userFavorites.push(docId);
-            await updateDoc(favRef, { favorites: arrayUnion(docId) });
-          }
-        });
-
-        card.addEventListener("click", e => {
-          if (e.target.classList.contains("favorite")) return;
-          window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
-        });
-
-        annoncesContainer.appendChild(card);
-        cardsMap.set(i, card);
+      let isPro = false;
+      if (sellerData && sellerData.subscribe === true) {
+        const now = new Date();
+        const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
+        if (subEnd > now) isPro = true;
       }
-    }
 
-    renderedRange = { start: visibleStart, end: visibleEnd };
+      let fullName = "Utilisateur inconnu";
+      if (sellerData) {
+        fullName =
+          escapeHTML(
+            sellerData.fullName ||
+            `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
+            sellerData.displayName ||
+            sellerData.name ||
+            sellerData.nom ||
+            sellerData.prenom ||
+            "Utilisateur"
+          );
+      }
+
+      let sellerPhoto =
+        (sellerData && (
+          sellerData.profileImage ||
+          sellerData.profilePic ||
+          sellerData.profile ||
+          sellerData.photoURL ||
+          sellerData.avatar ||
+          sellerData.image ||
+          sellerData.photo
+        )) || "https://via.placeholder.com/40";
+
+      sellerPhoto = escapeHTML(sellerPhoto);
+      let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
+
+      card.innerHTML = `
+        <div class="image-container">
+          <img src="${annonceImage}" 
+               loading="lazy"
+               alt="${escapeHTML(a.title || 'Annonce')}"
+               onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
+          ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
+          <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
+          <span class="material-icons favorite ${isFav ? 'active' : ''}">
+            ${isFav ? 'favorite' : 'favorite_border'}
+          </span>
+        </div>
+        <div class="content">
+          <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
+          <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
+          <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
+        </div>
+        <div class="seller">
+          <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
+          <div class="seller-info">
+            <strong>${fullName}</strong>
+            ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
+          </div>
+        </div>
+      `;
+
+      // Long titre
+      const titleEl = card.querySelector('.title');
+      if ((a.title || "").length > 30) titleEl.classList.add('long-text');
+
+      // Favoris
+      const favBtn = card.querySelector(".favorite");
+      favBtn.addEventListener("click", async e => {
+        e.stopPropagation();
+        if (!currentUser) {
+          const msg = document.getElementById("notLoggedMsg");
+          msg.style.display = "block";
+          setTimeout(() => { msg.style.display = "none"; }, 3000);
+          return;
+        }
+        const favRef = doc(db, "users", currentUser.uid);
+        if (favBtn.classList.contains("active")) {
+          favBtn.classList.remove("active");
+          favBtn.textContent = "favorite_border";
+          userFavorites = userFavorites.filter(id => id !== docId);
+          await updateDoc(favRef, { favorites: arrayRemove(docId) });
+        } else {
+          favBtn.classList.add("active");
+          favBtn.textContent = "favorite";
+          userFavorites.push(docId);
+          await updateDoc(favRef, { favorites: arrayUnion(docId) });
+        }
+      });
+
+      // Click sur carte
+      card.addEventListener("click", e => {
+        if (e.target.classList.contains("favorite")) return;
+        window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
+      });
+
+      innerContainer.appendChild(card);
+      rendered[i] = card;
+    }
   };
 
-  // ⚡ Scroll listener
-  annoncesContainer.addEventListener("scroll", render);
+  // ⚡ Premier rendu
+  renderCards();
 
-  // ⚡ Initial render
-  render();
+  // ⚡ Scroll event
+  annoncesContainer.addEventListener("scroll", () => {
+    renderCards();
+  });
 }
 
 function renderPagination(totalPages){
