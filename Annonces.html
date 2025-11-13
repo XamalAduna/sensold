@@ -460,7 +460,7 @@ function escapeHTML(str) {
 }
 
 // ✅ VERSION VIRTUAL SCROLL + LAZY LOADING pour 200 000+ annonces
-async function renderAnnoncesVirtual(filtered) {
+async function renderAnnonces(filtered) {
   annoncesContainer.innerHTML = ""; // vide le conteneur
   if (filtered.length === 0) {
     annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
