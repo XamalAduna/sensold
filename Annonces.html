@@ -459,16 +459,17 @@ function escapeHTML(str) {
     .replace(/"/g, "&quot;")
 }
 
-// ✅ VRAI VIRTUAL SCROLL + LAZY LOADING pour 200 000+ annonces
+
+
+// ✅ VERSION VIRTUAL SCROLL + LAZY LOADING pour 200 000+ annonces
 async function renderAnnonces(filtered) {
   annoncesContainer.innerHTML = ""; // vide le conteneur
-
   if (filtered.length === 0) {
     annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
     return;
   }
 
-  // ⚡ Cache utilisateurs
+  // ⚡ Cache des utilisateurs (inchangé)
   if (!window.__usersCache) {
     try {
       const usersSnap = await getDocs(collection(db, "users"));
@@ -487,48 +488,22 @@ async function renderAnnonces(filtered) {
     }
   }
 
-  const cardHeight = 320;       // Hauteur approximative d'une carte
-  const buffer = 20;            // Nombre de cartes avant/après la vue
-  const containerHeight = annoncesContainer.clientHeight;
-  const totalHeight = filtered.length * cardHeight;
+  // ⚡ Virtual Scroll : on crée uniquement un nombre limité de cartes visibles
+  const buffer = 40; // nombre de cartes à garder en DOM avant/après la vue
+  const cardHeight = 320; // hauteur approximative d'une carte (à ajuster selon ton CSS)
+  let startIndex = 0;
+  const fragment = document.createDocumentFragment();
 
-  // Container interne pour positionner les cartes en absolute
-  const innerContainer = document.createElement("div");
-  innerContainer.style.position = "relative";
-  innerContainer.style.height = totalHeight + "px";
-  annoncesContainer.appendChild(innerContainer);
-
-  let rendered = {}; // cartes actuellement rendues
-
-  const renderCards = () => {
-    const scrollTop = annoncesContainer.scrollTop;
-    const startIndex = Math.max(0, Math.floor(scrollTop / cardHeight) - buffer);
-    const endIndex = Math.min(filtered.length, Math.ceil((scrollTop + containerHeight) / cardHeight) + buffer);
-
-    // Supprimer les cartes hors buffer
-    Object.keys(rendered).forEach(i => {
-      const idx = parseInt(i);
-      if (idx < startIndex || idx >= endIndex) {
-        innerContainer.removeChild(rendered[i]);
-        delete rendered[i];
-      }
-    });
-
-    // Ajouter les cartes visibles
-    for (let i = startIndex; i < endIndex; i++) {
-      if (rendered[i]) continue;
-
-      const a = filtered[i];
+  const renderChunk = (start, end) => {
+    fragment.innerHTML = ""; // réutilisation du fragment
+    const visibleItems = filtered.slice(start, end);
+    visibleItems.forEach(a => {
       const docId = escapeHTML(a.id || "");
       const card = document.createElement("div");
       card.className = "annonce-card";
-      card.style.position = "absolute";
-      card.style.top = i * cardHeight + "px";
-      card.style.width = "100%";
 
       const isFav = currentUser && userFavorites.includes(a.id);
 
-      // ⚡ Récupération vendeur
       let sellerData = null;
       const annonceEmail = (a.userEmail || "").toLowerCase().trim();
       if (annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
@@ -597,11 +572,9 @@ async function renderAnnonces(filtered) {
         </div>
       `;
 
-      // Long titre
       const titleEl = card.querySelector('.title');
       if ((a.title || "").length > 30) titleEl.classList.add('long-text');
 
-      // Favoris
       const favBtn = card.querySelector(".favorite");
       favBtn.addEventListener("click", async e => {
         e.stopPropagation();
@@ -625,25 +598,31 @@ async function renderAnnonces(filtered) {
         }
       });
 
-      // Click sur carte
       card.addEventListener("click", e => {
         if (e.target.classList.contains("favorite")) return;
         window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
       });
 
-      innerContainer.appendChild(card);
-      rendered[i] = card;
-    }
+      fragment.appendChild(card);
+    });
+
+    annoncesContainer.appendChild(fragment);
   };
 
-  // ⚡ Premier rendu
-  renderCards();
+  // ⚡ Initial render
+  renderChunk(startIndex, startIndex + buffer);
 
-  // ⚡ Scroll event
+  // ⚡ Scroll infini
   annoncesContainer.addEventListener("scroll", () => {
-    renderCards();
+    const scrollBottom = annoncesContainer.scrollTop + annoncesContainer.clientHeight;
+    const threshold = annoncesContainer.scrollHeight - 1000; // déclenchement avant la fin
+    if (scrollBottom > threshold && startIndex + buffer < filtered.length) {
+      startIndex += buffer;
+      renderChunk(startIndex, Math.min(startIndex + buffer, filtered.length));
+    }
   });
 }
+
 
 function renderPagination(totalPages){
   let paginationContainer = document.getElementById("pagination");
