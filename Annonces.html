@@ -460,7 +460,7 @@ function escapeHTML(str) {
 
 // ✅ VERSION ULTRA OPTIMISÉE AVEC VIRTUAL SCROLL (100 000+ annonces)
 async function renderAnnonces(filtered) {
-  annoncesContainer.innerHTML = "";
+  annoncesContainer.innerHTML = ""; // vide le conteneur avant affichage
   if (filtered.length === 0) {
     annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
     return;
@@ -477,8 +477,7 @@ async function renderAnnonces(filtered) {
   if (!window.__usersCache) {
     try {
       const usersSnap = await getDocs(collection(db, "users"));
-      const byEmail = {};
-      const byId = {};
+      const byEmail = {}, byId = {};
       usersSnap.forEach(uDoc => {
         const u = uDoc.data() || {};
         byId[uDoc.id] = u;
@@ -492,11 +491,10 @@ async function renderAnnonces(filtered) {
     }
   }
 
-  // ⚙️ Préparation du virtual scroll
-  const fragment = document.createDocumentFragment();
-  const VISIBLE_BUFFER = 40; // nombre de cartes visibles max à un moment
-  const cardHeight = 310; // hauteur moyenne d'une carte (à ajuster si besoin)
-  const totalHeight = pageItems.length * cardHeight;
+  // ⚡ Structure du Virtual Scroll
+  const ROW_HEIGHT = 360; // hauteur approximative d'une carte (ajuste si besoin)
+  const buffer = 8; // nombre de lignes supplémentaires à rendre hors-écran
+  const totalHeight = pageItems.length * ROW_HEIGHT;
 
   const spacer = document.createElement("div");
   spacer.style.height = totalHeight + "px";
@@ -504,160 +502,154 @@ async function renderAnnonces(filtered) {
   spacer.style.width = "100%";
   annoncesContainer.appendChild(spacer);
 
-  let firstIndex = 0;
-  let lastIndex = Math.min(VISIBLE_BUFFER, pageItems.length);
+  const visibleContainer = document.createElement("div");
+  visibleContainer.style.position = "absolute";
+  visibleContainer.style.top = "0";
+  visibleContainer.style.left = "0";
+  visibleContainer.style.right = "0";
+  spacer.appendChild(visibleContainer);
 
-  const renderedCards = new Map();
+  let lastScrollTop = 0;
 
-  function renderVisibleCards() {
-    const scrollTop = annoncesContainer.scrollTop;
-    const containerHeight = annoncesContainer.clientHeight;
+  function createCard(a) {
+    const docId = escapeHTML(a.id || "");
+    const card = document.createElement("div");
+    card.className = "annonce-card";
 
-    const newFirst = Math.floor(scrollTop / cardHeight);
-    const newLast = Math.min(
-      pageItems.length,
-      Math.ceil((scrollTop + containerHeight) / cardHeight) + 5
-    );
+    const isFav = currentUser && userFavorites.includes(a.id);
+    let sellerData = null;
+    const annonceEmail = (a.userEmail || "").toLowerCase().trim();
+    if (annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
+    if (!sellerData && a.userId) sellerData = window.__usersCache.byId[a.userId];
+    if (!sellerData && a.uid) sellerData = window.__usersCache.byId[a.uid];
+    if (!sellerData && a.user && typeof a.user === "object") sellerData = a.user;
 
-    if (newFirst === firstIndex && newLast === lastIndex) return;
-
-    firstIndex = newFirst;
-    lastIndex = newLast;
-
-    // ⚡ Supprime les cartes non visibles
-    for (const [index, el] of renderedCards.entries()) {
-      if (index < firstIndex || index > lastIndex) {
-        el.remove();
-        renderedCards.delete(index);
-      }
+    let isPro = false;
+    if (sellerData && sellerData.subscribe === true) {
+      const now = new Date();
+      const subEnd = sellerData.subscribeEnd?.toDate
+        ? sellerData.subscribeEnd.toDate()
+        : new Date(sellerData.subscribeEnd);
+      if (subEnd > now) isPro = true;
     }
 
-    // ⚡ Affiche les cartes visibles uniquement
-    for (let i = firstIndex; i < lastIndex; i++) {
-      if (renderedCards.has(i)) continue;
-      const a = pageItems[i];
-      const card = document.createElement("div");
-      card.className = "annonce-card";
-      card.style.position = "absolute";
-      card.style.top = i * cardHeight + "px";
-      card.style.left = "0";
-      card.style.right = "0";
+    let fullName = "Utilisateur inconnu";
+    if (sellerData) {
+      fullName = escapeHTML(
+        sellerData.fullName ||
+          `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
+          sellerData.displayName ||
+          sellerData.name ||
+          sellerData.nom ||
+          sellerData.prenom ||
+          "Utilisateur"
+      );
+    }
 
-      const docId = escapeHTML(a.id || "");
-      const isFav = currentUser && userFavorites.includes(a.id);
-
-      let sellerData = null;
-      const annonceEmail = (a.userEmail || "").toLowerCase().trim();
-      if (annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
-      if (!sellerData && a.userId) sellerData = window.__usersCache.byId[a.userId];
-      if (!sellerData && a.uid) sellerData = window.__usersCache.byId[a.uid];
-      if (!sellerData && a.user && typeof a.user === "object") sellerData = a.user;
-
-      let isPro = false;
-      if (sellerData && sellerData.subscribe === true) {
-        const now = new Date();
-        const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
-        if (subEnd > now) isPro = true;
-      }
-
-      let fullName = "Utilisateur inconnu";
-      if (sellerData) {
-        fullName =
-          escapeHTML(
-            sellerData.fullName ||
-            `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
-            sellerData.displayName ||
-            sellerData.name ||
-            sellerData.nom ||
-            sellerData.prenom ||
-            "Utilisateur"
-          );
-      }
-
-      let sellerPhoto =
-        (sellerData && (
-          sellerData.profileImage ||
+    let sellerPhoto =
+      (sellerData &&
+        (sellerData.profileImage ||
           sellerData.profilePic ||
           sellerData.profile ||
           sellerData.photoURL ||
           sellerData.avatar ||
           sellerData.image ||
-          sellerData.photo
-        )) || "https://via.placeholder.com/40";
+          sellerData.photo)) ||
+      "https://via.placeholder.com/40";
 
-      sellerPhoto = escapeHTML(sellerPhoto);
-      let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
+    sellerPhoto = escapeHTML(sellerPhoto);
+    let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
 
-      card.innerHTML = `
-        <div class="image-container">
-          <img src="${annonceImage}" loading="lazy"
-               alt="${escapeHTML(a.title || 'Annonce')}"
-               onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
-          ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
-          <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
-          <span class="material-icons favorite ${isFav ? 'active' : ''}">
-            ${isFav ? 'favorite' : 'favorite_border'}
-          </span>
+    card.innerHTML = `
+      <div class="image-container">
+        <img src="${annonceImage}" 
+             loading="lazy"
+             alt="${escapeHTML(a.title || 'Annonce')}"
+             onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
+        ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
+        <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
+        <span class="material-icons favorite ${isFav ? "active" : ""}">
+          ${isFav ? "favorite" : "favorite_border"}
+        </span>
+      </div>
+      <div class="content">
+        <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
+        <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
+        <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${
+      a.quartier ? ", " + escapeHTML(a.quartier) : ""
+    }</p>
+      </div>
+      <div class="seller">
+        <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
+        <div class="seller-info">
+          <strong>${fullName}</strong>
+          ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ""}
         </div>
-        <div class="content">
-          <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
-          <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
-          <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
-        </div>
-        <div class="seller">
-          <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
-          <div class="seller-info">
-            <strong>${fullName}</strong>
-            ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
-          </div>
-        </div>
-      `;
+      </div>
+    `;
 
-      const titleEl = card.querySelector('.title');
-      if ((a.title || "").length > 30) {
-        titleEl.classList.add('long-text');
+    const titleEl = card.querySelector(".title");
+    if ((a.title || "").length > 30) titleEl.classList.add("long-text");
+
+    const favBtn = card.querySelector(".favorite");
+    favBtn.addEventListener("click", async e => {
+      e.stopPropagation();
+      if (!currentUser) {
+        const msg = document.getElementById("notLoggedMsg");
+        msg.style.display = "block";
+        setTimeout(() => { msg.style.display = "none"; }, 3000);
+        return;
       }
 
-      const favBtn = card.querySelector(".favorite");
-      favBtn.addEventListener("click", async e => {
-        e.stopPropagation();
-        if (!currentUser) {
-          const msg = document.getElementById("notLoggedMsg");
-          msg.style.display = "block";
-          setTimeout(() => { msg.style.display = "none"; }, 3000);
-          return;
-        }
+      const favRef = doc(db, "users", currentUser.uid);
+      if (favBtn.classList.contains("active")) {
+        favBtn.classList.remove("active");
+        favBtn.textContent = "favorite_border";
+        userFavorites = userFavorites.filter(id => id !== docId);
+        await updateDoc(favRef, { favorites: arrayRemove(docId) });
+      } else {
+        favBtn.classList.add("active");
+        favBtn.textContent = "favorite";
+        userFavorites.push(docId);
+        await updateDoc(favRef, { favorites: arrayUnion(docId) });
+      }
+    });
 
-        const favRef = doc(db, "users", currentUser.uid);
-        if (favBtn.classList.contains("active")) {
-          favBtn.classList.remove("active");
-          favBtn.textContent = "favorite_border";
-          userFavorites = userFavorites.filter(id => id !== docId);
-          await updateDoc(favRef, { favorites: arrayRemove(docId) });
-        } else {
-          favBtn.classList.add("active");
-          favBtn.textContent = "favorite";
-          userFavorites.push(docId);
-          await updateDoc(favRef, { favorites: arrayUnion(docId) });
-        }
-      });
+    card.addEventListener("click", e => {
+      if (e.target.classList.contains("favorite")) return;
+      window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
+    });
 
-      card.addEventListener("click", e => {
-        if (e.target.classList.contains("favorite")) return;
-        window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
-      });
-
-      spacer.appendChild(card);
-      renderedCards.set(i, card);
-    }
+    return card;
   }
 
-  annoncesContainer.addEventListener("scroll", renderVisibleCards);
-  renderVisibleCards();
+  function renderVisible() {
+    const scrollTop = annoncesContainer.scrollTop;
+    if (Math.abs(scrollTop - lastScrollTop) < ROW_HEIGHT / 2) return;
+    lastScrollTop = scrollTop;
+
+    const containerHeight = annoncesContainer.clientHeight;
+    const firstVisibleIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - buffer);
+    const lastVisibleIndex = Math.min(
+      pageItems.length,
+      Math.ceil((scrollTop + containerHeight) / ROW_HEIGHT) + buffer
+    );
+
+    visibleContainer.innerHTML = "";
+    visibleContainer.style.transform = `translateY(${firstVisibleIndex * ROW_HEIGHT}px)`;
+
+    const frag = document.createDocumentFragment();
+    for (let i = firstVisibleIndex; i < lastVisibleIndex; i++) {
+      frag.appendChild(createCard(pageItems[i]));
+    }
+    visibleContainer.appendChild(frag);
+  }
+
+  annoncesContainer.addEventListener("scroll", renderVisible);
+  renderVisible();
 
   renderPagination(totalPages);
 }
-
 
 function renderPagination(totalPages){
   let paginationContainer = document.getElementById("pagination");
