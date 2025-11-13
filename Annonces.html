@@ -1,3 +1,4 @@
+
 <!DOCTYPE html> 
 <html lang="fr"> 
 <head> 
@@ -458,19 +459,22 @@ function escapeHTML(str) {
     .replace(/"/g, "&quot;")
 }
 
-// ✅ VERSION ULTRA OPTIMISÉE : renderAnnonces pour +200 000 annonces
+// ✅ VERSION OPTIMISÉE : renderAnnonces pour +20 000 annonces
 async function renderAnnonces(filtered) {
-  annoncesContainer.innerHTML = ""; // vide le conteneur
+  annoncesContainer.innerHTML = ""; // vide le conteneur avant affichage du lot actuel
   if (filtered.length === 0) {
     annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
     return;
   }
 
-  const rowHeight = 400; // hauteur approximative d'une carte + margin
-  const cols = 4;
-  const buffer = 5; // lignes avant/après viewport
+  const totalPages = Math.ceil(filtered.length / annoncesPerPage);
+  if (currentPage > totalPages) currentPage = 1;
 
-  // ⚡ Préchargement du cache utilisateurs si nécessaire
+  const start = (currentPage - 1) * annoncesPerPage;
+  const end = start + annoncesPerPage;
+  const pageItems = filtered.slice(start, end);
+
+  // ⚡ On ne recharge le cache utilisateurs que si nécessaire
   if (!window.__usersCache) {
     try {
       const usersSnap = await getDocs(collection(db, "users"));
@@ -489,31 +493,16 @@ async function renderAnnonces(filtered) {
     }
   }
 
-  // ⚡ Container virtuel
-  const virtualContainer = document.createElement("div");
-  virtualContainer.style.position = "relative";
-  virtualContainer.style.height = `${Math.ceil(filtered.length / cols) * rowHeight}px`;
-  annoncesContainer.appendChild(virtualContainer);
+  // ⚡ Création des cards en batch pour améliorer la performance
+  const fragment = document.createDocumentFragment();
 
-  const cardsMap = new Map(); // cartes rendues
-
-  function createCard(a, idx) {
+  for (const a of pageItems) {
     const docId = escapeHTML(a.id || "");
     const card = document.createElement("div");
     card.className = "annonce-card";
-    card.style.position = "absolute";
-    const col = idx % cols;
-    const row = Math.floor(idx / cols);
-    card.style.top = `${row * rowHeight}px`;
-    card.style.left = `${col * 25}%`;
-    card.style.width = `25%`;
-    card.style.boxSizing = "border-box";
-    card.style.padding = "5px";
 
-    // Gestion favoris
     const isFav = currentUser && userFavorites.includes(a.id);
 
-    // Récupération vendeur
     let sellerData = null;
     const annonceEmail = (a.userEmail || "").toLowerCase().trim();
     if (annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
@@ -583,7 +572,9 @@ async function renderAnnonces(filtered) {
     `;
 
     const titleEl = card.querySelector('.title');
-    if ((a.title || "").length > 30) titleEl.classList.add('long-text');
+    if ((a.title || "").length > 30) {
+      titleEl.classList.add('long-text');
+    }
 
     const favBtn = card.querySelector(".favorite");
     favBtn.addEventListener("click", async e => {
@@ -594,6 +585,7 @@ async function renderAnnonces(filtered) {
         setTimeout(() => { msg.style.display = "none"; }, 3000);
         return;
       }
+
       const favRef = doc(db, "users", currentUser.uid);
       if (favBtn.classList.contains("active")) {
         favBtn.classList.remove("active");
@@ -613,45 +605,10 @@ async function renderAnnonces(filtered) {
       window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
     });
 
-    return card;
+    fragment.appendChild(card);
   }
 
-  // ⚡ Render virtual avec requestAnimationFrame pour fluidité
-  let ticking = false;
-  function renderVirtual() {
-    if (ticking) return;
-    ticking = true;
-    window.requestAnimationFrame(() => {
-      const scrollTop = annoncesContainer.scrollTop;
-      const clientHeight = annoncesContainer.clientHeight;
-      const startRow = Math.max(0, Math.floor(scrollTop / rowHeight) - buffer);
-      const endRow = Math.min(Math.ceil(filtered.length / cols), Math.ceil((scrollTop + clientHeight) / rowHeight) + buffer);
-
-      const startIdx = startRow * cols;
-      const endIdx = Math.min(endRow * cols, filtered.length);
-
-      // Supprime cartes hors buffer
-      for (let [idx, card] of cardsMap) {
-        if (idx < startIdx || idx >= endIdx) {
-          virtualContainer.removeChild(card);
-          cardsMap.delete(idx);
-        }
-      }
-
-      // Ajoute cartes visibles
-      for (let i = startIdx; i < endIdx; i++) {
-        if (!cardsMap.has(i)) {
-          const card = createCard(filtered[i], i);
-          virtualContainer.appendChild(card);
-          cardsMap.set(i, card);
-        }
-      }
-      ticking = false;
-    });
-  }
-
-  annoncesContainer.addEventListener("scroll", renderVirtual);
-  renderVirtual();
+  annoncesContainer.appendChild(fragment); // ⚡ Ajout batch pour fluidité
   renderPagination(Math.ceil(filtered.length / annoncesPerPage));
 }
 
