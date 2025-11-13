@@ -470,19 +470,27 @@ function escapeHTML(str) {
     .replace(/"/g, "&quot;")
 }
 
-// ✅ VERSION ULTRA OPTIMISÉE VIRTUAL SCROLL + LAZY LOADING (200 000+ annonces)
+// ✅ VERSION ULTRA OPTIMISÉE VIRTUAL SCROLL + LAZY LOADING + PAGINATION
 async function renderAnnonces(filtered) {
-  const annoncesPerChunk = 30; // nombre de cartes visibles à l’écran (tampon auto)
-  const buffer = 10; // nombre de cartes avant/après pour la fluidité
-  const cardHeight = 320; // hauteur moyenne d’une carte (à ajuster si besoin)
+  const annoncesPerChunk = 30; // nb de cartes visibles à l’écran
+  const buffer = 10;           // marge de sécurité
+  const cardHeight = 320;      // hauteur moyenne (ajuste selon ton design)
 
-  annoncesContainer.innerHTML = ""; // vide le conteneur
+  annoncesContainer.innerHTML = "";
   if (filtered.length === 0) {
     annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
     return;
   }
 
-  // ✅ Préchargement du cache des utilisateurs (inchangé)
+  // ✅ PAGINATION (inchangée)
+  const totalPages = Math.ceil(filtered.length / annoncesPerPage);
+  if (currentPage > totalPages) currentPage = 1;
+
+  const start = (currentPage - 1) * annoncesPerPage;
+  const end = start + annoncesPerPage;
+  const pageItems = filtered.slice(start, end);
+
+  // ✅ Cache utilisateurs (inchangé)
   if (!window.__usersCache) {
     try {
       const usersSnap = await getDocs(collection(db, "users"));
@@ -500,14 +508,13 @@ async function renderAnnonces(filtered) {
     }
   }
 
-  // ✅ Création du wrapper virtuel
-  const totalHeight = filtered.length * cardHeight;
+  // ✅ Structure virtuelle
+  const totalHeight = pageItems.length * cardHeight;
   const spacer = document.createElement("div");
   spacer.style.height = totalHeight + "px";
   spacer.style.position = "relative";
   annoncesContainer.appendChild(spacer);
 
-  // ✅ Zone réelle où on rend les cartes visibles
   const renderZone = document.createElement("div");
   renderZone.style.position = "absolute";
   renderZone.style.top = "0";
@@ -517,7 +524,7 @@ async function renderAnnonces(filtered) {
 
   let startIndex = 0, endIndex = 0;
 
-  // ✅ Fonction pour rendre seulement les cartes visibles
+  // ✅ Fonction d’affichage des cartes visibles
   function renderVisibleCards() {
     const scrollTop = annoncesContainer.scrollTop;
     const containerHeight = annoncesContainer.clientHeight;
@@ -526,7 +533,7 @@ async function renderAnnonces(filtered) {
     const lastVisibleIndex = Math.ceil((scrollTop + containerHeight) / cardHeight) + buffer;
 
     const newStart = Math.max(0, firstVisibleIndex);
-    const newEnd = Math.min(filtered.length, lastVisibleIndex);
+    const newEnd = Math.min(pageItems.length, lastVisibleIndex);
 
     if (newStart === startIndex && newEnd === endIndex) return;
     startIndex = newStart;
@@ -536,7 +543,7 @@ async function renderAnnonces(filtered) {
     const fragment = document.createDocumentFragment();
 
     for (let i = startIndex; i < endIndex; i++) {
-      const a = filtered[i];
+      const a = pageItems[i];
       if (!a) continue;
       const docId = escapeHTML(a.id || "");
       const card = document.createElement("div");
@@ -666,9 +673,12 @@ async function renderAnnonces(filtered) {
     lazyImages.forEach(img => observer.observe(img));
   }
 
-  // ✅ Déclenchement au scroll
+  // ✅ Scroll & affichage initial
   annoncesContainer.addEventListener("scroll", renderVisibleCards);
-  renderVisibleCards(); // affichage initial
+  renderVisibleCards();
+
+  // ✅ Pagination affichée normalement (inchangée)
+  renderPagination(totalPages);
 }
 
 function renderPagination(totalPages){
