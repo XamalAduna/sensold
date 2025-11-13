@@ -11,17 +11,7 @@
 body { font-family:Arial, sans-serif; background:#f7f7f7; margin:0; padding:8px; padding-bottom:100px; }
 h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 
-.annonces-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 20px;
-
-  /* ⚡ Ajouts nécessaires pour le virtual scroll */
-  overflow-y: auto;         /* Permet le scroll fluide dans le conteneur */
-  height: 100vh;            /* Le conteneur prend toute la hauteur visible */
-  position: relative;       /* Nécessaire pour le positionnement absolu des cartes */
-}
-
+.annonces-container { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:20px; }
 @media (min-width:1024px){ .annonces-container { grid-template-columns:repeat(4,1fr); } }
 @media (max-width:600px){ .annonces-container { grid-template-columns:repeat(2,1fr); } }
 .annonce-card { background:white; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,0.1); overflow:hidden; display:flex; flex-direction:column; position:relative; cursor:pointer; }
