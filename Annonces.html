@@ -159,7 +159,7 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 <div id="spinner" style="display:flex; justify-content:center; align-items:center; height:200px;">
   <div class="loader"></div>
 </div>
-<div id="annonces" class="annonces-container"></div>
+<div id="annoncesContainer" class="annonces-container"></div>
 <div id="notLoggedMsg" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; padding:20px 30px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.25); text-align:center; z-index:99999;">
   <p>Veuillez vous connecter pour ajouter  cette annonce à vos favoris.</p>
   <a href="login.html">Se connecter</a>
@@ -301,7 +301,8 @@ const categoriesData = {
   ]
 };
 
-const annoncesContainer = document.getElementById("annonces");
+const annoncesContainer = document.getElementById("annoncesContainer");
+
 const subContainer = document.getElementById("subcategories-container");
 const categoryElements = document.querySelectorAll(".category");
 const suggestionsBox = document.getElementById("suggestions");
