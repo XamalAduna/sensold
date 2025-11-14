@@ -1,6 +1,6 @@
 <!DOCTYPE html> 
 <html lang="fr"> 
-<head> 
+<head>  
 <meta charset="UTF-8"> 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Annonces</title>
@@ -459,11 +459,9 @@ function escapeHTML(str) {
 }
 
 
-
-
-// ✅ VERSION VIRTUAL SCROLL + LAZY LOADING pour 200 000+ annonces
+// ✅ VRAI VIRTUAL SCROLL + LAZY LOADING pour 200 000+ annonces
 async function renderAnnonces(filtered) {
-  annoncesContainer.innerHTML = ""; // vide le conteneur
+  annoncesContainer.innerHTML = "";
   if (filtered.length === 0) {
     annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
     return;
@@ -488,139 +486,159 @@ async function renderAnnonces(filtered) {
     }
   }
 
-  // ⚡ Virtual Scroll : on crée uniquement un nombre limité de cartes visibles
-  const buffer = 40; // nombre de cartes à garder en DOM avant/après la vue
-  const cardHeight = 320; // hauteur approximative d'une carte (à ajuster selon ton CSS)
-  let startIndex = 0;
-  const fragment = document.createDocumentFragment();
+  // ⚡ Virtual scroll setup
+  const cardHeight = 320; // hauteur approximative d'une carte
+  const buffer = 20; // nombre de cartes avant/après visibles
+  let scrollTop = 0;
 
-  const renderChunk = (start, end) => {
-    fragment.innerHTML = ""; // réutilisation du fragment
-    const visibleItems = filtered.slice(start, end);
-    visibleItems.forEach(a => {
-      const docId = escapeHTML(a.id || "");
-      const card = document.createElement("div");
-      card.className = "annonce-card";
+  // container qui simulera la hauteur totale
+  const spacer = document.createElement("div");
+  spacer.style.height = filtered.length * cardHeight + "px";
+  annoncesContainer.appendChild(spacer);
 
-      const isFav = currentUser && userFavorites.includes(a.id);
+  // fonction pour créer une carte
+  const createCard = (a) => {
+    const docId = escapeHTML(a.id || "");
+    const card = document.createElement("div");
+    card.className = "annonce-card";
 
-      let sellerData = null;
-      const annonceEmail = (a.userEmail || "").toLowerCase().trim();
-      if (annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
-      if (!sellerData && a.userId) sellerData = window.__usersCache.byId[a.userId];
-      if (!sellerData && a.uid) sellerData = window.__usersCache.byId[a.uid];
-      if (!sellerData && a.user && typeof a.user === "object") sellerData = a.user;
+    const isFav = currentUser && userFavorites.includes(a.id);
 
-      let isPro = false;
-      if (sellerData && sellerData.subscribe === true) {
-        const now = new Date();
-        const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
-        if (subEnd > now) isPro = true;
+    let sellerData = null;
+    const annonceEmail = (a.userEmail || "").toLowerCase().trim();
+    if (annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
+    if (!sellerData && a.userId) sellerData = window.__usersCache.byId[a.userId];
+    if (!sellerData && a.uid) sellerData = window.__usersCache.byId[a.uid];
+    if (!sellerData && a.user && typeof a.user === "object") sellerData = a.user;
+
+    let isPro = false;
+    if (sellerData && sellerData.subscribe === true) {
+      const now = new Date();
+      const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
+      if (subEnd > now) isPro = true;
+    }
+
+    let fullName = "Utilisateur inconnu";
+    if (sellerData) {
+      fullName =
+        escapeHTML(
+          sellerData.fullName ||
+          `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
+          sellerData.displayName ||
+          sellerData.name ||
+          sellerData.nom ||
+          sellerData.prenom ||
+          "Utilisateur"
+        );
+    }
+
+    let sellerPhoto =
+      (sellerData && (
+        sellerData.profileImage ||
+        sellerData.profilePic ||
+        sellerData.profile ||
+        sellerData.photoURL ||
+        sellerData.avatar ||
+        sellerData.image ||
+        sellerData.photo
+      )) || "https://via.placeholder.com/40";
+
+    sellerPhoto = escapeHTML(sellerPhoto);
+    let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
+
+    card.innerHTML = `
+      <div class="image-container">
+        <img src="${annonceImage}" loading="lazy" alt="${escapeHTML(a.title || 'Annonce')}" 
+             onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
+        ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
+        <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
+        <span class="material-icons favorite ${isFav ? 'active' : ''}">
+          ${isFav ? 'favorite' : 'favorite_border'}
+        </span>
+      </div>
+      <div class="content">
+        <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
+        <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
+        <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
+      </div>
+      <div class="seller">
+        <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" 
+             onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
+        <div class="seller-info">
+          <strong>${fullName}</strong>
+          ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
+        </div>
+      </div>
+    `;
+
+    const titleEl = card.querySelector('.title');
+    if ((a.title || "").length > 30) titleEl.classList.add('long-text');
+
+    const favBtn = card.querySelector(".favorite");
+    favBtn.addEventListener("click", async e => {
+      e.stopPropagation();
+      if (!currentUser) {
+        const msg = document.getElementById("notLoggedMsg");
+        msg.style.display = "block";
+        setTimeout(() => { msg.style.display = "none"; }, 3000);
+        return;
       }
-
-      let fullName = "Utilisateur inconnu";
-      if (sellerData) {
-        fullName =
-          escapeHTML(
-            sellerData.fullName ||
-            `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
-            sellerData.displayName ||
-            sellerData.name ||
-            sellerData.nom ||
-            sellerData.prenom ||
-            "Utilisateur"
-          );
+      const favRef = doc(db, "users", currentUser.uid);
+      if (favBtn.classList.contains("active")) {
+        favBtn.classList.remove("active");
+        favBtn.textContent = "favorite_border";
+        userFavorites = userFavorites.filter(id => id !== docId);
+        await updateDoc(favRef, { favorites: arrayRemove(docId) });
+      } else {
+        favBtn.classList.add("active");
+        favBtn.textContent = "favorite";
+        userFavorites.push(docId);
+        await updateDoc(favRef, { favorites: arrayUnion(docId) });
       }
-
-      let sellerPhoto =
-        (sellerData && (
-          sellerData.profileImage ||
-          sellerData.profilePic ||
-          sellerData.profile ||
-          sellerData.photoURL ||
-          sellerData.avatar ||
-          sellerData.image ||
-          sellerData.photo
-        )) || "https://via.placeholder.com/40";
-
-      sellerPhoto = escapeHTML(sellerPhoto);
-      let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
-
-      card.innerHTML = `
-        <div class="image-container">
-          <img src="${annonceImage}" 
-               loading="lazy"
-               alt="${escapeHTML(a.title || 'Annonce')}"
-               onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
-          ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
-          <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
-          <span class="material-icons favorite ${isFav ? 'active' : ''}">
-            ${isFav ? 'favorite' : 'favorite_border'}
-          </span>
-        </div>
-        <div class="content">
-          <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
-          <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
-          <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
-        </div>
-        <div class="seller">
-          <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
-          <div class="seller-info">
-            <strong>${fullName}</strong>
-            ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
-          </div>
-        </div>
-      `;
-
-      const titleEl = card.querySelector('.title');
-      if ((a.title || "").length > 30) titleEl.classList.add('long-text');
-
-      const favBtn = card.querySelector(".favorite");
-      favBtn.addEventListener("click", async e => {
-        e.stopPropagation();
-        if (!currentUser) {
-          const msg = document.getElementById("notLoggedMsg");
-          msg.style.display = "block";
-          setTimeout(() => { msg.style.display = "none"; }, 3000);
-          return;
-        }
-        const favRef = doc(db, "users", currentUser.uid);
-        if (favBtn.classList.contains("active")) {
-          favBtn.classList.remove("active");
-          favBtn.textContent = "favorite_border";
-          userFavorites = userFavorites.filter(id => id !== docId);
-          await updateDoc(favRef, { favorites: arrayRemove(docId) });
-        } else {
-          favBtn.classList.add("active");
-          favBtn.textContent = "favorite";
-          userFavorites.push(docId);
-          await updateDoc(favRef, { favorites: arrayUnion(docId) });
-        }
-      });
-
-      card.addEventListener("click", e => {
-        if (e.target.classList.contains("favorite")) return;
-        window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
-      });
-
-      fragment.appendChild(card);
     });
 
-    annoncesContainer.appendChild(fragment);
+    card.addEventListener("click", e => {
+      if (e.target.classList.contains("favorite")) return;
+      window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
+    });
+
+    return card;
   };
 
-  // ⚡ Initial render
-  renderChunk(startIndex, startIndex + buffer);
+  let renderedCards = {};
 
-  // ⚡ Scroll infini
-  annoncesContainer.addEventListener("scroll", () => {
-    const scrollBottom = annoncesContainer.scrollTop + annoncesContainer.clientHeight;
-    const threshold = annoncesContainer.scrollHeight - 1000; // déclenchement avant la fin
-    if (scrollBottom > threshold && startIndex + buffer < filtered.length) {
-      startIndex += buffer;
-      renderChunk(startIndex, Math.min(startIndex + buffer, filtered.length));
+  const renderVisible = () => {
+    scrollTop = annoncesContainer.scrollTop;
+    const containerHeight = annoncesContainer.clientHeight;
+
+    const startIdx = Math.max(0, Math.floor(scrollTop / cardHeight) - buffer);
+    const endIdx = Math.min(filtered.length, Math.ceil((scrollTop + containerHeight) / cardHeight) + buffer);
+
+    // Supprime les cartes hors buffer
+    Object.keys(renderedCards).forEach(idx => {
+      if (idx < startIdx || idx >= endIdx) {
+        annoncesContainer.removeChild(renderedCards[idx]);
+        delete renderedCards[idx];
+      }
+    });
+
+    // Ajoute les cartes visibles
+    for (let i = startIdx; i < endIdx; i++) {
+      if (!renderedCards[i]) {
+        const card = createCard(filtered[i]);
+        card.style.position = "absolute";
+        card.style.top = i * cardHeight + "px";
+        card.style.width = "100%";
+        annoncesContainer.appendChild(card);
+        renderedCards[i] = card;
+      }
     }
-  });
+  };
+
+  // initial render
+  renderVisible();
+
+  annoncesContainer.addEventListener("scroll", renderVisible);
 }
 
 
