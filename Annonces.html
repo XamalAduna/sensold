@@ -458,6 +458,7 @@ function escapeHTML(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
 }
+
 // ✅ VERSION OPTIMISÉE : renderAnnonces pour +20 000 annonces
 async function renderAnnonces(filtered) {
   annoncesContainer.innerHTML = ""; // vide le conteneur avant affichage du lot actuel
@@ -795,6 +796,7 @@ function applyAllFilters() {
   // ⚡ Affichage uniquement du lot actuel pour fluidité
   renderAnnonces(filtered);
 }
+
 </script>  
 </body>
 </html>
