@@ -1,4 +1,3 @@
-
 <!DOCTYPE html> 
 <html lang="fr"> 
 <head> 
@@ -459,22 +458,17 @@ function escapeHTML(str) {
     .replace(/"/g, "&quot;")
 }
 
-// ✅ VERSION OPTIMISÉE : renderAnnonces pour +20 000 annonces
+// ✅ VRAI VIRTUAL SCROLL + LAZY LOADING pour 200 000+ annonces
 async function renderAnnonces(filtered) {
-  annoncesContainer.innerHTML = ""; // vide le conteneur avant affichage du lot actuel
-  if (filtered.length === 0) {
+  // vide le conteneur (ne supprime pas ton design global)
+  annoncesContainer.innerHTML = "";
+
+  if (!filtered || filtered.length === 0) {
     annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
     return;
   }
 
-  const totalPages = Math.ceil(filtered.length / annoncesPerPage);
-  if (currentPage > totalPages) currentPage = 1;
-
-  const start = (currentPage - 1) * annoncesPerPage;
-  const end = start + annoncesPerPage;
-  const pageItems = filtered.slice(start, end);
-
-  // ⚡ On ne recharge le cache utilisateurs que si nécessaire
+  // --- CHARGEMENT CACHE USERS (inchangé, mais exécuté une seule fois) ---
   if (!window.__usersCache) {
     try {
       const usersSnap = await getDocs(collection(db, "users"));
@@ -493,10 +487,40 @@ async function renderAnnonces(filtered) {
     }
   }
 
-  // ⚡ Création des cards en batch pour améliorer la performance
-  const fragment = document.createDocumentFragment();
+  // --- PARAMÈTRES ---
+  const CARD_HEIGHT = 320; // hauteur approximative d'une carte (adapter si nécessaire)
+  const BUFFER_ROWS = 3; // nombres de lignes tampon avant/après la fenêtre visible
+  let cols = getCols(); // 2 sur mobile, 4 sur grand écran — fonction plus bas
+  let rowCount = Math.ceil(filtered.length / cols);
+  let contentHeight = rowCount * CARD_HEIGHT;
 
-  for (const a of pageItems) {
+  // --- STRUCTURE interne : top spacer, viewport (où on injecte les cartes), bottom spacer ---
+  const topSpacer = document.createElement("div");
+  const viewport = document.createElement("div");
+  const bottomSpacer = document.createElement("div");
+
+  topSpacer.style.height = "0px";
+  bottomSpacer.style.height = (contentHeight) + "px"; // initial bottom height (sera recalculé)
+  viewport.style.position = "relative";
+
+  // on copie EXACTEMENT le style/design parent (pour ne rien casser)
+  annoncesContainer.appendChild(topSpacer);
+  annoncesContainer.appendChild(viewport);
+  annoncesContainer.appendChild(bottomSpacer);
+
+  // carte cache / map des éléments affichés (index -> element)
+  const rendered = new Map();
+
+  // pour empêcher multiples écouteurs scroll lors d'appels répétés
+  if (annoncesContainer._virtualScrollAttached) {
+    // si déjà attaché, on réinitialise les données (on efface les cartes déjà créées)
+    rendered.forEach((el) => el.remove());
+  } else {
+    annoncesContainer._virtualScrollAttached = true;
+  }
+
+  // --- AIDE : création d'une carte (garde ton innerHTML tel quel) ---
+  function createCard(a) {
     const docId = escapeHTML(a.id || "");
     const card = document.createElement("div");
     card.className = "annonce-card";
@@ -522,12 +546,12 @@ async function renderAnnonces(filtered) {
       fullName =
         escapeHTML(
           sellerData.fullName ||
-          `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
-          sellerData.displayName ||
-          sellerData.name ||
-          sellerData.nom ||
-          sellerData.prenom ||
-          "Utilisateur"
+            `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
+            sellerData.displayName ||
+            sellerData.name ||
+            sellerData.nom ||
+            sellerData.prenom ||
+            "Utilisateur"
         );
     }
 
@@ -545,6 +569,7 @@ async function renderAnnonces(filtered) {
     sellerPhoto = escapeHTML(sellerPhoto);
     let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
 
+    // on garde exactement le même markup que toi
     card.innerHTML = `
       <div class="image-container">
         <img src="${annonceImage}" 
@@ -572,20 +597,19 @@ async function renderAnnonces(filtered) {
     `;
 
     const titleEl = card.querySelector('.title');
-    if ((a.title || "").length > 30) {
-      titleEl.classList.add('long-text');
-    }
+    if ((a.title || "").length > 30) titleEl.classList.add('long-text');
 
     const favBtn = card.querySelector(".favorite");
     favBtn.addEventListener("click", async e => {
       e.stopPropagation();
       if (!currentUser) {
         const msg = document.getElementById("notLoggedMsg");
-        msg.style.display = "block";
-        setTimeout(() => { msg.style.display = "none"; }, 3000);
+        if (msg) {
+          msg.style.display = "block";
+          setTimeout(() => { msg.style.display = "none"; }, 3000);
+        }
         return;
       }
-
       const favRef = doc(db, "users", currentUser.uid);
       if (favBtn.classList.contains("active")) {
         favBtn.classList.remove("active");
@@ -605,11 +629,131 @@ async function renderAnnonces(filtered) {
       window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
     });
 
-    fragment.appendChild(card);
+    // style block pour forcer taille de la carte (utile pour le calcul du layout)
+    card.style.boxSizing = "border-box";
+    card.style.height = CARD_HEIGHT + "px";
+    card.style.width = "100%";
+
+    return card;
   }
 
-  annoncesContainer.appendChild(fragment); // ⚡ Ajout batch pour fluidité
-  renderPagination(Math.ceil(filtered.length / annoncesPerPage));
+  // --- RENDER : calcule la fenêtre visible et met à jour le DOM (topSpacer, viewport, bottomSpacer) ---
+  function renderVisible() {
+    const scrollTop = annoncesContainer.scrollTop;
+    const viewportHeight = annoncesContainer.clientHeight;
+    cols = getCols();
+    rowCount = Math.ceil(filtered.length / cols);
+    contentHeight = rowCount * CARD_HEIGHT;
+
+    const firstVisibleRow = Math.floor(scrollTop / CARD_HEIGHT);
+    const visibleRows = Math.ceil(viewportHeight / CARD_HEIGHT);
+
+    const startRow = Math.max(0, firstVisibleRow - BUFFER_ROWS);
+    const endRow = Math.min(rowCount - 1, firstVisibleRow + visibleRows + BUFFER_ROWS);
+
+    const startIndex = Math.max(0, startRow * cols);
+    const endIndex = Math.min(filtered.length, (endRow + 1) * cols);
+
+    // ajuster spacers
+    topSpacer.style.height = (startRow * CARD_HEIGHT) + "px";
+    bottomSpacer.style.height = Math.max(0, contentHeight - (endRow + 1) * CARD_HEIGHT) + "px";
+
+    // DETACH les éléments qui ne sont plus dans la fenetre
+    for (let [idx, el] of Array.from(rendered.entries())) {
+      if (idx < startIndex || idx >= endIndex) {
+        el.remove();
+        rendered.delete(idx);
+      }
+    }
+
+    // ajouter les éléments manquants
+    const fragment = document.createDocumentFragment();
+    for (let i = startIndex; i < endIndex; i++) {
+      if (rendered.has(i)) continue;
+      const a = filtered[i];
+      if (!a) continue;
+      const card = createCard(a);
+
+      // positionnement : on place chaque carte en "row flow" ; pour garder ton design, on laisse le CSS gérer la grille
+      // on ajoute un attribut data-index pour debug
+      card.dataset.index = i;
+      fragment.appendChild(card);
+      rendered.set(i, card);
+    }
+
+    // vider viewport puis réordonner les éléments dans l'ordre des indexes visibles
+    // Pour préserver ton apparence, on n'altère pas la structure interne des cartes ; on ajoute simplement les nouvelles cartes
+    // et on ordonne tout.
+    // on génère un tableau d'indexes visibles triés et on append dans cet ordre
+    const visibleIndexes = [];
+    for (let i = startIndex; i < endIndex; i++) visibleIndexes.push(i);
+
+    // première étape : ajouter nouveaux éléments
+    viewport.appendChild(fragment);
+
+    // deuxième étape : réordonner DOM children selon visibleIndexes (optimisé)
+    const childrenByIndex = {};
+    for (let child of Array.from(viewport.children)) {
+      const idx = Number(child.dataset.index);
+      if (!Number.isNaN(idx)) childrenByIndex[idx] = child;
+    }
+    // vider viewport et réappend en ordre (cela n'affecte pas ton CSS si c'est juste une grille)
+    viewport.innerHTML = "";
+    visibleIndexes.forEach(idx => {
+      const el = childrenByIndex[idx] || rendered.get(idx);
+      if (el) viewport.appendChild(el);
+    });
+  }
+
+  // --- helper pour déterminer colonnes (garde ta logique responsive : 2 colonnes mobile / 4 colonnes PC) ---
+  function getCols() {
+    try {
+      // seuil responsive approximatif : < 768px => 2 colonnes
+      return window.innerWidth < 768 ? 2 : 4;
+    } catch (e) {
+      return 4;
+    }
+  }
+
+  // --- handlers scroll / resize ---
+  let ticking = false;
+  function onScroll() {
+    if (!ticking) {
+      window.requestAnimationFrame(() => {
+        renderVisible();
+        ticking = false;
+      });
+      ticking = true;
+    }
+  }
+
+  // écouteur unique (retire l'ancien si présent)
+  if (annoncesContainer._vScrollHandler) {
+    annoncesContainer.removeEventListener("scroll", annoncesContainer._vScrollHandler);
+  }
+  annoncesContainer._vScrollHandler = onScroll;
+  annoncesContainer.addEventListener("scroll", onScroll, { passive: true });
+
+  // resize observer pour recalculer colonnes et dimensions au redimensionnement
+  if (annoncesContainer._resizeObserver) {
+    annoncesContainer._resizeObserver.disconnect();
+  }
+  annoncesContainer._resizeObserver = new ResizeObserver(() => {
+    // recalculer et rerender
+    cols = getCols();
+    rowCount = Math.ceil(filtered.length / cols);
+    contentHeight = rowCount * CARD_HEIGHT;
+    renderVisible();
+  });
+  annoncesContainer._resizeObserver.observe(annoncesContainer);
+
+  // --- initial render (place les premières cartes visibles) ---
+  // forcer recalcul des variables et du height
+  cols = getCols();
+  rowCount = Math.ceil(filtered.length / cols);
+  contentHeight = rowCount * CARD_HEIGHT;
+  bottomSpacer.style.height = Math.max(0, contentHeight) + "px";
+  renderVisible();
 }
 
 function renderPagination(totalPages){
