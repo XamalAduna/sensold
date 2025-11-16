@@ -621,74 +621,83 @@ async function renderAnnonces(filtered) {
   const rowCount = Math.ceil(filtered.length / cols);
   const totalHeight = rowCount * measuredCardHeight;
 
-  // --- état et map des éléments rendus ---
-  const rendered = new Map(); // index -> element
+  // --- état et pool d'éléments réutilisables ---
+const rendered = new Map();   // index -> element
+const pool = [];              // cartes recyclées
 
-  // --- on utilise padding-top et padding-bottom pour simuler l'espace total sans casser la grille CSS ---
-  annoncesContainer.style.paddingTop = "0px";
-  annoncesContainer.style.paddingBottom = totalHeight + "px";
+function getCardFromPool() {
+  return pool.pop() || createCard(filtered[0]); 
+}
 
-  // --- renderVisible en injectant uniquement les cartes visibles dans le container lui-même ---
-  const BUFFER_ROWS = 3;
-  function renderVisible() {
-    const scrollTop = annoncesContainer.scrollTop;
-    const viewportHeight = annoncesContainer.clientHeight;
+function mountCard(card, data, index) {
+  card.dataset.index = index;
 
-    const firstVisibleRow = Math.floor(scrollTop / measuredCardHeight);
-    const visibleRows = Math.ceil(viewportHeight / measuredCardHeight);
+  const img = card.querySelector(".image-container img");
+  img.src = data.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce";
+  img.alt = data.title || "Annonce";
 
-    const startRow = Math.max(0, firstVisibleRow - BUFFER_ROWS);
-    const endRow = Math.min(rowCount - 1, firstVisibleRow + visibleRows + BUFFER_ROWS);
+  card.querySelector(".price").textContent =
+    data.price ? data.price + " FCFA" : "Prix sur demande";
 
-    const startIndex = Math.max(0, startRow * cols);
-    const endIndex = Math.min(filtered.length, (endRow + 1) * cols);
+  const titleEl = card.querySelector(".title");
+  titleEl.textContent = data.title || "Sans titre";
+  if ((data.title || "").length > 30) titleEl.classList.add("long-text");
+  else titleEl.classList.remove("long-text");
 
-    // retirer du DOM les éléments hors fenêtre
-    for (let [idx, el] of Array.from(rendered.entries())) {
-      if (idx < startIndex || idx >= endIndex) {
-        el.remove();
-        rendered.delete(idx);
-      }
+  card.querySelector(".location").textContent =
+    "📍 " + (data.city || "Ville non précisée") +
+    (data.quartier ? ", " + data.quartier : "");
+
+  const favBtn = card.querySelector(".favorite");
+  const isFav = currentUser && userFavorites.includes(data.id);
+  favBtn.classList.toggle("active", isFav);
+  favBtn.textContent = isFav ? "favorite" : "favorite_border";
+}
+
+annoncesContainer.style.paddingTop = "0px";
+annoncesContainer.style.paddingBottom = totalHeight + "px";
+
+const BUFFER_ROWS = 3;
+
+// --- VIRTUAL SCROLL AVEC RECYCLAGE ---
+function renderVisible() {
+  const scrollTop = annoncesContainer.scrollTop;
+  const viewportHeight = annoncesContainer.clientHeight;
+
+  const firstVisibleRow = Math.floor(scrollTop / measuredCardHeight);
+  const visibleRows = Math.ceil(viewportHeight / measuredCardHeight);
+
+  const startRow = Math.max(0, firstVisibleRow - BUFFER_ROWS);
+  const endRow = Math.min(rowCount - 1, firstVisibleRow + visibleRows + BUFFER_ROWS);
+
+  const startIndex = startRow * cols;
+  const endIndex = Math.min(filtered.length, (endRow + 1) * cols);
+
+  // recycler les cartes hors écran
+  for (let [idx, el] of Array.from(rendered.entries())) {
+    if (idx < startIndex || idx >= endIndex) {
+      pool.push(el);
+      el.remove();
+      rendered.delete(idx);
     }
-
-    // ajouter éléments manquants
-    const fragment = document.createDocumentFragment();
-    for (let i = startIndex; i < endIndex; i++) {
-      if (rendered.has(i)) continue;
-      const a = filtered[i];
-      if (!a) continue;
-      const card = createCard(a);
-      card.dataset.index = i;
-      fragment.appendChild(card);
-      rendered.set(i, card);
-    }
-
-    // positionnement : pour garder ta grille exacte, on doit insérer les cartes dans l'ordre
-    // mais comme on utilise padding-top pour décaler, on insère les éléments au bon endroit
-    // Strategy: build an array of visible indexes and then insert elements into annoncesContainer in that order.
-    // First append new nodes (fragment) at the end, then reorder children to match the visible sequence.
-    annoncesContainer.appendChild(fragment);
-
-    // Build a map of current cards in container by index
-    const childrenByIndex = {};
-    for (const child of Array.from(annoncesContainer.children)) {
-      const idx = Number(child.dataset?.index);
-      if (!Number.isNaN(idx)) childrenByIndex[idx] = child;
-    }
-
-    // We need to keep other non-card elements (if any) — but typically container only has cards.
-    // Reorder only the card children to match startIndex..endIndex
-    const nodesToAppend = [];
-    for (let i = startIndex; i < endIndex; i++) {
-      if (childrenByIndex[i]) nodesToAppend.push(childrenByIndex[i]);
-    }
-    // Append in order (this moves existing nodes to correct positions)
-    nodesToAppend.forEach(n => annoncesContainer.appendChild(n));
-
-    // Update paddingTop to reflect rows before startRow (so grid starts visually at correct offset)
-    const topPadding = startRow * measuredCardHeight;
-    annoncesContainer.style.paddingTop = topPadding + "px";
   }
+
+  const fragment = document.createDocumentFragment();
+
+  for (let i = startIndex; i < endIndex; i++) {
+    if (rendered.has(i)) continue;
+
+    let card = getCardFromPool();
+    mountCard(card, filtered[i], i);
+
+    fragment.appendChild(card);
+    rendered.set(i, card);
+  }
+
+  annoncesContainer.appendChild(fragment);
+
+  annoncesContainer.style.paddingTop = (startRow * measuredCardHeight) + "px";
+}
 
   // --- scroll handling (raf optimisé) ---
   let ticking = false;
