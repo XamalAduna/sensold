@@ -1,3 +1,4 @@
+
 <!DOCTYPE html> 
 <html lang="fr"> 
 <head> 
@@ -458,14 +459,15 @@ function escapeHTML(str) {
     .replace(/"/g, "&quot;")
 }
 
-// VERSION V3 - Virtual scroll ultra-performant avec recyclage et update en place
+// VERSION PRO - vrai Virtual Scroll avec pool / recyclage (remplace ta renderAnnonces)
 async function renderAnnonces(filtered) {
+  // garde ancien comportement si vide
   if (!filtered || filtered.length === 0) {
     annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
     return;
   }
 
-  // --- CHARGEMENT CACHE USERS ---
+  // --- CHARGEMENT CACHE USERS (inchangé) ---
   if (!window.__usersCache) {
     try {
       const usersSnap = await getDocs(collection(db, "users"));
@@ -484,12 +486,91 @@ async function renderAnnonces(filtered) {
     }
   }
 
-  // --- Helper pour mettre à jour le contenu d'une carte existante ---
-  function updateCard(card, a) {
-    const docId = escapeHTML(a.id || "");
+  // --- helpers internes (ne pas toucher si tu veux garder ton design) ---
+  function createCardSkeleton() {
+    // crée la structure HTML de la carte une seule fois (évite innerHTML répétitif)
+    const card = document.createElement("div");
+    card.className = "annonce-card"; // garde ta classe
+    // structure interne basée sur ton markup initial
+    card.innerHTML = `
+      <div class="image-container">
+        <img class="annonce-img" src="https://via.placeholder.com/400x200?text=Annonce" loading="lazy" alt="Annonce">
+        <span class="boost-icon material-symbols-outlined" style="display:none">arrow_shape_up</span>
+        <span class="time-badge">⏰</span>
+        <span class="material-icons favorite">favorite_border</span>
+      </div>
+      <div class="content">
+        <p class="price"></p>
+        <h3 class="title"></h3>
+        <p class="location"></p>
+      </div>
+      <div class="seller">
+        <img class="seller-photo" src="https://via.placeholder.com/40" loading="lazy" alt="profil vendeur">
+        <div class="seller-info">
+          <strong class="seller-name"></strong>
+          <span class="boutique-pro material-symbols-outlined" title="Boutique Pro" style="display:none">storefront</span>
+        </div>
+      </div>
+    `;
+
+    // gestion erreur image (met en place handler une fois)
+    const annonceImg = card.querySelector('.annonce-img');
+    annonceImg.addEventListener('error', () => { annonceImg.onerror = null; annonceImg.src = 'https://via.placeholder.com/400x200?text=Annonce'; });
+
+    const sellerImg = card.querySelector('.seller-photo');
+    sellerImg.addEventListener('error', () => { sellerImg.onerror = null; sellerImg.src = 'https://via.placeholder.com/40'; });
+
+    // favorite click (lit data-index pour savoir quelle annonce)
+    const favBtn = card.querySelector('.favorite');
+    favBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!currentUser) {
+        const msg = document.getElementById("notLoggedMsg");
+        if (msg) { msg.style.display = "block"; setTimeout(() => { msg.style.display = "none"; }, 3000); }
+        return;
+      }
+      const idx = Number(card.dataset.index);
+      const annonce = filtered[idx];
+      if (!annonce) return;
+      const docId = escapeHTML(annonce.id || "");
+      const favRef = doc(db, "users", currentUser.uid);
+
+      if (favBtn.classList.contains("active")) {
+        favBtn.classList.remove("active");
+        favBtn.textContent = "favorite_border";
+        userFavorites = userFavorites.filter(id => id !== docId);
+        try { await updateDoc(favRef, { favorites: arrayRemove(docId) }); } catch (err) { console.error(err); }
+      } else {
+        favBtn.classList.add("active");
+        favBtn.textContent = "favorite";
+        userFavorites.push(docId);
+        try { await updateDoc(favRef, { favorites: arrayUnion(docId) }); } catch (err) { console.error(err); }
+      }
+    });
+
+    // click sur la carte (navigation)
+    card.addEventListener('click', (e) => {
+      if (e.target.classList.contains('favorite')) return;
+      const idx = Number(card.dataset.index);
+      const annonce = filtered[idx];
+      if (!annonce) return;
+      const docId = escapeHTML(annonce.id || "");
+      window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
+    });
+
+    return card;
+  }
+
+  function setCardData(card, a, idx) {
+    // met à jour uniquement le contenu (pas le DOM structurel)
+    card.dataset.index = idx;
 
     const isFav = currentUser && userFavorites.includes(a.id);
+    const favBtn = card.querySelector('.favorite');
+    favBtn.classList.toggle('active', !!isFav);
+    favBtn.textContent = isFav ? 'favorite' : 'favorite_border';
 
+    // seller data extraction (reproduit ta logique)
     let sellerData = null;
     const annonceEmail = (a.userEmail || "").toLowerCase().trim();
     if (annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
@@ -504,164 +585,201 @@ async function renderAnnonces(filtered) {
       if (subEnd > now) isPro = true;
     }
 
-    let fullName = "Utilisateur inconnu";
-    if (sellerData) {
-      fullName =
-        escapeHTML(
-          sellerData.fullName ||
+    const fullName =
+      sellerData
+        ? escapeHTML(
+            sellerData.fullName ||
             `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
-            sellerData.displayName ||
-            sellerData.name ||
-            sellerData.nom ||
-            sellerData.prenom ||
-            "Utilisateur"
-        );
-    }
+            sellerData.displayName || sellerData.name || sellerData.nom || sellerData.prenom || "Utilisateur"
+          )
+        : "Utilisateur inconnu";
 
-    let sellerPhoto =
-      (sellerData && (
-        sellerData.profileImage ||
-        sellerData.profilePic ||
-        sellerData.profile ||
-        sellerData.photoURL ||
-        sellerData.avatar ||
-        sellerData.image ||
-        sellerData.photo
-      )) || "https://via.placeholder.com/40";
+    const sellerPhoto =
+      escapeHTML(
+        (sellerData && (
+          sellerData.profileImage ||
+          sellerData.profilePic ||
+          sellerData.profile ||
+          sellerData.photoURL ||
+          sellerData.avatar ||
+          sellerData.image ||
+          sellerData.photo
+        )) || "https://via.placeholder.com/40"
+      );
 
-    sellerPhoto = escapeHTML(sellerPhoto);
-    let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
+    const annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
 
-    card.dataset.index = ""; // sera défini plus bas
-    card.innerHTML = `
-      <div class="image-container">
-        <img src="${annonceImage}" 
-             loading="lazy"
-             alt="${escapeHTML(a.title || 'Annonce')}"
-             onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
-        ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
-        <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
-        <span class="material-icons favorite ${isFav ? 'active' : ''}">
-          ${isFav ? 'favorite' : 'favorite_border'}
-        </span>
-      </div>
-      <div class="content">
-        <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
-        <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
-        <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
-      </div>
-      <div class="seller">
-        <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
-        <div class="seller-info">
-          <strong>${fullName}</strong>
-          ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
-        </div>
-      </div>
-    `;
+    // update DOM nodes
+    const imgEl = card.querySelector('.annonce-img');
+    imgEl.src = annonceImage;
+    imgEl.alt = escapeHTML(a.title || 'Annonce');
+
+    const boostIcon = card.querySelector('.boost-icon');
+    if (isBoostActive(a)) { boostIcon.style.display = ''; } else { boostIcon.style.display = 'none'; }
+
+    const timeBadge = card.querySelector('.time-badge');
+    timeBadge.textContent = `⏰ ${timeAgo(a.createdAt)}`;
+
+    const priceEl = card.querySelector('.price');
+    priceEl.textContent = a.price ? `${a.price} FCFA` : "Prix sur demande";
 
     const titleEl = card.querySelector('.title');
-    if ((a.title || "").length > 30) titleEl.classList.add('long-text');
+    titleEl.textContent = a.title || "Sans titre";
+    // garde ta logique de class long-text
+    titleEl.classList.toggle('long-text', (a.title || "").length > 30);
 
-    const favBtn = card.querySelector(".favorite");
-    favBtn.onclick = async e => {
-      e.stopPropagation();
-      if (!currentUser) {
-        const msg = document.getElementById("notLoggedMsg");
-        if (msg) {
-          msg.style.display = "block";
-          setTimeout(() => { msg.style.display = "none"; }, 3000);
-        }
-        return;
-      }
-      const favRef = doc(db, "users", currentUser.uid);
-      if (favBtn.classList.contains("active")) {
-        favBtn.classList.remove("active");
-        favBtn.textContent = "favorite_border";
-        userFavorites = userFavorites.filter(id => id !== docId);
-        await updateDoc(favRef, { favorites: arrayRemove(docId) });
-      } else {
-        favBtn.classList.add("active");
-        favBtn.textContent = "favorite";
-        userFavorites.push(docId);
-        await updateDoc(favRef, { favorites: arrayUnion(docId) });
-      }
-    };
+    const locationEl = card.querySelector('.location');
+    locationEl.textContent = `📍 ${a.city ? a.city : 'Ville non précisée'}${a.quartier ? ', ' + a.quartier : ''}`;
 
-    card.onclick = e => {
-      if (e.target.classList.contains("favorite")) return;
-      window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
-    };
+    const sellerImg = card.querySelector('.seller-photo');
+    sellerImg.src = sellerPhoto;
 
-    return card;
+    const sellerName = card.querySelector('.seller-name');
+    sellerName.textContent = fullName;
+
+    const proBadge = card.querySelector('.boutique-pro');
+    proBadge.style.display = isPro ? '' : 'none';
   }
 
-  // --- Mesure hauteur d'une carte ---
-  const tempCard = updateCard(document.createElement("div"), filtered[0] || {});
-  tempCard.style.visibility = "hidden";
-  document.body.appendChild(tempCard);
-  const cardHeight = Math.max(1, tempCard.offsetHeight);
-  document.body.removeChild(tempCard);
+  // --- mesure dynamique (une seule mesure puis réutilisée) ---
+  // crée une carte temporaire puis mesure
+  const measureWrapper = document.createElement("div");
+  measureWrapper.style.visibility = "hidden";
+  measureWrapper.style.position = "absolute";
+  measureWrapper.style.left = "-9999px";
+  measureWrapper.style.top = "0";
+  const sampleCard = createCardSkeleton();
+  measureWrapper.appendChild(sampleCard);
+  document.body.appendChild(measureWrapper);
+  const measuredCardHeight = Math.max(1, sampleCard.offsetHeight);
+  document.body.removeChild(measureWrapper);
 
-  const cols = window.innerWidth < 768 ? 2 : 4;
+  // --- calc cols / rows / totalHeight ---
+  const cols = (() => { try { return window.innerWidth < 768 ? 2 : 4; } catch (e) { return 4; } })();
   const rowCount = Math.ceil(filtered.length / cols);
-  const totalHeight = rowCount * cardHeight;
+  const totalHeight = rowCount * measuredCardHeight;
 
-  const rendered = new Map(); // index -> element
-  const recycled = []; // pool
+  // --- pool (recyclage) ---
+  const BUFFER_ROWS = 3;
+  const viewportHeight = annoncesContainer.clientHeight || window.innerHeight;
+  const visibleRowsEstimate = Math.ceil(viewportHeight / measuredCardHeight);
+  const poolRows = visibleRowsEstimate + BUFFER_ROWS * 2;
+  const poolSize = Math.min(filtered.length, poolRows * cols);
 
+  // clean container but DO NOT remove pool if exists (re-init safe)
+  // on reset, remove old pool and handlers to avoid doubles
+  if (annoncesContainer._vPool) {
+    // remove existing children and clear metadata
+    annoncesContainer.innerHTML = "";
+    annoncesContainer._vPool = null;
+    annoncesContainer._indexToSlot = null;
+    if (annoncesContainer._vScrollHandler) {
+      annoncesContainer.removeEventListener("scroll", annoncesContainer._vScrollHandler);
+      annoncesContainer._vScrollHandler = null;
+    }
+    if (annoncesContainer._resizeObserver) {
+      annoncesContainer._resizeObserver.disconnect();
+      annoncesContainer._resizeObserver = null;
+    }
+  } else {
+    // if container had content, clear it once
+    annoncesContainer.innerHTML = "";
+  }
+
+  // create pool elements once
+  const pool = [];
+  for (let i = 0; i < poolSize; i++) {
+    const card = createCardSkeleton();
+    // dataset.index initial -1 (vide)
+    card.dataset.index = -1;
+    pool.push(card);
+    annoncesContainer.appendChild(card);
+  }
+  annoncesContainer._vPool = pool;
+  const indexToSlot = new Map(); // annonceIndex -> slotIndex
+  annoncesContainer._indexToSlot = indexToSlot;
+
+  // --- simulate full height with paddings (garde ta grille CSS) ---
   annoncesContainer.style.paddingTop = "0px";
   annoncesContainer.style.paddingBottom = totalHeight + "px";
 
-  const BUFFER_ROWS = 3;
-
+  // --- renderVisible : met à jour contenu des cards du pool sans recréer ---
   function renderVisible() {
     const scrollTop = annoncesContainer.scrollTop;
-    const viewportHeight = annoncesContainer.clientHeight;
+    const viewportH = annoncesContainer.clientHeight || window.innerHeight;
 
-    const firstRow = Math.floor(scrollTop / cardHeight);
-    const visibleRows = Math.ceil(viewportHeight / cardHeight);
+    const firstVisibleRow = Math.floor(scrollTop / measuredCardHeight);
+    const visibleRows = Math.ceil(viewportH / measuredCardHeight);
 
-    const startRow = Math.max(0, firstRow - BUFFER_ROWS);
-    const endRow = Math.min(rowCount - 1, firstRow + visibleRows + BUFFER_ROWS);
+    const startRow = Math.max(0, firstVisibleRow - BUFFER_ROWS);
+    const endRow = Math.min(rowCount - 1, firstVisibleRow + visibleRows + BUFFER_ROWS);
 
-    const startIndex = startRow * cols;
+    const startIndex = Math.max(0, startRow * cols);
     const endIndex = Math.min(filtered.length, (endRow + 1) * cols);
+    const neededCount = endIndex - startIndex;
 
-    // recycler cartes hors écran
-    for (let [idx, el] of Array.from(rendered.entries())) {
-      if (idx < startIndex || idx >= endIndex) {
-        rendered.delete(idx);
-        recycled.push(el);
+    // safety bound: neededCount <= poolSize by design. If not, we clamp.
+    const useCount = Math.min(neededCount, pool.length);
+
+    // Assign pool slots to indexes startIndex..(startIndex+useCount-1)
+    for (let slot = 0; slot < useCount; slot++) {
+      const targetIndex = startIndex + slot;
+      const existingSlotForIndex = indexToSlot.get(targetIndex);
+      if (existingSlotForIndex !== undefined) {
+        // already assigned, nothing to do
+        continue;
       }
-    }
-
-    // ajouter ou mettre à jour cartes visibles
-    for (let i = startIndex; i < endIndex; i++) {
-      if (rendered.has(i)) continue;
-      const a = filtered[i];
-      if (!a) continue;
-
-      let card;
-      if (recycled.length > 0) {
-        card = recycled.pop();
-        updateCard(card, a);
+      // find a free slot (slot whose current index is out of range)
+      let chosenSlot = -1;
+      for (let s = 0; s < pool.length; s++) {
+        const curIndex = Number(pool[s].dataset.index);
+        if (curIndex < startIndex || curIndex >= endIndex) { chosenSlot = s; break; }
+      }
+      if (chosenSlot === -1) {
+        // fallback: pick slot = slot (overwrite)
+        chosenSlot = slot % pool.length;
+        const prevIndex = Number(pool[chosenSlot].dataset.index);
+        if (!Number.isNaN(prevIndex)) indexToSlot.delete(prevIndex);
       } else {
-        card = updateCard(document.createElement("div"), a);
+        // free slot chosen: remove its previous mapping
+        const prevIndex = Number(pool[chosenSlot].dataset.index);
+        if (!Number.isNaN(prevIndex)) indexToSlot.delete(prevIndex);
       }
-
-      card.dataset.index = i;
-      annoncesContainer.appendChild(card);
-      rendered.set(i, card);
+      // now set data
+      const card = pool[chosenSlot];
+      const a = filtered[targetIndex];
+      if (a) setCardData(card, a, targetIndex);
+      indexToSlot.set(targetIndex, chosenSlot);
     }
 
-    annoncesContainer.style.paddingTop = startRow * cardHeight + "px";
+    // For any pool slots that fall outside startIndex..endIndex, mark dataset.index = -1 (optional)
+    for (let s = 0; s < pool.length; s++) {
+      const curIndex = Number(pool[s].dataset.index);
+      if (curIndex < startIndex || curIndex >= endIndex) {
+        pool[s].dataset.index = -1;
+      }
+    }
+
+    // Reorder DOM children to match visual order startIndex..endIndex (only append existing nodes)
+    // Build mapping index->node for visible indexes
+    const nodesToAppend = [];
+    for (let i = startIndex; i < endIndex; i++) {
+      const s = indexToSlot.get(i);
+      if (s !== undefined && pool[s]) nodesToAppend.push(pool[s]);
+    }
+    // append in order (moves nodes)
+    nodesToAppend.forEach(n => annoncesContainer.appendChild(n));
+
+    // Update paddingTop to offset rows before startRow
+    const topPadding = startRow * measuredCardHeight;
+    annoncesContainer.style.paddingTop = topPadding + "px";
   }
 
-  // --- scroll & resize ---
+  // --- scroll handling (raf) ---
   let ticking = false;
   function onScroll() {
     if (!ticking) {
-      requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
         renderVisible();
         ticking = false;
       });
@@ -669,24 +787,37 @@ async function renderAnnonces(filtered) {
     }
   }
 
-  if (annoncesContainer._vScrollHandler) annoncesContainer.removeEventListener("scroll", annoncesContainer._vScrollHandler);
+  // attach handler (remove previous if any)
+  if (annoncesContainer._vScrollHandler) {
+    annoncesContainer.removeEventListener("scroll", annoncesContainer._vScrollHandler);
+  }
   annoncesContainer._vScrollHandler = onScroll;
   annoncesContainer.addEventListener("scroll", onScroll, { passive: true });
 
-  if (annoncesContainer._resizeObserver) annoncesContainer._resizeObserver.disconnect();
+  // --- resize observer : remesure si la largeur change (responsive cols) ---
+  if (annoncesContainer._resizeObserver) {
+    annoncesContainer._resizeObserver.disconnect();
+  }
   annoncesContainer._resizeObserver = new ResizeObserver(() => {
-    const temp = updateCard(document.createElement("div"), filtered[0] || {});
+    // recalculer la hauteur d'une carte
+    const temp = createCardSkeleton();
     temp.style.visibility = "hidden";
     document.body.appendChild(temp);
     const newHeight = Math.max(1, temp.offsetHeight);
     document.body.removeChild(temp);
 
-    annoncesContainer.style.paddingBottom = (Math.ceil(filtered.length / (window.innerWidth < 768 ? 2 : 4)) * newHeight) + "px";
+    // mise à jour des paramètres dépendants
+    const newCols = window.innerWidth < 768 ? 2 : 4;
+    const newRowCount = Math.ceil(filtered.length / newCols);
+    annoncesContainer.style.paddingBottom = (newRowCount * newHeight) + "px";
+
+    // met à jour la mesure globale et force rendu
+    // (on ne recrée pas pool, on laisse renderVisible recalculer)
     renderVisible();
   });
   annoncesContainer._resizeObserver.observe(annoncesContainer);
 
-  // --- initial render ---
+  // --- initial render (remplit pool avec les premières annonces visibles) ---
   renderVisible();
 }
 
