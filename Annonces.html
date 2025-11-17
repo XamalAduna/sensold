@@ -459,9 +459,11 @@ function escapeHTML(str) {
     .replace(/"/g, "&quot;")
 }
 
-// VERSION PRO - Virtual Scroll corrigé avec pool / recyclage, responsive et 300 000+ annonces
+// VERSION V2 - Virtual scroll qui respecte ta grille CSS et la taille réelle des cartes
 async function renderAnnonces(filtered) {
+  // vide le conteneur (ne change pas ta structure globale)
   annoncesContainer.innerHTML = "";
+
   if (!filtered || filtered.length === 0) {
     annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
     return;
@@ -486,7 +488,7 @@ async function renderAnnonces(filtered) {
     }
   }
 
-  // --- Helper pour créer une carte (inchangé, design intacts) ---
+  // --- Helpers (createCard identique à ton markup, sans forcer style height/width) ---
   function createCard(a) {
     const docId = escapeHTML(a.id || "");
     const card = document.createElement("div");
@@ -570,7 +572,10 @@ async function renderAnnonces(filtered) {
       e.stopPropagation();
       if (!currentUser) {
         const msg = document.getElementById("notLoggedMsg");
-        if (msg) { msg.style.display = "block"; setTimeout(() => { msg.style.display = "none"; }, 3000); }
+        if (msg) {
+          msg.style.display = "block";
+          setTimeout(() => { msg.style.display = "none"; }, 3000);
+        }
         return;
       }
       const favRef = doc(db, "users", currentUser.uid);
@@ -592,84 +597,101 @@ async function renderAnnonces(filtered) {
       window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
     });
 
+    // ne pas forcer width/height ici — laisse ton CSS gérer tout
     return card;
   }
 
-  // --- Mesure carte pour virtual scroll ---
+  // --- Mesure dynamique de la hauteur d'une carte (respecte ton CSS) ---
+  // On crée une carte mesurée, on l'ajoute temporairement (hidden), on lit offsetHeight.
   const measureWrapper = document.createElement("div");
   measureWrapper.style.visibility = "hidden";
   measureWrapper.style.position = "absolute";
   measureWrapper.style.left = "-9999px";
   measureWrapper.style.top = "0";
+  // on place une carte de mesure (avec la 1ère annonce si dispo)
   const sampleCard = createCard(filtered[0] || {});
   measureWrapper.appendChild(sampleCard);
   document.body.appendChild(measureWrapper);
-  let measuredCardHeight = Math.max(1, sampleCard.offsetHeight);
+  const measuredCardHeight = Math.max(1, sampleCard.offsetHeight); // fallback 1 pour éviter div0
   document.body.removeChild(measureWrapper);
 
-  // --- Pool et état ---
-  let cols = window.innerWidth < 768 ? 2 : 4;
+  // --- paramètres de fenêtrage ---
+  const cols = (() => {
+    try { return window.innerWidth < 768 ? 2 : 4; } catch (e) { return 4; }
+  })();
   const rowCount = Math.ceil(filtered.length / cols);
   const totalHeight = rowCount * measuredCardHeight;
 
-  const rendered = new Map(); // index -> card
-  const cardPool = []; // pool fixe
-  const BUFFER_ROWS = 3;
-  const maxVisibleCards = (Math.ceil(annoncesContainer.clientHeight / measuredCardHeight) + 2 * BUFFER_ROWS) * cols;
+  // --- état et map des éléments rendus ---
+  const rendered = new Map(); // index -> element
 
-  // Pré-créer les cartes du pool
-  for (let i = 0; i < Math.min(maxVisibleCards, filtered.length); i++) {
-    const card = createCard(filtered[i]);
-    card.dataset.index = i;
-    cardPool.push(card);
-  }
-
-  annoncesContainer.style.position = "relative";
+  // --- on utilise padding-top et padding-bottom pour simuler l'espace total sans casser la grille CSS ---
   annoncesContainer.style.paddingTop = "0px";
   annoncesContainer.style.paddingBottom = totalHeight + "px";
 
-  // --- Fonction renderVisible avec pool ---
+  // --- renderVisible en injectant uniquement les cartes visibles dans le container lui-même ---
+  const BUFFER_ROWS = 3;
   function renderVisible() {
     const scrollTop = annoncesContainer.scrollTop;
     const viewportHeight = annoncesContainer.clientHeight;
+
     const firstVisibleRow = Math.floor(scrollTop / measuredCardHeight);
     const visibleRows = Math.ceil(viewportHeight / measuredCardHeight);
+
     const startRow = Math.max(0, firstVisibleRow - BUFFER_ROWS);
     const endRow = Math.min(rowCount - 1, firstVisibleRow + visibleRows + BUFFER_ROWS);
+
     const startIndex = Math.max(0, startRow * cols);
     const endIndex = Math.min(filtered.length, (endRow + 1) * cols);
 
-    // Recycler cartes : retirer hors viewport et remettre dans pool
-    for (let [idx, card] of Array.from(rendered.entries())) {
+    // retirer du DOM les éléments hors fenêtre
+    for (let [idx, el] of Array.from(rendered.entries())) {
       if (idx < startIndex || idx >= endIndex) {
+        el.remove();
         rendered.delete(idx);
-        cardPool.push(card);
-        card.remove(); // retirer du DOM
       }
     }
 
-    // Injecter cartes visibles depuis le pool
+    // ajouter éléments manquants
     const fragment = document.createDocumentFragment();
     for (let i = startIndex; i < endIndex; i++) {
       if (rendered.has(i)) continue;
-      let card = cardPool.length ? cardPool.pop() : createCard(filtered[i]);
+      const a = filtered[i];
+      if (!a) continue;
+      const card = createCard(a);
       card.dataset.index = i;
-
-      // Mettre à jour contenu si réutilisation
-      if (!fragment.contains(card)) {
-        const newCard = createCard(filtered[i]);
-        card.innerHTML = newCard.innerHTML;
-      }
-
       fragment.appendChild(card);
       rendered.set(i, card);
     }
 
+    // positionnement : pour garder ta grille exacte, on doit insérer les cartes dans l'ordre
+    // mais comme on utilise padding-top pour décaler, on insère les éléments au bon endroit
+    // Strategy: build an array of visible indexes and then insert elements into annoncesContainer in that order.
+    // First append new nodes (fragment) at the end, then reorder children to match the visible sequence.
     annoncesContainer.appendChild(fragment);
-    annoncesContainer.style.paddingTop = startRow * measuredCardHeight + "px";
+
+    // Build a map of current cards in container by index
+    const childrenByIndex = {};
+    for (const child of Array.from(annoncesContainer.children)) {
+      const idx = Number(child.dataset?.index);
+      if (!Number.isNaN(idx)) childrenByIndex[idx] = child;
+    }
+
+    // We need to keep other non-card elements (if any) — but typically container only has cards.
+    // Reorder only the card children to match startIndex..endIndex
+    const nodesToAppend = [];
+    for (let i = startIndex; i < endIndex; i++) {
+      if (childrenByIndex[i]) nodesToAppend.push(childrenByIndex[i]);
+    }
+    // Append in order (this moves existing nodes to correct positions)
+    nodesToAppend.forEach(n => annoncesContainer.appendChild(n));
+
+    // Update paddingTop to reflect rows before startRow (so grid starts visually at correct offset)
+    const topPadding = startRow * measuredCardHeight;
+    annoncesContainer.style.paddingTop = topPadding + "px";
   }
 
-  // --- Scroll optimisé ---
+  // --- scroll handling (raf optimisé) ---
   let ticking = false;
   function onScroll() {
     if (!ticking) {
@@ -681,30 +703,37 @@ async function renderAnnonces(filtered) {
     }
   }
 
-  if (annoncesContainer._vScrollHandler) annoncesContainer.removeEventListener("scroll", annoncesContainer._vScrollHandler);
+  // remove previous handler if present
+  if (annoncesContainer._vScrollHandler) {
+    annoncesContainer.removeEventListener("scroll", annoncesContainer._vScrollHandler);
+  }
   annoncesContainer._vScrollHandler = onScroll;
   annoncesContainer.addEventListener("scroll", onScroll, { passive: true });
 
-  // --- Responsive ---
-  if (annoncesContainer._resizeObserver) annoncesContainer._resizeObserver.disconnect();
+  // resize observer : remesure si la largeur change (responsive cols)
+  if (annoncesContainer._resizeObserver) {
+    annoncesContainer._resizeObserver.disconnect();
+  }
   annoncesContainer._resizeObserver = new ResizeObserver(() => {
-    cols = window.innerWidth < 768 ? 2 : 4;
-    measuredCardHeight = (() => {
-      const temp = createCard(filtered[0] || {});
-      temp.style.visibility = "hidden";
-      document.body.appendChild(temp);
-      const h = Math.max(1, temp.offsetHeight);
-      document.body.removeChild(temp);
-      return h;
-    })();
-    annoncesContainer.style.paddingBottom = (Math.ceil(filtered.length / cols) * measuredCardHeight) + "px";
+    // recalculer la hauteur d'une carte (au cas où ton CSS change via media queries)
+    const temp = createCard(filtered[0] || {});
+    temp.style.visibility = "hidden";
+    document.body.appendChild(temp);
+    const newHeight = Math.max(1, temp.offsetHeight);
+    document.body.removeChild(temp);
+
+    // mettre à jour la hauteur mesurée et total padding bottom
+    // (on remet paddingBottom total et réexécute renderVisible)
+    annoncesContainer.style.paddingBottom = (Math.ceil(filtered.length / (window.innerWidth < 768 ? 2 : 4)) * newHeight) + "px";
+    // déclenche rendu
     renderVisible();
   });
   annoncesContainer._resizeObserver.observe(annoncesContainer);
 
-  // --- Initial render ---
+  // --- initial render ---
   renderVisible();
 }
+
 
   
 function renderPagination(totalPages){
