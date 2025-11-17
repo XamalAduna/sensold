@@ -458,11 +458,9 @@ function escapeHTML(str) {
     .replace(/"/g, "&quot;")
 }
 
-// VERSION V2 - Virtual scroll qui respecte ta grille CSS et la taille réelle des cartes
+// VERSION PRO - Virtual scroll avec recyclage
 async function renderAnnonces(filtered) {
-  // vide le conteneur (ne change pas ta structure globale)
-  annoncesContainer.innerHTML = "";
-
+  // --- vide le conteneur uniquement si aucun résultat ---
   if (!filtered || filtered.length === 0) {
     annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
     return;
@@ -487,7 +485,7 @@ async function renderAnnonces(filtered) {
     }
   }
 
-  // --- Helpers (createCard identique à ton markup, sans forcer style height/width) ---
+  // --- Helpers (createCard identique à ton markup) ---
   function createCard(a) {
     const docId = escapeHTML(a.id || "");
     const card = document.createElement("div");
@@ -596,101 +594,90 @@ async function renderAnnonces(filtered) {
       window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
     });
 
-    // ne pas forcer width/height ici — laisse ton CSS gérer tout
     return card;
   }
 
-  // --- Mesure dynamique de la hauteur d'une carte (respecte ton CSS) ---
-  // On crée une carte mesurée, on l'ajoute temporairement (hidden), on lit offsetHeight.
+  // --- Fonction pour mettre à jour une carte existante ---
+  function updateCardContent(card, a) {
+    card.querySelector('.title').textContent = a.title || "Sans titre";
+    card.querySelector('.price').textContent = a.price ? a.price + " FCFA" : "Prix sur demande";
+    card.querySelector('.location').textContent =
+      "📍 " + (a.city || "Ville non précisée") + (a.quartier ? ", " + a.quartier : "");
+    const img = card.querySelector('.image-container img');
+    img.src = a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce";
+    card.dataset.index = filtered.indexOf(a);
+  }
+
+  // --- Mesure dynamique de la hauteur d'une carte ---
   const measureWrapper = document.createElement("div");
   measureWrapper.style.visibility = "hidden";
   measureWrapper.style.position = "absolute";
   measureWrapper.style.left = "-9999px";
   measureWrapper.style.top = "0";
-  // on place une carte de mesure (avec la 1ère annonce si dispo)
   const sampleCard = createCard(filtered[0] || {});
   measureWrapper.appendChild(sampleCard);
   document.body.appendChild(measureWrapper);
-  const measuredCardHeight = Math.max(1, sampleCard.offsetHeight); // fallback 1 pour éviter div0
+  const measuredCardHeight = Math.max(1, sampleCard.offsetHeight);
   document.body.removeChild(measureWrapper);
 
-  // --- paramètres de fenêtrage ---
-  const cols = (() => {
-    try { return window.innerWidth < 768 ? 2 : 4; } catch (e) { return 4; }
-  })();
+  // --- Paramètres de fenêtrage ---
+  const cols = window.innerWidth < 768 ? 2 : 4;
   const rowCount = Math.ceil(filtered.length / cols);
   const totalHeight = rowCount * measuredCardHeight;
 
-  // --- état et map des éléments rendus ---
-  const rendered = new Map(); // index -> element
-
-  // --- on utilise padding-top et padding-bottom pour simuler l'espace total sans casser la grille CSS ---
   annoncesContainer.style.paddingTop = "0px";
   annoncesContainer.style.paddingBottom = totalHeight + "px";
 
-  // --- renderVisible en injectant uniquement les cartes visibles dans le container lui-même ---
+  const rendered = new Map(); // index -> element
+  const cardPool = [];       // pool de cartes réutilisables
   const BUFFER_ROWS = 3;
+
   function renderVisible() {
     const scrollTop = annoncesContainer.scrollTop;
     const viewportHeight = annoncesContainer.clientHeight;
-
     const firstVisibleRow = Math.floor(scrollTop / measuredCardHeight);
     const visibleRows = Math.ceil(viewportHeight / measuredCardHeight);
 
     const startRow = Math.max(0, firstVisibleRow - BUFFER_ROWS);
     const endRow = Math.min(rowCount - 1, firstVisibleRow + visibleRows + BUFFER_ROWS);
-
     const startIndex = Math.max(0, startRow * cols);
     const endIndex = Math.min(filtered.length, (endRow + 1) * cols);
 
-    // retirer du DOM les éléments hors fenêtre
+    // retirer du DOM les cartes hors fenêtre mais les garder pour réutilisation
     for (let [idx, el] of Array.from(rendered.entries())) {
       if (idx < startIndex || idx >= endIndex) {
-        el.remove();
+        annoncesContainer.removeChild(el);
+        cardPool.push(el);
         rendered.delete(idx);
       }
     }
 
-    // ajouter éléments manquants
+    // ajouter les cartes visibles
     const fragment = document.createDocumentFragment();
     for (let i = startIndex; i < endIndex; i++) {
       if (rendered.has(i)) continue;
       const a = filtered[i];
       if (!a) continue;
-      const card = createCard(a);
+
+      let card;
+      if (cardPool.length > 0) {
+        card = cardPool.pop();
+        updateCardContent(card, a);
+      } else {
+        card = createCard(a);
+      }
       card.dataset.index = i;
       fragment.appendChild(card);
       rendered.set(i, card);
     }
 
-    // positionnement : pour garder ta grille exacte, on doit insérer les cartes dans l'ordre
-    // mais comme on utilise padding-top pour décaler, on insère les éléments au bon endroit
-    // Strategy: build an array of visible indexes and then insert elements into annoncesContainer in that order.
-    // First append new nodes (fragment) at the end, then reorder children to match the visible sequence.
     annoncesContainer.appendChild(fragment);
 
-    // Build a map of current cards in container by index
-    const childrenByIndex = {};
-    for (const child of Array.from(annoncesContainer.children)) {
-      const idx = Number(child.dataset?.index);
-      if (!Number.isNaN(idx)) childrenByIndex[idx] = child;
-    }
-
-    // We need to keep other non-card elements (if any) — but typically container only has cards.
-    // Reorder only the card children to match startIndex..endIndex
-    const nodesToAppend = [];
-    for (let i = startIndex; i < endIndex; i++) {
-      if (childrenByIndex[i]) nodesToAppend.push(childrenByIndex[i]);
-    }
-    // Append in order (this moves existing nodes to correct positions)
-    nodesToAppend.forEach(n => annoncesContainer.appendChild(n));
-
-    // Update paddingTop to reflect rows before startRow (so grid starts visually at correct offset)
-    const topPadding = startRow * measuredCardHeight;
-    annoncesContainer.style.paddingTop = topPadding + "px";
+    // Padding top pour aligner correctement la grille
+    annoncesContainer.style.paddingTop = (startRow * measuredCardHeight) + "px";
   }
 
-  // --- scroll handling (raf optimisé) ---
+  // --- Scroll handling optimisé ---
   let ticking = false;
   function onScroll() {
     if (!ticking) {
@@ -702,36 +689,31 @@ async function renderAnnonces(filtered) {
     }
   }
 
-  // remove previous handler if present
   if (annoncesContainer._vScrollHandler) {
     annoncesContainer.removeEventListener("scroll", annoncesContainer._vScrollHandler);
   }
   annoncesContainer._vScrollHandler = onScroll;
   annoncesContainer.addEventListener("scroll", onScroll, { passive: true });
 
-  // resize observer : remesure si la largeur change (responsive cols)
+  // --- Resize observer pour remesure si responsive ---
   if (annoncesContainer._resizeObserver) {
     annoncesContainer._resizeObserver.disconnect();
   }
   annoncesContainer._resizeObserver = new ResizeObserver(() => {
-    // recalculer la hauteur d'une carte (au cas où ton CSS change via media queries)
     const temp = createCard(filtered[0] || {});
     temp.style.visibility = "hidden";
     document.body.appendChild(temp);
     const newHeight = Math.max(1, temp.offsetHeight);
     document.body.removeChild(temp);
-
-    // mettre à jour la hauteur mesurée et total padding bottom
-    // (on remet paddingBottom total et réexécute renderVisible)
     annoncesContainer.style.paddingBottom = (Math.ceil(filtered.length / (window.innerWidth < 768 ? 2 : 4)) * newHeight) + "px";
-    // déclenche rendu
     renderVisible();
   });
   annoncesContainer._resizeObserver.observe(annoncesContainer);
 
-  // --- initial render ---
+  // --- Initial render ---
   renderVisible();
 }
+
 
 
 
