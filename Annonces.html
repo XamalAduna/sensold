@@ -459,9 +459,8 @@ function escapeHTML(str) {
     .replace(/"/g, "&quot;")
 }
 
-// VERSION PRO - Virtual Scroll avec pool / recyclage, responsive et 300 000+ annonces
+// VERSION PRO - Virtual Scroll corrigé avec pool / recyclage, responsive et 300 000+ annonces
 async function renderAnnonces(filtered) {
-  // --- si aucune annonce ---
   annoncesContainer.innerHTML = "";
   if (!filtered || filtered.length === 0) {
     annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
@@ -487,7 +486,7 @@ async function renderAnnonces(filtered) {
     }
   }
 
-  // --- Helpers (createCard inchangé, design intacts) ---
+  // --- Helper pour créer une carte (inchangé, design intacts) ---
   function createCard(a) {
     const docId = escapeHTML(a.id || "");
     const card = document.createElement("div");
@@ -596,7 +595,7 @@ async function renderAnnonces(filtered) {
     return card;
   }
 
-  // --- Mesure d'une carte pour le virtual scroll ---
+  // --- Mesure carte pour virtual scroll ---
   const measureWrapper = document.createElement("div");
   measureWrapper.style.visibility = "hidden";
   measureWrapper.style.position = "absolute";
@@ -645,6 +644,7 @@ async function renderAnnonces(filtered) {
       if (idx < startIndex || idx >= endIndex) {
         rendered.delete(idx);
         cardPool.push(card);
+        card.remove(); // retirer du DOM
       }
     }
 
@@ -652,22 +652,20 @@ async function renderAnnonces(filtered) {
     const fragment = document.createDocumentFragment();
     for (let i = startIndex; i < endIndex; i++) {
       if (rendered.has(i)) continue;
-      const card = cardPool.length ? cardPool.pop() : createCard(filtered[i]);
-      const a = filtered[i];
-      // Mise à jour du contenu si carte réutilisée
-      if (card && rendered.has(i) === false) {
-        card.dataset.index = i;
-        if (a) {
-          card.replaceWith(createCard(a)); // conserve design + listeners
-        }
-        fragment.appendChild(card);
-        rendered.set(i, card);
+      let card = cardPool.length ? cardPool.pop() : createCard(filtered[i]);
+      card.dataset.index = i;
+
+      // Mettre à jour contenu si réutilisation
+      if (!fragment.contains(card)) {
+        const newCard = createCard(filtered[i]);
+        card.innerHTML = newCard.innerHTML;
       }
+
+      fragment.appendChild(card);
+      rendered.set(i, card);
     }
 
     annoncesContainer.appendChild(fragment);
-
-    // Padding top pour simuler l’espace avant les cartes
     annoncesContainer.style.paddingTop = startRow * measuredCardHeight + "px";
   }
 
