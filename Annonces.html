@@ -459,8 +459,10 @@ function escapeHTML(str) {
     .replace(/"/g, "&quot;")
 }
 
-// VERSION PRO - Virtual Scroll avec pool / recyclage
+// VERSION PRO - Virtual Scroll avec pool / recyclage, responsive et 300 000+ annonces
 async function renderAnnonces(filtered) {
+  // --- si aucune annonce ---
+  annoncesContainer.innerHTML = "";
   if (!filtered || filtered.length === 0) {
     annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
     return;
@@ -485,43 +487,93 @@ async function renderAnnonces(filtered) {
     }
   }
 
-  // --- Helpers ---
-  function createCardElement() {
+  // --- Helpers (createCard inchangé, design intacts) ---
+  function createCard(a) {
+    const docId = escapeHTML(a.id || "");
     const card = document.createElement("div");
     card.className = "annonce-card";
+
+    const isFav = currentUser && userFavorites.includes(a.id);
+
+    let sellerData = null;
+    const annonceEmail = (a.userEmail || "").toLowerCase().trim();
+    if (annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
+    if (!sellerData && a.userId) sellerData = window.__usersCache.byId[a.userId];
+    if (!sellerData && a.uid) sellerData = window.__usersCache.byId[a.uid];
+    if (!sellerData && a.user && typeof a.user === "object") sellerData = a.user;
+
+    let isPro = false;
+    if (sellerData && sellerData.subscribe === true) {
+      const now = new Date();
+      const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
+      if (subEnd > now) isPro = true;
+    }
+
+    let fullName = "Utilisateur inconnu";
+    if (sellerData) {
+      fullName =
+        escapeHTML(
+          sellerData.fullName ||
+            `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
+            sellerData.displayName ||
+            sellerData.name ||
+            sellerData.nom ||
+            sellerData.prenom ||
+            "Utilisateur"
+        );
+    }
+
+    let sellerPhoto =
+      (sellerData && (
+        sellerData.profileImage ||
+        sellerData.profilePic ||
+        sellerData.profile ||
+        sellerData.photoURL ||
+        sellerData.avatar ||
+        sellerData.image ||
+        sellerData.photo
+      )) || "https://via.placeholder.com/40";
+
+    sellerPhoto = escapeHTML(sellerPhoto);
+    let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
+
     card.innerHTML = `
       <div class="image-container">
-        <img loading="lazy" alt="Annonce" onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
-        <span class="boost-icon material-symbols-outlined"></span>
-        <span class="time-badge"></span>
-        <span class="material-icons favorite"></span>
+        <img src="${annonceImage}" 
+             loading="lazy"
+             alt="${escapeHTML(a.title || 'Annonce')}"
+             onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
+        ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
+        <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
+        <span class="material-icons favorite ${isFav ? 'active' : ''}">
+          ${isFav ? 'favorite' : 'favorite_border'}
+        </span>
       </div>
       <div class="content">
-        <p class="price"></p>
-        <h3 class="title"></h3>
-        <p class="location"></p>
+        <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
+        <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
+        <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
       </div>
       <div class="seller">
-        <img loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
+        <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
         <div class="seller-info">
-          <strong></strong>
-          <span class="boutique-pro material-symbols-outlined" title="Boutique Pro"></span>
+          <strong>${fullName}</strong>
+          ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
         </div>
       </div>
     `;
-    // events (favoris & click)
+
+    const titleEl = card.querySelector('.title');
+    if ((a.title || "").length > 30) titleEl.classList.add('long-text');
+
     const favBtn = card.querySelector(".favorite");
     favBtn.addEventListener("click", async e => {
       e.stopPropagation();
       if (!currentUser) {
         const msg = document.getElementById("notLoggedMsg");
-        if (msg) {
-          msg.style.display = "block";
-          setTimeout(() => { msg.style.display = "none"; }, 3000);
-        }
+        if (msg) { msg.style.display = "block"; setTimeout(() => { msg.style.display = "none"; }, 3000); }
         return;
       }
-      const docId = card.dataset.docId;
       const favRef = doc(db, "users", currentUser.uid);
       if (favBtn.classList.contains("active")) {
         favBtn.classList.remove("active");
@@ -535,111 +587,128 @@ async function renderAnnonces(filtered) {
         await updateDoc(favRef, { favorites: arrayUnion(docId) });
       }
     });
+
     card.addEventListener("click", e => {
       if (e.target.classList.contains("favorite")) return;
-      window.location.href = `Details.html?id=${encodeURIComponent(card.dataset.docId)}`;
+      window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
     });
+
     return card;
   }
 
-  function updateCard(card, data, index) {
-    const docId = data.id || "";
-    card.dataset.docId = docId;
+  // --- Mesure d'une carte pour le virtual scroll ---
+  const measureWrapper = document.createElement("div");
+  measureWrapper.style.visibility = "hidden";
+  measureWrapper.style.position = "absolute";
+  measureWrapper.style.left = "-9999px";
+  measureWrapper.style.top = "0";
+  const sampleCard = createCard(filtered[0] || {});
+  measureWrapper.appendChild(sampleCard);
+  document.body.appendChild(measureWrapper);
+  let measuredCardHeight = Math.max(1, sampleCard.offsetHeight);
+  document.body.removeChild(measureWrapper);
 
-    const annonceEmail = (data.userEmail || "").toLowerCase().trim();
-    let sellerData = window.__usersCache.byEmail[annonceEmail] || window.__usersCache.byId[data.userId] || window.__usersCache.byId[data.uid] || (data.user && typeof data.user === "object" ? data.user : null);
+  // --- Pool et état ---
+  let cols = window.innerWidth < 768 ? 2 : 4;
+  const rowCount = Math.ceil(filtered.length / cols);
+  const totalHeight = rowCount * measuredCardHeight;
 
-    let isPro = false;
-    if (sellerData && sellerData.subscribe === true) {
-      const now = new Date();
-      const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
-      if (subEnd > now) isPro = true;
-    }
+  const rendered = new Map(); // index -> card
+  const cardPool = []; // pool fixe
+  const BUFFER_ROWS = 3;
+  const maxVisibleCards = (Math.ceil(annoncesContainer.clientHeight / measuredCardHeight) + 2 * BUFFER_ROWS) * cols;
 
-    const fullName = sellerData
-      ? `${sellerData.fullName || sellerData.displayName || sellerData.name || sellerData.prenom || sellerData.nom || "Utilisateur"}`.trim()
-      : "Utilisateur inconnu";
-    const sellerPhoto = sellerData && (sellerData.profileImage || sellerData.profilePic || sellerData.photoURL || sellerData.avatar || "https://via.placeholder.com/40");
-
-    const imageEl = card.querySelector(".image-container img");
-    const timeEl = card.querySelector(".time-badge");
-    const favEl = card.querySelector(".favorite");
-    const priceEl = card.querySelector(".price");
-    const titleEl = card.querySelector(".title");
-    const locEl = card.querySelector(".location");
-    const sellerImg = card.querySelector(".seller img");
-    const sellerName = card.querySelector(".seller-info strong");
-    const proEl = card.querySelector(".boutique-pro");
-
-    imageEl.src = data.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce";
-    timeEl.textContent = "⏰ " + timeAgo(data.createdAt);
-    favEl.classList.toggle("active", currentUser && userFavorites.includes(docId));
-    favEl.textContent = favEl.classList.contains("active") ? "favorite" : "favorite_border";
-    priceEl.textContent = data.price ? data.price + " FCFA" : "Prix sur demande";
-    titleEl.textContent = data.title || "Sans titre";
-    titleEl.classList.toggle("long-text", (data.title || "").length > 30);
-    locEl.textContent = `📍 ${data.city || "Ville non précisée"}${data.quartier ? ", " + data.quartier : ""}`;
-    sellerImg.src = sellerPhoto;
-    sellerName.textContent = fullName;
-    proEl.style.display = isPro ? "inline-block" : "none";
-    card.style.transform = `translateY(${index}px)`;
+  // Pré-créer les cartes du pool
+  for (let i = 0; i < Math.min(maxVisibleCards, filtered.length); i++) {
+    const card = createCard(filtered[i]);
+    card.dataset.index = i;
+    cardPool.push(card);
   }
 
-  // --- Mesure de la carte ---
-  const sampleCard = createCardElement();
-  sampleCard.style.visibility = "hidden";
-  document.body.appendChild(sampleCard);
-  const cardHeight = Math.max(1, sampleCard.offsetHeight);
-  document.body.removeChild(sampleCard);
-
-  const cols = window.innerWidth < 768 ? 2 : 4;
-  const rowCount = Math.ceil(filtered.length / cols);
-  const totalHeight = rowCount * cardHeight;
-  annoncesContainer.innerHTML = "";
   annoncesContainer.style.position = "relative";
-  annoncesContainer.style.height = "100%";
+  annoncesContainer.style.paddingTop = "0px";
   annoncesContainer.style.paddingBottom = totalHeight + "px";
 
-  // --- Pool de cartes ---
-  const POOL_SIZE = Math.min(40, filtered.length);
-  const pool = [];
-  for (let i = 0; i < POOL_SIZE; i++) {
-    const card = createCardElement();
-    card.style.position = "absolute";
-    card.style.width = `calc(${100/cols}% - 10px)`;
-    pool.push(card);
-    annoncesContainer.appendChild(card);
-  }
-
-  function render() {
+  // --- Fonction renderVisible avec pool ---
+  function renderVisible() {
     const scrollTop = annoncesContainer.scrollTop;
     const viewportHeight = annoncesContainer.clientHeight;
-    const firstVisibleRow = Math.floor(scrollTop / cardHeight);
-    const visibleRows = Math.ceil(viewportHeight / cardHeight) + 3; // buffer
-    let poolIndex = 0;
+    const firstVisibleRow = Math.floor(scrollTop / measuredCardHeight);
+    const visibleRows = Math.ceil(viewportHeight / measuredCardHeight);
+    const startRow = Math.max(0, firstVisibleRow - BUFFER_ROWS);
+    const endRow = Math.min(rowCount - 1, firstVisibleRow + visibleRows + BUFFER_ROWS);
+    const startIndex = Math.max(0, startRow * cols);
+    const endIndex = Math.min(filtered.length, (endRow + 1) * cols);
 
-    for (let row = firstVisibleRow; row < firstVisibleRow + visibleRows; row++) {
-      for (let col = 0; col < cols; col++) {
-        const idx = row * cols + col;
-        if (idx >= filtered.length) continue;
-        const card = pool[poolIndex % POOL_SIZE];
-        const x = col * (100 / cols);
-        const y = row * cardHeight;
-        card.style.left = x + "%";
-        card.style.top = y + "px";
-        updateCard(card, filtered[idx], y);
-        poolIndex++;
+    // Recycler cartes : retirer hors viewport et remettre dans pool
+    for (let [idx, card] of Array.from(rendered.entries())) {
+      if (idx < startIndex || idx >= endIndex) {
+        rendered.delete(idx);
+        cardPool.push(card);
       }
+    }
+
+    // Injecter cartes visibles depuis le pool
+    const fragment = document.createDocumentFragment();
+    for (let i = startIndex; i < endIndex; i++) {
+      if (rendered.has(i)) continue;
+      const card = cardPool.length ? cardPool.pop() : createCard(filtered[i]);
+      const a = filtered[i];
+      // Mise à jour du contenu si carte réutilisée
+      if (card && rendered.has(i) === false) {
+        card.dataset.index = i;
+        if (a) {
+          card.replaceWith(createCard(a)); // conserve design + listeners
+        }
+        fragment.appendChild(card);
+        rendered.set(i, card);
+      }
+    }
+
+    annoncesContainer.appendChild(fragment);
+
+    // Padding top pour simuler l’espace avant les cartes
+    annoncesContainer.style.paddingTop = startRow * measuredCardHeight + "px";
+  }
+
+  // --- Scroll optimisé ---
+  let ticking = false;
+  function onScroll() {
+    if (!ticking) {
+      window.requestAnimationFrame(() => {
+        renderVisible();
+        ticking = false;
+      });
+      ticking = true;
     }
   }
 
-  annoncesContainer.addEventListener("scroll", () => {
-    window.requestAnimationFrame(render);
-  }, { passive: true });
+  if (annoncesContainer._vScrollHandler) annoncesContainer.removeEventListener("scroll", annoncesContainer._vScrollHandler);
+  annoncesContainer._vScrollHandler = onScroll;
+  annoncesContainer.addEventListener("scroll", onScroll, { passive: true });
 
-  render(); // initial render
+  // --- Responsive ---
+  if (annoncesContainer._resizeObserver) annoncesContainer._resizeObserver.disconnect();
+  annoncesContainer._resizeObserver = new ResizeObserver(() => {
+    cols = window.innerWidth < 768 ? 2 : 4;
+    measuredCardHeight = (() => {
+      const temp = createCard(filtered[0] || {});
+      temp.style.visibility = "hidden";
+      document.body.appendChild(temp);
+      const h = Math.max(1, temp.offsetHeight);
+      document.body.removeChild(temp);
+      return h;
+    })();
+    annoncesContainer.style.paddingBottom = (Math.ceil(filtered.length / cols) * measuredCardHeight) + "px";
+    renderVisible();
+  });
+  annoncesContainer._resizeObserver.observe(annoncesContainer);
+
+  // --- Initial render ---
+  renderVisible();
 }
 
+  
 function renderPagination(totalPages){
   let paginationContainer = document.getElementById("pagination");
   if(!paginationContainer){
