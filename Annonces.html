@@ -457,16 +457,13 @@ function escapeHTML(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
 }
-
-// VERSION PRO - Virtual scroll avec recyclage
 async function renderAnnonces(filtered) {
-  // --- vide le conteneur uniquement si aucun résultat ---
   if (!filtered || filtered.length === 0) {
     annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
     return;
   }
 
-  // --- CHARGEMENT CACHE USERS (inchangé) ---
+  // --- CHARGEMENT CACHE USERS ---
   if (!window.__usersCache) {
     try {
       const usersSnap = await getDocs(collection(db, "users"));
@@ -485,14 +482,16 @@ async function renderAnnonces(filtered) {
     }
   }
 
-  // --- Helpers (createCard identique à ton markup) ---
+  // --- Création / mise à jour des cartes ---
   function createCard(a) {
     const docId = escapeHTML(a.id || "");
     const card = document.createElement("div");
     card.className = "annonce-card";
 
+    // --- Gestion du favori ---
     const isFav = currentUser && userFavorites.includes(a.id);
 
+    // --- Données vendeur ---
     let sellerData = null;
     const annonceEmail = (a.userEmail || "").toLowerCase().trim();
     if (annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
@@ -512,12 +511,12 @@ async function renderAnnonces(filtered) {
       fullName =
         escapeHTML(
           sellerData.fullName ||
-            `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
-            sellerData.displayName ||
-            sellerData.name ||
-            sellerData.nom ||
-            sellerData.prenom ||
-            "Utilisateur"
+          `${sellerData.firstName || sellerData.prenom || ""} ${sellerData.lastName || sellerData.nom || ""}`.trim() ||
+          sellerData.displayName ||
+          sellerData.name ||
+          sellerData.nom ||
+          sellerData.prenom ||
+          "Utilisateur"
         );
     }
 
@@ -537,15 +536,10 @@ async function renderAnnonces(filtered) {
 
     card.innerHTML = `
       <div class="image-container">
-        <img src="${annonceImage}" 
-             loading="lazy"
-             alt="${escapeHTML(a.title || 'Annonce')}"
-             onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
+        <img src="${annonceImage}" loading="lazy" alt="${escapeHTML(a.title || 'Annonce')}" onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
         ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
         <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
-        <span class="material-icons favorite ${isFav ? 'active' : ''}">
-          ${isFav ? 'favorite' : 'favorite_border'}
-        </span>
+        <span class="material-icons favorite ${isFav ? 'active' : ''}">${isFav ? 'favorite' : 'favorite_border'}</span>
       </div>
       <div class="content">
         <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
@@ -597,7 +591,6 @@ async function renderAnnonces(filtered) {
     return card;
   }
 
-  // --- Fonction pour mettre à jour une carte existante ---
   function updateCardContent(card, a) {
     card.querySelector('.title').textContent = a.title || "Sans titre";
     card.querySelector('.price').textContent = a.price ? a.price + " FCFA" : "Prix sur demande";
@@ -608,7 +601,7 @@ async function renderAnnonces(filtered) {
     card.dataset.index = filtered.indexOf(a);
   }
 
-  // --- Mesure dynamique de la hauteur d'une carte ---
+  // --- Mesure d'une carte ---
   const measureWrapper = document.createElement("div");
   measureWrapper.style.visibility = "hidden";
   measureWrapper.style.position = "absolute";
@@ -617,33 +610,29 @@ async function renderAnnonces(filtered) {
   const sampleCard = createCard(filtered[0] || {});
   measureWrapper.appendChild(sampleCard);
   document.body.appendChild(measureWrapper);
-  const measuredCardHeight = Math.max(1, sampleCard.offsetHeight);
+  const cardHeight = Math.max(1, sampleCard.offsetHeight);
   document.body.removeChild(measureWrapper);
 
-  // --- Paramètres de fenêtrage ---
+  // --- Virtual scroll setup ---
   const cols = window.innerWidth < 768 ? 2 : 4;
   const rowCount = Math.ceil(filtered.length / cols);
-  const totalHeight = rowCount * measuredCardHeight;
 
-  annoncesContainer.style.paddingTop = "0px";
-  annoncesContainer.style.paddingBottom = totalHeight + "px";
-
-  const rendered = new Map(); // index -> element
-  const cardPool = [];       // pool de cartes réutilisables
-  const BUFFER_ROWS = 3;
+  const rendered = new Map();
+  const cardPool = [];
+  const BUFFER_ROWS = 4;
 
   function renderVisible() {
     const scrollTop = annoncesContainer.scrollTop;
     const viewportHeight = annoncesContainer.clientHeight;
-    const firstVisibleRow = Math.floor(scrollTop / measuredCardHeight);
-    const visibleRows = Math.ceil(viewportHeight / measuredCardHeight);
+    const firstVisibleRow = Math.floor(scrollTop / cardHeight);
+    const visibleRows = Math.ceil(viewportHeight / cardHeight);
 
     const startRow = Math.max(0, firstVisibleRow - BUFFER_ROWS);
     const endRow = Math.min(rowCount - 1, firstVisibleRow + visibleRows + BUFFER_ROWS);
-    const startIndex = Math.max(0, startRow * cols);
+    const startIndex = startRow * cols;
     const endIndex = Math.min(filtered.length, (endRow + 1) * cols);
 
-    // retirer du DOM les cartes hors fenêtre mais les garder pour réutilisation
+    // Retirer cartes hors écran
     for (let [idx, el] of Array.from(rendered.entries())) {
       if (idx < startIndex || idx >= endIndex) {
         annoncesContainer.removeChild(el);
@@ -652,7 +641,7 @@ async function renderAnnonces(filtered) {
       }
     }
 
-    // ajouter les cartes visibles
+    // Ajouter cartes visibles
     const fragment = document.createDocumentFragment();
     for (let i = startIndex; i < endIndex; i++) {
       if (rendered.has(i)) continue;
@@ -672,12 +661,10 @@ async function renderAnnonces(filtered) {
     }
 
     annoncesContainer.appendChild(fragment);
-
-    // Padding top pour aligner correctement la grille
-    annoncesContainer.style.paddingTop = (startRow * measuredCardHeight) + "px";
+    annoncesContainer.style.paddingTop = (startRow * cardHeight) + "px";
+    annoncesContainer.style.paddingBottom = ((rowCount - endRow - 1) * cardHeight) + "px";
   }
 
-  // --- Scroll handling optimisé ---
   let ticking = false;
   function onScroll() {
     if (!ticking) {
@@ -695,7 +682,7 @@ async function renderAnnonces(filtered) {
   annoncesContainer._vScrollHandler = onScroll;
   annoncesContainer.addEventListener("scroll", onScroll, { passive: true });
 
-  // --- Resize observer pour remesure si responsive ---
+  // --- Resize observer ---
   if (annoncesContainer._resizeObserver) {
     annoncesContainer._resizeObserver.disconnect();
   }
@@ -705,12 +692,10 @@ async function renderAnnonces(filtered) {
     document.body.appendChild(temp);
     const newHeight = Math.max(1, temp.offsetHeight);
     document.body.removeChild(temp);
-    annoncesContainer.style.paddingBottom = (Math.ceil(filtered.length / (window.innerWidth < 768 ? 2 : 4)) * newHeight) + "px";
     renderVisible();
   });
   annoncesContainer._resizeObserver.observe(annoncesContainer);
 
-  // --- Initial render ---
   renderVisible();
 }
 
