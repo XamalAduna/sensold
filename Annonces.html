@@ -458,6 +458,38 @@ function escapeHTML(str) {
     .replace(/"/g, "&quot;")
 }
 
+
+// Sauvegarde de l'état avant d'aller à une annonce
+function saveMainPageState() {
+  const state = {
+    scrollY: window.scrollY,
+    annoncesHTML: annoncesContainer.innerHTML,
+    search: document.getElementById("search-input").value,
+    category: currentCategory || "all",
+    subcategory: currentSubcategory || null
+  };
+
+  history.replaceState(state, "");
+}
+
+// Restoration quand on revient sur la page principale
+window.addEventListener("popstate", (event) => {
+  if (event.state) {
+    annoncesContainer.innerHTML = event.state.annoncesHTML;
+
+    // Restaurer filtres / recherche
+    document.getElementById("search-input").value = event.state.search || "";
+    currentCategory = event.state.category;
+    currentSubcategory = event.state.subcategory;
+
+    // Scroll instantané
+    setTimeout(() => {
+      window.scrollTo(0, event.state.scrollY || 0);
+    }, 0);
+  }
+});
+
+
 // REMPLACE ta renderAnnonces par celle-ci (prête à coller)
 // VERSION PRO - Virtual scroll avec pool réutilisable (1M+ annonces)
 async function renderAnnonces(filtered) {
@@ -694,19 +726,27 @@ async function renderAnnonces(filtered) {
       return;
     }
 
-    // open details click (ignore clicks on fav icon)
-    const card = e.target.closest('.annonce-card');
-    if (!card) return;
-    const idx = Number(card.dataset.index);
-    if (!Number.isFinite(idx) || idx < 0) return;
-    // if click on favorite icon we already handled; else navigate
-    if (e.target.closest('[data-action="fav"]')) return;
-    const annonce = filtered[idx];
-    const docId = escapeHTML(annonce.id || "");
-    window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
-  };
-  annoncesContainer.addEventListener('click', annoncesContainer._vScrollDelegator);
+   // open details click (ignore clicks on fav icon)
+const card = e.target.closest('.annonce-card');
+if (!card) return;
 
+const idx = Number(card.dataset.index);
+if (!Number.isFinite(idx) || idx < 0) return;
+
+// if click on favorite icon we already handled; else navigate
+if (e.target.closest('[data-action="fav"]')) return;
+
+const annonce = filtered[idx];
+
+// 🔥 Sauvegarde de l'état avant de partir vers la page détails
+saveMainPageState();
+
+const docId = escapeHTML(annonce.id || "");
+window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
+};
+annoncesContainer.addEventListener('click', annoncesContainer._vScrollDelegator);
+
+  
   // --- renderVisible using the pool (no create/remove) ---
   let lastStartIndex = -1;
   let ticking = false;
