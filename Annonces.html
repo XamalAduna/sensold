@@ -320,26 +320,6 @@ let sortOrder = "default";
 let currentPage = 1;
 const annoncesPerPage = 20;
 
-// Si la page a été restaurée depuis sessionStorage
-const savedState = sessionStorage.getItem("annoncesPageState");
-if (savedState) {
-    const state = JSON.parse(savedState);
-    selectedCategory = state.selectedCategory || "all";
-    selectedSubcategory = state.selectedSubcategory || null;
-    searchText = state.searchText || "";
-    sortOrder = state.sortOrder || "default";
-
-    // Applique les filtres/restaure la recherche
-    applyAllFilters();
-
-    // Restaure le scroll
-    window.scrollTo(0, state.scrollTop || 0);
-
-    // Supprime la sauvegarde pour ne pas restaurer à nouveau
-    sessionStorage.removeItem("annoncesPageState");
-}
-
-
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
@@ -362,8 +342,6 @@ onAuthStateChanged(auth, async (user) => {
   }
   loadAnnonces();
 });
-
-
 
 // ✅ VERSION OPTIMISÉE : supporte +20 000 annonces sans lag
 async function loadAnnonces(limitCount = 100) {
@@ -725,20 +703,7 @@ async function renderAnnonces(filtered) {
     if (e.target.closest('[data-action="fav"]')) return;
     const annonce = filtered[idx];
     const docId = escapeHTML(annonce.id || "");
-    
-    // Sauvegarde l'état actuel de la page
-const pageState = {
-  scrollTop: annoncesContainer.scrollTop, // ou window.scrollY si tu veux le scroll global
-  selectedCategory,
-  selectedSubcategory,
-  searchText,
-  sortOrder,
-};
-sessionStorage.setItem("annoncesPageState", JSON.stringify(pageState));
-
-// puis navigue vers la page détails
-window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
-
+    window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
   };
   annoncesContainer.addEventListener('click', annoncesContainer._vScrollDelegator);
 
@@ -873,6 +838,7 @@ window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
   // --- initial render ---
   renderVisible();
 }
+
 
 function renderPagination(totalPages){
   let paginationContainer = document.getElementById("pagination");
@@ -1058,7 +1024,6 @@ function applyAllFilters() {
   // ⚡ Affichage uniquement du lot actuel pour fluidité
   renderAnnonces(filtered);
 }
-
 </script>  
 </body>
 </html>
