@@ -343,6 +343,23 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
+// Restauration si on revient en arrière
+const saved = sessionStorage.getItem("annoncesState");
+
+if (saved) {
+    const state = JSON.parse(saved);
+
+    document.getElementById("annonces").innerHTML = state.html;
+
+    setTimeout(() => {
+        window.scrollTo(0, state.scroll);
+    }, 50);
+
+    // Empêche le rechargement automatique
+    sessionStorage.removeItem("annoncesState");
+}
+
+
 // ✅ VERSION OPTIMISÉE : supporte +20 000 annonces sans lag
 async function loadAnnonces(limitCount = 100) {
   // ⚡ Ne vide plus le conteneur à chaque appel (préserve l’affichage progressif)
@@ -1023,6 +1040,18 @@ function applyAllFilters() {
   // ⚡ Affichage uniquement du lot actuel pour fluidité
   renderAnnonces(filtered);
 }
+
+// Quand on clique sur une annonce → sauvegarde l’état
+document.addEventListener("click", (e) => {
+    const card = e.target.closest(".annonce-card");
+    if (!card) return;
+
+    sessionStorage.setItem("annoncesState", JSON.stringify({
+        scroll: window.scrollY,
+        html: document.getElementById("annonces").innerHTML
+    }));
+});
+
 </script>  
 </body>
 </html>
