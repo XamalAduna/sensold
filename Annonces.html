@@ -733,9 +733,11 @@ async function renderAnnonces(filtered) {
     if (!Number.isFinite(idx) || idx < 0) return;
     // if click on favorite icon we already handled; else navigate
     if (e.target.closest('[data-action="fav"]')) return;
-    const annonce = filtered[idx];
-    const docId = escapeHTML(annonce.id || "");
-    window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
+    
+   saveMainPageState();  // ← sauvegarde l'état
+   const annonce = filtered[idx];
+   const docId = escapeHTML(annonce.id || "");
+   window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
   };
   annoncesContainer.addEventListener('click', annoncesContainer._vScrollDelegator);
 
