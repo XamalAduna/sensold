@@ -726,27 +726,31 @@ async function renderAnnonces(filtered) {
       return;
     }
 
-   // open details click (ignore clicks on fav icon)
-const card = e.target.closest('.annonce-card');
-if (!card) return;
+ // ⚡ Click handler pour les annonces (compatible Virtual Scroll 1M+)
+annoncesContainer.addEventListener('click', (e) => {
+  const card = e.target.closest('.annonce-card');
+  if (!card) return; // clic en dehors d'une carte
 
-const idx = Number(card.dataset.index);
-if (!Number.isFinite(idx) || idx < 0) return;
+  // si clic sur l'icône favoris, on ignore
+  if (e.target.closest('[data-action="fav"]')) return;
 
-// if click on favorite icon we already handled; else navigate
-if (e.target.closest('[data-action="fav"]')) return;
+  // récupère l'ID unique de l'annonce depuis la carte
+  const annonceId = card.dataset.id;
+  if (!annonceId) return;
 
-const annonce = filtered[idx];
+  // trouve l'annonce correspondante dans filtered (indice exact inutile avec Virtual Scroll)
+  const annonce = filtered.find(a => a.id === annonceId);
+  if (!annonce) return;
 
-// 🔥 Sauvegarde de l'état avant de partir vers la page détails
-saveMainPageState();
+  // sauvegarde l'état de la page avant navigation
+  saveMainPageState();
 
-const docId = escapeHTML(annonce.id || "");
-window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
-};
-annoncesContainer.addEventListener('click', annoncesContainer._vScrollDelegator);
+  // navigation vers la page détails
+  window.location.href = `Details.html?id=${encodeURIComponent(annonceId)}`;
+});
+ 
 
-  
+ 
   // --- renderVisible using the pool (no create/remove) ---
   let lastStartIndex = -1;
   let ticking = false;
