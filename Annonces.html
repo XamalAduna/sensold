@@ -343,111 +343,108 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-// ✅ VERSION OPTIMISÉE : supporte +20 000 annonces sans lag
 async function loadAnnonces(limitCount = 100) {
-  // ⚡ Ne vide plus le conteneur à chaque appel (préserve l’affichage progressif)
-  if (!window.annoncesData) window.annoncesData = [];
-  if (!window.lastVisible) window.lastVisible = null;
+  if (window.isLoading) return;
+  window.isLoading = true;
 
   document.getElementById("spinner").style.display = "flex";
 
   try {
-    // ⚡ Chargement par lot (pagination Firestore)
-    let annoncesQuery = query(
-      collection(db, "annonces"),
-      orderBy("createdAt", "desc"),
-      limit(limitCount)
-    );
+    // 🧠 1. Construire la requête Firestore AVEC filtres
+    let annoncesQuery = collection(db, "annonces");
+
+    // 🔥 Filtre catégorie
+    if (selectedCategory && selectedCategory !== "all") {
+      annoncesQuery = query(annoncesQuery, where("categorie", "==", selectedCategory));
+    }
+
+    // 🔥 Filtre sous-catégorie
+    if (selectedSubcategory) {
+      annoncesQuery = query(annoncesQuery, where("souscategorie", "==", selectedSubcategory));
+    }
+
+    // 🔥 Filtre ville
+    if (selectedCity && selectedCity !== "all") {
+      annoncesQuery = query(annoncesQuery, where("city", "==", selectedCity));
+    }
+
+    // 🔥 Filtre prix min/max
+    if (minPrice) {
+      annoncesQuery = query(annoncesQuery, where("price", ">=", minPrice));
+    }
+    if (maxPrice) {
+      annoncesQuery = query(annoncesQuery, where("price", "<=", maxPrice));
+    }
+
+    // 🔥 Tri Firestore
+    if (sortOrder === "asc") {
+      annoncesQuery = query(annoncesQuery, orderBy("price", "asc"));
+    } else if (sortOrder === "desc") {
+      annoncesQuery = query(annoncesQuery, orderBy("price", "desc"));
+    } else {
+      annoncesQuery = query(annoncesQuery, orderBy("createdAt", "desc"));
+    }
+
+    // 🔥 Pagination Firestore
     if (window.lastVisible) {
       annoncesQuery = query(
-        collection(db, "annonces"),
-        orderBy("createdAt", "desc"),
+        annoncesQuery,
         startAfter(window.lastVisible),
+        limit(limitCount)
+      );
+    } else {
+      annoncesQuery = query(
+        annoncesQuery,
         limit(limitCount)
       );
     }
 
-    const annoncesSnap = await getDocs(annoncesQuery);
-    
-    if (annoncesSnap.empty) {
-      console.log("Toutes les annonces ont été chargées ✅");
+    // 🧠 2. Exécution
+    const snap = await getDocs(annoncesQuery);
+
+    if (snap.empty) {
       window.allAnnoncesLoaded = true;
-
-      document.getElementById("spinner").style.display = "none"; // 👈 ajoute ceci
-      
-      return;
-     }
-
-
-    if (annoncesSnap.empty && window.annoncesData.length === 0) {
-      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
       document.getElementById("spinner").style.display = "none";
+      window.isLoading = false;
       return;
     }
 
-    // ⚡ Ajout progressif (sans recréer tout le tableau)
-    const newAnnonces = annoncesSnap.docs.map(d => ({
-      ...d.data(),
-      id: d.id
+    // 🧠 3. Conversion
+    const newData = snap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
     }));
-    window.annoncesData.push(...newAnnonces);
-    window.lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
 
-    // ⚡ Cache utilisateurs (chargé une seule fois)
-    if (!window.__usersCache) {
-      try {
-        const usersSnap = await getDocs(collection(db, "users"));
-        const byEmail = {};
-        const byId = {};
-        usersSnap.forEach(uDoc => {
-          const u = uDoc.data() || {};
-          byId[uDoc.id] = u;
-          const email = (u.email || u.emailAddress || "").toLowerCase().trim();
-          if (email) byEmail[email] = u;
-        });
-        window.__usersCache = { byEmail, byId };
-      } catch (err) {
-        console.error("Erreur chargement users:", err);
-        window.__usersCache = { byEmail: {}, byId: {} };
-      }
+    // ⚡ Reset data si c’est un nouveau filtre
+    if (!window.annoncesData || window.resetOnNextLoad) {
+      annoncesContainer.innerHTML = "";
+      window.annoncesData = [];
+      window.resetOnNextLoad = false;
     }
 
-    // ⚡ Affichage progressif (rend visible au fur et à mesure)
-    if (!window.hasSetupFilters) {
-      setupCategoryFilters();
-      setupSearchAndSort();
-      setupFilterMenu();
-      window.hasSetupFilters = true;
+    window.annoncesData.push(...newData);
+    window.lastVisible = snap.docs[snap.docs.length - 1];
+
+    // 🧠 4. Si recherche texte → filtrage JS (Firestore ne permet pas contains)
+    let finalData = window.annoncesData;
+    if (searchText) {
+      const s = searchText.toLowerCase();
+      finalData = finalData.filter(a =>
+        (a.title || "").toLowerCase().includes(s) ||
+        (a.city || "").toLowerCase().includes(s)
+      );
     }
 
-    applyAllFilters(); // n’affiche que les annonces du lot chargé
+    // 🧠 5. Affichage
+    renderAnnonces(finalData);
 
-  } catch (err) {
-    console.error("Erreur chargement annonces:", err);
-    annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
-  } finally {
-    document.getElementById("spinner").style.display = "none";
+  } catch (e) {
+    console.error(e);
   }
+
+  document.getElementById("spinner").style.display = "none";
+  window.isLoading = false;
 }
-
-// ⚡ Scroll infini pour charger automatiquement les lots suivants
-window.addEventListener("scroll", () => {
-  // 🛑 Stoppe le chargement si toutes les annonces sont déjà récupérées
-  if (window.allAnnoncesLoaded) return;
-
-  // 📦 Si on arrive à 500px du bas de la page → on charge la suite
-  if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
-    loadAnnonces();
-  }
-});
-
-
-// ⚡ Infinite scroll pour charger automatiquement les lots suivants
-//window.addEventListener("scroll", () => {
- // if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
-  //  loadAnnonces(); // charge le prochain lot de 100 annonces
- // }
-//});
 
 function escapeHTML(str) {
   if (!str) return "";
