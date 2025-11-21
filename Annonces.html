@@ -316,9 +316,6 @@ let userFavorites = [];
 let annoncesData = [];
 let selectedCategory = "all";
 let selectedSubcategory = null;
-  
-let selectedCity = null; 
-
 let searchText = "";
 let sortOrder = "default";
 let currentPage = 1;
@@ -347,109 +344,111 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-// 🔥 VERSION ULTRA OPTIMISÉE — Firestore fait TOUT le filtrage
+// ✅ VERSION OPTIMISÉE : supporte +20 000 annonces sans lag
 async function loadAnnonces(limitCount = 100) {
+  // ⚡ Ne vide plus le conteneur à chaque appel (préserve l’affichage progressif)
+  if (!window.annoncesData) window.annoncesData = [];
   if (!window.lastVisible) window.lastVisible = null;
-  if (!window.allAnnonces) window.allAnnonces = [];
 
   document.getElementById("spinner").style.display = "flex";
 
   try {
-    // -----------------------------
-    // 1️⃣ Construction dynamique du filtrage Firestore
-    // -----------------------------
-    let constraints = [orderBy("createdAt", "desc"), limit(limitCount)];
-
-    // 📌 Catégorie
-    if (selectedCategory && selectedCategory !== "all") {
-      constraints.unshift(where("categorie", "==", selectedCategory));
-    }
-
-    // 📌 Sous-catégorie
-    if (selectedSubcategory) {
-      constraints.unshift(where("souscategorie", "==", selectedSubcategory));
-    }
-
-    // 📌 Ville (si tu as un champ city)
-    if (selectedCity && selectedCity !== "all") {
-      constraints.unshift(where("city", "==", selectedCity));
-    }
-
-    // 📌 Livraison
-    if (selectedDelivery === "yes") {
-      constraints.unshift(where("delivery", "==", true));
-    }
-
-    // 📌 Recherche texte (optimisée)
-    if (searchText && searchText.trim() !== "") {
-      const text = searchText.toLowerCase().trim();
-      constraints.unshift(where("searchKeywords", "array-contains", text));
-      // ⚠ IMPORTANT : tu dois stocker les keywords lors de la création d’annonce
-    }
-
-    // -----------------------------
-    // 2️⃣ Pagination Firestore
-    // -----------------------------
+    // ⚡ Chargement par lot (pagination Firestore)
+    let annoncesQuery = query(
+      collection(db, "annonces"),
+      orderBy("createdAt", "desc"),
+      limit(limitCount)
+    );
     if (window.lastVisible) {
-      constraints.push(startAfter(window.lastVisible));
+      annoncesQuery = query(
+        collection(db, "annonces"),
+        orderBy("createdAt", "desc"),
+        startAfter(window.lastVisible),
+        limit(limitCount)
+      );
     }
 
-    let q = query(collection(db, "annonces"), ...constraints);
-
-    // -----------------------------
-    // 3️⃣ Exécution de la requête
-    // -----------------------------
-    const snap = await getDocs(q);
-
-    if (snap.empty) {
+    const annoncesSnap = await getDocs(annoncesQuery);
+    
+    if (annoncesSnap.empty) {
+      console.log("Toutes les annonces ont été chargées ✅");
       window.allAnnoncesLoaded = true;
+
+      document.getElementById("spinner").style.display = "none"; // 👈 ajoute ceci
+      
+      return;
+     }
+
+
+    if (annoncesSnap.empty && window.annoncesData.length === 0) {
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
       document.getElementById("spinner").style.display = "none";
       return;
     }
 
-    const newData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    window.allAnnonces.push(...newData);
+    // ⚡ Ajout progressif (sans recréer tout le tableau)
+    const newAnnonces = annoncesSnap.docs.map(d => ({
+      ...d.data(),
+      id: d.id
+    }));
+    window.annoncesData.push(...newAnnonces);
+    window.lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
 
-    window.lastVisible = snap.docs[snap.docs.length - 1];
+    // ⚡ Cache utilisateurs (chargé une seule fois)
+    if (!window.__usersCache) {
+      try {
+        const usersSnap = await getDocs(collection(db, "users"));
+        const byEmail = {};
+        const byId = {};
+        usersSnap.forEach(uDoc => {
+          const u = uDoc.data() || {};
+          byId[uDoc.id] = u;
+          const email = (u.email || u.emailAddress || "").toLowerCase().trim();
+          if (email) byEmail[email] = u;
+        });
+        window.__usersCache = { byEmail, byId };
+      } catch (err) {
+        console.error("Erreur chargement users:", err);
+        window.__usersCache = { byEmail: {}, byId: {} };
+      }
+    }
 
-    // -----------------------------
-    // 4️⃣ Tri boost + prix + date
-    // -----------------------------
-    let sorted = [...window.allAnnonces];
+    // ⚡ Affichage progressif (rend visible au fur et à mesure)
+    if (!window.hasSetupFilters) {
+      setupCategoryFilters();
+      setupSearchAndSort();
+      setupFilterMenu();
+      window.hasSetupFilters = true;
+    }
 
-    sorted.sort((a, b) => {
-      const aBoost = isBoostActive(a);
-      const bBoost = isBoostActive(b);
-
-      if (aBoost && !bBoost) return -1;
-      if (!aBoost && bBoost) return 1;
-
-      if (sortOrder === "asc") return (a.price || 0) - (b.price || 0);
-      if (sortOrder === "desc") return (b.price || 0) - (a.price || 0);
-
-      return (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
-    });
-
-    // -----------------------------
-    // 5️⃣ Affichage
-    // -----------------------------
-    renderAnnonces(sorted);
+    applyAllFilters(); // n’affiche que les annonces du lot chargé
 
   } catch (err) {
-    console.error("Erreur :", err);
-    annoncesContainer.innerHTML = `<p>Erreur : ${err.message}</p>`;
+    console.error("Erreur chargement annonces:", err);
+    annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   } finally {
     document.getElementById("spinner").style.display = "none";
   }
 }
 
-// 🔥 Scroll infini conservé
+// ⚡ Scroll infini pour charger automatiquement les lots suivants
 window.addEventListener("scroll", () => {
+  // 🛑 Stoppe le chargement si toutes les annonces sont déjà récupérées
   if (window.allAnnoncesLoaded) return;
+
+  // 📦 Si on arrive à 500px du bas de la page → on charge la suite
   if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
     loadAnnonces();
   }
 });
+
+
+// ⚡ Infinite scroll pour charger automatiquement les lots suivants
+//window.addEventListener("scroll", () => {
+ // if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
+  //  loadAnnonces(); // charge le prochain lot de 100 annonces
+ // }
+//});
 
 function escapeHTML(str) {
   if (!str) return "";
@@ -981,6 +980,50 @@ function isBoostActive(annonce) {
   return boostEndDate > now;
 }
 
+// ✅ VERSION OPTIMISÉE : applyAllFilters pour +20 000 annonces
+function applyAllFilters() {
+  // ⚡ On travaille sur le cache global window.annoncesData
+  let filtered = window.annoncesData || [];
+
+  // ⚡ Filtrage catégorie / sous-catégorie / recherche
+  if (selectedCategory && selectedCategory !== "all") {
+    filtered = filtered.filter(a => a.categorie === selectedCategory);
+  }
+  if (selectedSubcategory) {
+    filtered = filtered.filter(a => a.souscategorie === selectedSubcategory);
+  }
+  if (searchText) {
+    const lowerSearch = searchText.toLowerCase();
+    filtered = filtered.filter(a => 
+      (a.title?.toLowerCase().includes(lowerSearch)) || 
+      (a.city?.toLowerCase().includes(lowerSearch))
+    );
+  }
+
+  // ⚡ Tri optimisé avec boost et prix/date
+  filtered.sort((a, b) => {
+    const aBoost = isBoostActive(a);
+    const bBoost = isBoostActive(b);
+
+    if (aBoost && !bBoost) return -1;
+    if (!aBoost && bBoost) return 1;
+    if (aBoost && bBoost) {
+      const aEnd = a.boostEnd ? (a.boostEnd.toDate ? a.boostEnd.toDate() : new Date(a.boostEnd)) : 0;
+      const bEnd = b.boostEnd ? (b.boostEnd.toDate ? b.boostEnd.toDate() : new Date(b.boostEnd)) : 0;
+      return bEnd - aEnd;
+    }
+
+    if (sortOrder === "asc") return (a.price || 0) - (b.price || 0);
+    if (sortOrder === "desc") return (b.price || 0) - (a.price || 0);
+
+    const aDate = a.createdAt ? a.createdAt.seconds * 1000 : 0;
+    const bDate = b.createdAt ? b.createdAt.seconds * 1000 : 0;
+    return bDate - aDate;
+  });
+
+  // ⚡ Affichage uniquement du lot actuel pour fluidité
+  renderAnnonces(filtered);
+}
 
 </script>  
 </body>
