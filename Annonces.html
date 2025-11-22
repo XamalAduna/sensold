@@ -980,31 +980,54 @@ function isBoostActive(annonce) {
   return boostEndDate > now;
 }
 
-// ✅ VERSION OPTIMISÉE : applyAllFilters pour +20 000 annonces
-function applyAllFilters() {
-  // ⚡ On travaille sur le cache global window.annoncesData
-  let filtered = window.annoncesData || [];
+// ✅ VERSION OPTIMISÉE pour +1 000 000 annonces
+async function loadAnnonces(limitCount = 50) {
+  const container = annoncesContainer;
+  const viewportHeight = container.clientHeight;
+  const cardHeight = 150; 
+  const buffer = 5;
 
-  // ⚡ Filtrage catégorie / sous-catégorie / recherche
+  const startIndex = Math.floor(container.scrollTop / cardHeight);
+  const endIndex = startIndex + Math.ceil(viewportHeight / cardHeight) + buffer;
+
+  const db = firebase.firestore(); // Assure-toi que Firestore est initialisé
+  let query = db.collection("annonces");
+
+  // ⚡ Filtrage côté Firestore
   if (selectedCategory && selectedCategory !== "all") {
-    filtered = filtered.filter(a => a.categorie === selectedCategory);
+    query = query.where("categorie", "==", selectedCategory);
   }
   if (selectedSubcategory) {
-    filtered = filtered.filter(a => a.souscategorie === selectedSubcategory);
+    query = query.where("souscategorie", "==", selectedSubcategory);
   }
-  if (searchText) {
-    const lowerSearch = searchText.toLowerCase();
-    filtered = filtered.filter(a => 
-      (a.title?.toLowerCase().includes(lowerSearch)) || 
+
+  // Tri par boost, puis prix ou date
+  if (sortOrder === "asc") query = query.orderBy("price", "asc");
+  else if (sortOrder === "desc") query = query.orderBy("price", "desc");
+  else query = query.orderBy("createdAt", "desc");
+
+  // ⚡ Pagination pour ne charger que les annonces visibles
+  query = query.limit(endIndex + 1); // +1 pour buffer
+
+  const snapshot = await query.get();
+  let annonces = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+  // ⚡ Recherche texte côté client seulement sur le petit lot récupéré
+  const lowerSearch = searchText ? searchText.toLowerCase() : null;
+  if (lowerSearch) {
+    annonces = annonces.filter(a =>
+      (a.title?.toLowerCase().includes(lowerSearch)) ||
       (a.city?.toLowerCase().includes(lowerSearch))
     );
   }
 
-  // ⚡ Tri optimisé avec boost et prix/date
-  filtered.sort((a, b) => {
+  // ⚡ Gérer uniquement le lot du viewport
+  const visibleAnnonces = annonces.slice(startIndex, endIndex + 1);
+
+  // ⚡ Tri boost seulement sur le lot visible
+  visibleAnnonces.sort((a, b) => {
     const aBoost = isBoostActive(a);
     const bBoost = isBoostActive(b);
-
     if (aBoost && !bBoost) return -1;
     if (!aBoost && bBoost) return 1;
     if (aBoost && bBoost) {
@@ -1012,17 +1035,11 @@ function applyAllFilters() {
       const bEnd = b.boostEnd ? (b.boostEnd.toDate ? b.boostEnd.toDate() : new Date(b.boostEnd)) : 0;
       return bEnd - aEnd;
     }
-
-    if (sortOrder === "asc") return (a.price || 0) - (b.price || 0);
-    if (sortOrder === "desc") return (b.price || 0) - (a.price || 0);
-
-    const aDate = a.createdAt ? a.createdAt.seconds * 1000 : 0;
-    const bDate = b.createdAt ? b.createdAt.seconds * 1000 : 0;
-    return bDate - aDate;
+    return 0; // laisse le tri Firestore pour le reste
   });
 
-  // ⚡ Affichage uniquement du lot actuel pour fluidité
-  renderAnnonces(filtered);
+  // ⚡ Affichage
+  renderAnnonces(visibleAnnonces, startIndex);
 }
 
 </script>  
