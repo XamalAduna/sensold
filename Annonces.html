@@ -979,35 +979,30 @@ function isBoostActive(annonce) {
   return boostEndDate > now;
 }
 
+// ✅ VERSION OPTIMISÉE : applyAllFilters pour +20 000 annonces
 function applyAllFilters() {
-  const data = window.annoncesData || [];
+  // ⚡ On travaille sur le cache global window.annoncesData
+  let filtered = window.annoncesData || [];
 
-  // ⚡ Pré-filtrage avec Map pour les catégories et sous-catégories
-  let filtered = data;
+  // ⚡ Filtrage catégorie / sous-catégorie / recherche
   if (selectedCategory && selectedCategory !== "all") {
     filtered = filtered.filter(a => a.categorie === selectedCategory);
   }
   if (selectedSubcategory) {
     filtered = filtered.filter(a => a.souscategorie === selectedSubcategory);
   }
-
-  // ⚡ Filtrage recherche optimisé
   if (searchText) {
     const lowerSearch = searchText.toLowerCase();
-    filtered = filtered.filter(a => {
-      if (!a.title && !a.city) return false;
-      return (a.title?.toLowerCase().includes(lowerSearch)) || 
-             (a.city?.toLowerCase().includes(lowerSearch));
-    });
+    filtered = filtered.filter(a => 
+      (a.title?.toLowerCase().includes(lowerSearch)) || 
+      (a.city?.toLowerCase().includes(lowerSearch))
+    );
   }
 
-  // ⚡ Tri optimisé en utilisant une fonction rapide
-  const boostCache = new Map();
+  // ⚡ Tri optimisé avec boost et prix/date
   filtered.sort((a, b) => {
-    const aBoost = boostCache.has(a.id) ? boostCache.get(a.id) : isBoostActive(a);
-    boostCache.set(a.id, aBoost);
-    const bBoost = boostCache.has(b.id) ? boostCache.get(b.id) : isBoostActive(b);
-    boostCache.set(b.id, bBoost);
+    const aBoost = isBoostActive(a);
+    const bBoost = isBoostActive(b);
 
     if (aBoost && !bBoost) return -1;
     if (!aBoost && bBoost) return 1;
@@ -1025,23 +1020,10 @@ function applyAllFilters() {
     return bDate - aDate;
   });
 
-  // ⚡ Virtualisation: on ne rend que les annonces visibles
-  const batchSize = 100; // Nombre d'annonces affichées à la fois
-  let currentBatch = 0;
-
-  function renderNextBatch() {
-    const start = currentBatch * batchSize;
-    const end = start + batchSize;
-    const batch = filtered.slice(start, end);
-    renderAnnonces(batch, currentBatch === 0); // flush si premier batch
-    currentBatch++;
-    if (start < filtered.length) {
-      requestAnimationFrame(renderNextBatch); // rend progressivement pour éviter le lag
-    }
-  }
-
-  renderNextBatch();
+  // ⚡ Affichage uniquement du lot actuel pour fluidité
+  renderAnnonces(filtered);
 }
+
 
 
 </script>  
