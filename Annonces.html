@@ -1,4 +1,3 @@
-
 <!DOCTYPE html> 
 <html lang="fr"> 
 <head> 
@@ -980,54 +979,36 @@ function isBoostActive(annonce) {
   return boostEndDate > now;
 }
 
-// ✅ VERSION OPTIMISÉE pour +1 000 000 annonces
-async function loadAnnonces(limitCount = 50) {
-  const container = annoncesContainer;
-  const viewportHeight = container.clientHeight;
-  const cardHeight = 150; 
-  const buffer = 5;
+function applyAllFilters() {
+  const data = window.annoncesData || [];
 
-  const startIndex = Math.floor(container.scrollTop / cardHeight);
-  const endIndex = startIndex + Math.ceil(viewportHeight / cardHeight) + buffer;
-
-  const db = firebase.firestore(); // Assure-toi que Firestore est initialisé
-  let query = db.collection("annonces");
-
-  // ⚡ Filtrage côté Firestore
+  // ⚡ Pré-filtrage avec Map pour les catégories et sous-catégories
+  let filtered = data;
   if (selectedCategory && selectedCategory !== "all") {
-    query = query.where("categorie", "==", selectedCategory);
+    filtered = filtered.filter(a => a.categorie === selectedCategory);
   }
   if (selectedSubcategory) {
-    query = query.where("souscategorie", "==", selectedSubcategory);
+    filtered = filtered.filter(a => a.souscategorie === selectedSubcategory);
   }
 
-  // Tri par boost, puis prix ou date
-  if (sortOrder === "asc") query = query.orderBy("price", "asc");
-  else if (sortOrder === "desc") query = query.orderBy("price", "desc");
-  else query = query.orderBy("createdAt", "desc");
-
-  // ⚡ Pagination pour ne charger que les annonces visibles
-  query = query.limit(endIndex + 1); // +1 pour buffer
-
-  const snapshot = await query.get();
-  let annonces = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-  // ⚡ Recherche texte côté client seulement sur le petit lot récupéré
-  const lowerSearch = searchText ? searchText.toLowerCase() : null;
-  if (lowerSearch) {
-    annonces = annonces.filter(a =>
-      (a.title?.toLowerCase().includes(lowerSearch)) ||
-      (a.city?.toLowerCase().includes(lowerSearch))
-    );
+  // ⚡ Filtrage recherche optimisé
+  if (searchText) {
+    const lowerSearch = searchText.toLowerCase();
+    filtered = filtered.filter(a => {
+      if (!a.title && !a.city) return false;
+      return (a.title?.toLowerCase().includes(lowerSearch)) || 
+             (a.city?.toLowerCase().includes(lowerSearch));
+    });
   }
 
-  // ⚡ Gérer uniquement le lot du viewport
-  const visibleAnnonces = annonces.slice(startIndex, endIndex + 1);
+  // ⚡ Tri optimisé en utilisant une fonction rapide
+  const boostCache = new Map();
+  filtered.sort((a, b) => {
+    const aBoost = boostCache.has(a.id) ? boostCache.get(a.id) : isBoostActive(a);
+    boostCache.set(a.id, aBoost);
+    const bBoost = boostCache.has(b.id) ? boostCache.get(b.id) : isBoostActive(b);
+    boostCache.set(b.id, bBoost);
 
-  // ⚡ Tri boost seulement sur le lot visible
-  visibleAnnonces.sort((a, b) => {
-    const aBoost = isBoostActive(a);
-    const bBoost = isBoostActive(b);
     if (aBoost && !bBoost) return -1;
     if (!aBoost && bBoost) return 1;
     if (aBoost && bBoost) {
@@ -1035,12 +1016,33 @@ async function loadAnnonces(limitCount = 50) {
       const bEnd = b.boostEnd ? (b.boostEnd.toDate ? b.boostEnd.toDate() : new Date(b.boostEnd)) : 0;
       return bEnd - aEnd;
     }
-    return 0; // laisse le tri Firestore pour le reste
+
+    if (sortOrder === "asc") return (a.price || 0) - (b.price || 0);
+    if (sortOrder === "desc") return (b.price || 0) - (a.price || 0);
+
+    const aDate = a.createdAt ? a.createdAt.seconds * 1000 : 0;
+    const bDate = b.createdAt ? b.createdAt.seconds * 1000 : 0;
+    return bDate - aDate;
   });
 
-  // ⚡ Affichage
-  renderAnnonces(visibleAnnonces, startIndex);
+  // ⚡ Virtualisation: on ne rend que les annonces visibles
+  const batchSize = 100; // Nombre d'annonces affichées à la fois
+  let currentBatch = 0;
+
+  function renderNextBatch() {
+    const start = currentBatch * batchSize;
+    const end = start + batchSize;
+    const batch = filtered.slice(start, end);
+    renderAnnonces(batch, currentBatch === 0); // flush si premier batch
+    currentBatch++;
+    if (start < filtered.length) {
+      requestAnimationFrame(renderNextBatch); // rend progressivement pour éviter le lag
+    }
+  }
+
+  renderNextBatch();
 }
+
 
 </script>  
 </body>
