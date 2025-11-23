@@ -979,16 +979,12 @@ function isBoostActive(annonce) {
   return boostEndDate > now;
 }
 
-// ✅ VERSION ULTRA-PERFORMANTE : applyAllFilters pour +500 000 annonces
+// ✅ VERSION OPTIMISÉE : applyAllFilters pour +20 000 annonces
 function applyAllFilters() {
-  const container = annoncesContainer; // ton conteneur
-  const viewportHeight = container.clientHeight;
-  const rowHeight = 120; // hauteur approximative d'une annonce en px
-  const buffer = 20; // nombres d'éléments avant/après le viewport pour éviter les blancs
-
+  // ⚡ On travaille sur le cache global window.annoncesData
   let filtered = window.annoncesData || [];
 
-  // ⚡ Filtrage efficace
+  // ⚡ Filtrage catégorie / sous-catégorie / recherche
   if (selectedCategory && selectedCategory !== "all") {
     filtered = filtered.filter(a => a.categorie === selectedCategory);
   }
@@ -997,13 +993,13 @@ function applyAllFilters() {
   }
   if (searchText) {
     const lowerSearch = searchText.toLowerCase();
-    filtered = filtered.filter(a =>
-      (a.title?.toLowerCase().includes(lowerSearch)) ||
+    filtered = filtered.filter(a => 
+      (a.title?.toLowerCase().includes(lowerSearch)) || 
       (a.city?.toLowerCase().includes(lowerSearch))
     );
   }
 
-  // ⚡ Tri optimisé
+  // ⚡ Tri optimisé avec boost et prix/date
   filtered.sort((a, b) => {
     const aBoost = isBoostActive(a);
     const bBoost = isBoostActive(b);
@@ -1024,15 +1020,8 @@ function applyAllFilters() {
     return bDate - aDate;
   });
 
-  // ⚡ Virtual Scroll : calcul de ce qui doit être affiché
-  const scrollTop = container.scrollTop;
-  const startIndex = Math.max(0, Math.floor(scrollTop / rowHeight) - buffer);
-  const endIndex = Math.min(filtered.length, Math.ceil((scrollTop + viewportHeight) / rowHeight) + buffer);
-
-  const visibleItems = filtered.slice(startIndex, endIndex);
-
-  // ⚡ Rendu uniquement du lot visible
-  renderAnnonces(visibleItems, startIndex, filtered.length, rowHeight);
+  // ⚡ Affichage uniquement du lot actuel pour fluidité
+  renderAnnonces(filtered);
 }
 
 </script>  
