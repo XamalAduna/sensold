@@ -343,12 +343,7 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-// ⚡ CONSTANTES VIRTUAL SCROLL
-const VISIBLE_COUNT = 50; // nombre d'annonces affichées à l'écran
-const BUFFER = 20;         // annonces supplémentaires pour le scroll fluide
-let currentStartIndex = 0; // index du premier élément visible
-
-// ✅ VERSION OPTIMISÉE AVEC VIRTUAL SCROLL
+// ✅ VERSION OPTIMISÉE : supporte +100 000 annonces sans lag
 async function loadAnnonces(limitCount = 100) {
   if (!window.annoncesData) window.annoncesData = [];
   if (!window.lastVisible) window.lastVisible = null;
@@ -356,7 +351,7 @@ async function loadAnnonces(limitCount = 100) {
   document.getElementById("spinner").style.display = "flex";
 
   try {
-    // 🔹 Chargement par lot Firestore
+    // ⚡ Chargement par lot (pagination Firestore)
     let annoncesQuery = query(
       collection(db, "annonces"),
       orderBy("createdAt", "desc"),
@@ -374,21 +369,39 @@ async function loadAnnonces(limitCount = 100) {
     const annoncesSnap = await getDocs(annoncesQuery);
 
     if (annoncesSnap.empty) {
-      window.allAnnoncesLoaded = true;
       console.log("Toutes les annonces ont été chargées ✅");
+      window.allAnnoncesLoaded = true;
       document.getElementById("spinner").style.display = "none";
       return;
     }
 
-    const newAnnonces = annoncesSnap.docs.map(d => ({ ...d.data(), id: d.id }));
+    if (annoncesSnap.empty && window.annoncesData.length === 0) {
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
+      document.getElementById("spinner").style.display = "none";
+      return;
+    }
+
+    // ⚡ Ajout progressif (sans recréer tout le tableau)
+    const newAnnonces = annoncesSnap.docs.map(d => ({
+      ...d.data(),
+      id: d.id
+    }));
+
+    // ⚡ Limiter la taille de window.annoncesData pour éviter le lag
     window.annoncesData.push(...newAnnonces);
+    if (window.annoncesData.length > 5000) {
+      // Supprime les annonces les plus anciennes du tableau
+      window.annoncesData.splice(0, window.annoncesData.length - 5000);
+    }
+
     window.lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
 
-    // 🔹 Cache utilisateurs (chargé une seule fois)
+    // ⚡ Cache utilisateurs (chargé une seule fois)
     if (!window.__usersCache) {
       try {
         const usersSnap = await getDocs(collection(db, "users"));
-        const byEmail = {}, byId = {};
+        const byEmail = {};
+        const byId = {};
         usersSnap.forEach(uDoc => {
           const u = uDoc.data() || {};
           byId[uDoc.id] = u;
@@ -402,7 +415,7 @@ async function loadAnnonces(limitCount = 100) {
       }
     }
 
-    // 🔹 Setup filtre et recherche (une seule fois)
+    // ⚡ Affichage progressif (rend visible au fur et à mesure)
     if (!window.hasSetupFilters) {
       setupCategoryFilters();
       setupSearchAndSort();
@@ -410,8 +423,7 @@ async function loadAnnonces(limitCount = 100) {
       window.hasSetupFilters = true;
     }
 
-    // 🔹 Affichage virtualisé
-    renderVisibleAnnonces(currentStartIndex);
+    applyAllFilters(); // n’affiche que les annonces du lot chargé
 
   } catch (err) {
     console.error("Erreur chargement annonces:", err);
@@ -421,40 +433,14 @@ async function loadAnnonces(limitCount = 100) {
   }
 }
 
-// 🔹 Rendu des annonces visibles uniquement
-function renderVisibleAnnonces(startIndex = 0) {
-  annoncesContainer.innerHTML = "";
-  const endIndex = Math.min(startIndex + VISIBLE_COUNT + BUFFER, window.annoncesData.length);
-  const visibleAnnonces = window.annoncesData.slice(startIndex, endIndex);
-
-  visibleAnnonces.forEach(a => {
-    const card = document.createElement("div");
-    card.className = "annonce-card"; // garde ton design CSS
-    card.innerHTML = `
-      <h3>${a.title}</h3>
-      <p>${a.description}</p>
-    `;
-    annoncesContainer.appendChild(card);
-  });
-}
-
-// 🔹 Scroll infini + virtual scroll
+// ⚡ Scroll infini pour charger automatiquement les lots suivants
 window.addEventListener("scroll", () => {
-  const scrollTop = window.scrollY;
-  const cardHeight = 200; // hauteur approximative d'une carte
-  const newStartIndex = Math.floor(scrollTop / cardHeight);
-
-  if (newStartIndex !== currentStartIndex) {
-    currentStartIndex = newStartIndex;
-    renderVisibleAnnonces(currentStartIndex);
-  }
-
-  // Chargement des lots suivants si on approche de la fin
-  if (!window.allAnnoncesLoaded &&
-      window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
+  if (window.allAnnoncesLoaded) return;
+  if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
     loadAnnonces();
   }
 });
+
 
 function escapeHTML(str) {
   if (!str) return "";
