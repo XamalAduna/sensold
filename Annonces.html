@@ -343,16 +343,20 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-// ✅ VERSION OPTIMISÉE : supporte +20 000 annonces sans lag
+// ⚡ CONSTANTES VIRTUAL SCROLL
+const VISIBLE_COUNT = 50; // nombre d'annonces affichées à l'écran
+const BUFFER = 20;         // annonces supplémentaires pour le scroll fluide
+let currentStartIndex = 0; // index du premier élément visible
+
+// ✅ VERSION OPTIMISÉE AVEC VIRTUAL SCROLL
 async function loadAnnonces(limitCount = 100) {
-  // ⚡ Ne vide plus le conteneur à chaque appel (préserve l’affichage progressif)
   if (!window.annoncesData) window.annoncesData = [];
   if (!window.lastVisible) window.lastVisible = null;
 
   document.getElementById("spinner").style.display = "flex";
 
   try {
-    // ⚡ Chargement par lot (pagination Firestore)
+    // 🔹 Chargement par lot Firestore
     let annoncesQuery = query(
       collection(db, "annonces"),
       orderBy("createdAt", "desc"),
@@ -368,37 +372,23 @@ async function loadAnnonces(limitCount = 100) {
     }
 
     const annoncesSnap = await getDocs(annoncesQuery);
-    
+
     if (annoncesSnap.empty) {
-      console.log("Toutes les annonces ont été chargées ✅");
       window.allAnnoncesLoaded = true;
-
-      document.getElementById("spinner").style.display = "none"; // 👈 ajoute ceci
-      
-      return;
-     }
-
-
-    if (annoncesSnap.empty && window.annoncesData.length === 0) {
-      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
+      console.log("Toutes les annonces ont été chargées ✅");
       document.getElementById("spinner").style.display = "none";
       return;
     }
 
-    // ⚡ Ajout progressif (sans recréer tout le tableau)
-    const newAnnonces = annoncesSnap.docs.map(d => ({
-      ...d.data(),
-      id: d.id
-    }));
+    const newAnnonces = annoncesSnap.docs.map(d => ({ ...d.data(), id: d.id }));
     window.annoncesData.push(...newAnnonces);
     window.lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
 
-    // ⚡ Cache utilisateurs (chargé une seule fois)
+    // 🔹 Cache utilisateurs (chargé une seule fois)
     if (!window.__usersCache) {
       try {
         const usersSnap = await getDocs(collection(db, "users"));
-        const byEmail = {};
-        const byId = {};
+        const byEmail = {}, byId = {};
         usersSnap.forEach(uDoc => {
           const u = uDoc.data() || {};
           byId[uDoc.id] = u;
@@ -412,7 +402,7 @@ async function loadAnnonces(limitCount = 100) {
       }
     }
 
-    // ⚡ Affichage progressif (rend visible au fur et à mesure)
+    // 🔹 Setup filtre et recherche (une seule fois)
     if (!window.hasSetupFilters) {
       setupCategoryFilters();
       setupSearchAndSort();
@@ -420,7 +410,8 @@ async function loadAnnonces(limitCount = 100) {
       window.hasSetupFilters = true;
     }
 
-    applyAllFilters(); // n’affiche que les annonces du lot chargé
+    // 🔹 Affichage virtualisé
+    renderVisibleAnnonces(currentStartIndex);
 
   } catch (err) {
     console.error("Erreur chargement annonces:", err);
@@ -430,24 +421,40 @@ async function loadAnnonces(limitCount = 100) {
   }
 }
 
-// ⚡ Scroll infini pour charger automatiquement les lots suivants
-window.addEventListener("scroll", () => {
-  // 🛑 Stoppe le chargement si toutes les annonces sont déjà récupérées
-  if (window.allAnnoncesLoaded) return;
+// 🔹 Rendu des annonces visibles uniquement
+function renderVisibleAnnonces(startIndex = 0) {
+  annoncesContainer.innerHTML = "";
+  const endIndex = Math.min(startIndex + VISIBLE_COUNT + BUFFER, window.annoncesData.length);
+  const visibleAnnonces = window.annoncesData.slice(startIndex, endIndex);
 
-  // 📦 Si on arrive à 500px du bas de la page → on charge la suite
-  if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
+  visibleAnnonces.forEach(a => {
+    const card = document.createElement("div");
+    card.className = "annonce-card"; // garde ton design CSS
+    card.innerHTML = `
+      <h3>${a.title}</h3>
+      <p>${a.description}</p>
+    `;
+    annoncesContainer.appendChild(card);
+  });
+}
+
+// 🔹 Scroll infini + virtual scroll
+window.addEventListener("scroll", () => {
+  const scrollTop = window.scrollY;
+  const cardHeight = 200; // hauteur approximative d'une carte
+  const newStartIndex = Math.floor(scrollTop / cardHeight);
+
+  if (newStartIndex !== currentStartIndex) {
+    currentStartIndex = newStartIndex;
+    renderVisibleAnnonces(currentStartIndex);
+  }
+
+  // Chargement des lots suivants si on approche de la fin
+  if (!window.allAnnoncesLoaded &&
+      window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
     loadAnnonces();
   }
 });
-
-
-// ⚡ Infinite scroll pour charger automatiquement les lots suivants
-//window.addEventListener("scroll", () => {
- // if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
-  //  loadAnnonces(); // charge le prochain lot de 100 annonces
- // }
-//});
 
 function escapeHTML(str) {
   if (!str) return "";
@@ -979,77 +986,48 @@ function isBoostActive(annonce) {
   return boostEndDate > now;
 }
 
-// 🚀 VERSION ULTRA OPTIMISÉE — SUPPORT 500k ANNONCES+
+// ✅ VERSION OPTIMISÉE : applyAllFilters pour +20 000 annonces
 function applyAllFilters() {
-  let data = window.annoncesData || [];
+  // ⚡ On travaille sur le cache global window.annoncesData
+  let filtered = window.annoncesData || [];
 
-  // Préparation search (évite lowerCase dans boucle)
-  const hasSearch = searchText && searchText.trim() !== "";
-  const lowerSearch = hasSearch ? searchText.toLowerCase() : null;
-
-  // ⚡ Filtrage ultra performant — un seul passage
-  const filtered = [];
-  for (let i = 0; i < data.length; i++) {
-    const a = data[i];
-
-    // Filtre catégorie
-    if (selectedCategory && selectedCategory !== "all" && a.categorie !== selectedCategory) continue;
-
-    // Filtre sous-catégorie
-    if (selectedSubcategory && a.souscategorie !== selectedSubcategory) continue;
-
-    // Search
-    if (hasSearch) {
-      const title = a._titleLower || (a._titleLower = (a.title || "").toLowerCase());
-      const city  = a._cityLower  || (a._cityLower  = (a.city  || "").toLowerCase());
-
-      if (!title.includes(lowerSearch) && !city.includes(lowerSearch)) continue;
-    }
-
-    filtered.push(a);
+  // ⚡ Filtrage catégorie / sous-catégorie / recherche
+  if (selectedCategory && selectedCategory !== "all") {
+    filtered = filtered.filter(a => a.categorie === selectedCategory);
+  }
+  if (selectedSubcategory) {
+    filtered = filtered.filter(a => a.souscategorie === selectedSubcategory);
+  }
+  if (searchText) {
+    const lowerSearch = searchText.toLowerCase();
+    filtered = filtered.filter(a => 
+      (a.title?.toLowerCase().includes(lowerSearch)) || 
+      (a.city?.toLowerCase().includes(lowerSearch))
+    );
   }
 
-  // ⚡ Préparation des données pour le tri (cache)
-  for (let i = 0; i < filtered.length; i++) {
-    const a = filtered[i];
-
-    // Cache price
-    if (a._price == null) a._price = a.price || 0;
-
-    // Cache date
-    if (!a._ts) {
-      a._ts = a.createdAt
-        ? (a.createdAt.seconds ? a.createdAt.seconds * 1000 : new Date(a.createdAt).getTime())
-        : 0;
-    }
-
-    // Cache boost
-    if (a._boost == null) {
-      a._boost = isBoostActive(a) ? 1 : 0;
-      a._boostEnd = a.boostEnd
-        ? (a.boostEnd.toDate ? a.boostEnd.toDate().getTime() : new Date(a.boostEnd).getTime())
-        : 0;
-    }
-  }
-
-  // ⚡ Tri ultra rapide sans conversions
+  // ⚡ Tri optimisé avec boost et prix/date
   filtered.sort((a, b) => {
-    // Tri boost
-    if (a._boost !== b._boost) return b._boost - a._boost;
+    const aBoost = isBoostActive(a);
+    const bBoost = isBoostActive(b);
 
-    if (a._boost && b._boost) {
-      return b._boostEnd - a._boostEnd;
+    if (aBoost && !bBoost) return -1;
+    if (!aBoost && bBoost) return 1;
+    if (aBoost && bBoost) {
+      const aEnd = a.boostEnd ? (a.boostEnd.toDate ? a.boostEnd.toDate() : new Date(a.boostEnd)) : 0;
+      const bEnd = b.boostEnd ? (b.boostEnd.toDate ? b.boostEnd.toDate() : new Date(b.boostEnd)) : 0;
+      return bEnd - aEnd;
     }
 
-    // Tri prix
-    if (sortOrder === "asc") return a._price - b._price;
-    if (sortOrder === "desc") return b._price - a._price;
+    if (sortOrder === "asc") return (a.price || 0) - (b.price || 0);
+    if (sortOrder === "desc") return (b.price || 0) - (a.price || 0);
 
-    // Tri date
-    return b._ts - a._ts;
+    const aDate = a.createdAt ? a.createdAt.seconds * 1000 : 0;
+    const bDate = b.createdAt ? b.createdAt.seconds * 1000 : 0;
+    return bDate - aDate;
   });
 
-  // 🚀 Rendu final
+  // ⚡ Affichage uniquement du lot actuel pour fluidité
   renderAnnonces(filtered);
 }
 
