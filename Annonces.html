@@ -343,18 +343,16 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-// ✅ VERSION ULTRA-OPTIMISÉE : supporte 1M+ annonces sans lag
+// ✅ VERSION OPTIMISÉE : supporte +20 000 annonces sans lag
 async function loadAnnonces(limitCount = 100) {
-  // Initialise le stockage global si nécessaire
+  // ⚡ Ne vide plus le conteneur à chaque appel (préserve l’affichage progressif)
   if (!window.annoncesData) window.annoncesData = [];
   if (!window.lastVisible) window.lastVisible = null;
-  if (!window.allAnnoncesLoaded) window.allAnnoncesLoaded = false;
 
-  const spinner = document.getElementById("spinner");
-  spinner.style.display = "flex";
+  document.getElementById("spinner").style.display = "flex";
 
   try {
-    // ⚡ Requête paginée Firestore
+    // ⚡ Chargement par lot (pagination Firestore)
     let annoncesQuery = query(
       collection(db, "annonces"),
       orderBy("createdAt", "desc"),
@@ -370,19 +368,32 @@ async function loadAnnonces(limitCount = 100) {
     }
 
     const annoncesSnap = await getDocs(annoncesQuery);
-
+    
     if (annoncesSnap.empty) {
-      window.allAnnoncesLoaded = true;
       console.log("Toutes les annonces ont été chargées ✅");
+      window.allAnnoncesLoaded = true;
+
+      document.getElementById("spinner").style.display = "none"; // 👈 ajoute ceci
+      
+      return;
+     }
+
+
+    if (annoncesSnap.empty && window.annoncesData.length === 0) {
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
+      document.getElementById("spinner").style.display = "none";
       return;
     }
 
-    // ⚡ Transformation minimale des données
-    const newAnnonces = annoncesSnap.docs.map(d => ({ ...d.data(), id: d.id }));
+    // ⚡ Ajout progressif (sans recréer tout le tableau)
+    const newAnnonces = annoncesSnap.docs.map(d => ({
+      ...d.data(),
+      id: d.id
+    }));
     window.annoncesData.push(...newAnnonces);
     window.lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
 
-    // ⚡ Chargement unique du cache utilisateurs
+    // ⚡ Cache utilisateurs (chargé une seule fois)
     if (!window.__usersCache) {
       try {
         const usersSnap = await getDocs(collection(db, "users"));
@@ -401,7 +412,7 @@ async function loadAnnonces(limitCount = 100) {
       }
     }
 
-    // ⚡ Affichage progressif sans vider le conteneur
+    // ⚡ Affichage progressif (rend visible au fur et à mesure)
     if (!window.hasSetupFilters) {
       setupCategoryFilters();
       setupSearchAndSort();
@@ -415,22 +426,19 @@ async function loadAnnonces(limitCount = 100) {
     console.error("Erreur chargement annonces:", err);
     annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   } finally {
-    spinner.style.display = "none";
+    document.getElementById("spinner").style.display = "none";
   }
 }
 
-// ⚡ Scroll infini amélioré
-let scrollTimeout = null;
+// ⚡ Scroll infini pour charger automatiquement les lots suivants
 window.addEventListener("scroll", () => {
+  // 🛑 Stoppe le chargement si toutes les annonces sont déjà récupérées
   if (window.allAnnoncesLoaded) return;
 
-  // 📦 Débounce pour éviter d'appeler trop souvent loadAnnonces
-  if (scrollTimeout) clearTimeout(scrollTimeout);
-  scrollTimeout = setTimeout(() => {
-    if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
-      loadAnnonces();
-    }
-  }, 100);
+  // 📦 Si on arrive à 500px du bas de la page → on charge la suite
+  if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
+    loadAnnonces();
+  }
 });
 
 function escapeHTML(str) {
