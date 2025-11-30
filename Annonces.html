@@ -342,18 +342,16 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-// ✅ VERSION ULTIME : scroll virtuel + support massif
-async function loadAnnonces(limitCount = 100, maxLotsInMemory = 5, maxVisibleDOM = 50) {
-  // ⚡ Initialisation
-  if (!window.annoncesLots) window.annoncesLots = [];
+// ✅ VERSION OPTIMISÉE : supporte +20 000 annonces sans lag
+async function loadAnnonces(limitCount = 100) {
+  // ⚡ Ne vide plus le conteneur à chaque appel (préserve l’affichage progressif)
+  if (!window.annoncesData) window.annoncesData = [];
   if (!window.lastVisible) window.lastVisible = null;
-  if (!window.virtualStart) window.virtualStart = 0;
 
-  const spinner = document.getElementById("spinner");
-  spinner.style.display = "flex";
+  document.getElementById("spinner").style.display = "flex";
 
   try {
-    // ⚡ Pagination Firestore
+    // ⚡ Chargement par lot (pagination Firestore)
     let annoncesQuery = query(
       collection(db, "annonces"),
       orderBy("createdAt", "desc"),
@@ -369,26 +367,32 @@ async function loadAnnonces(limitCount = 100, maxLotsInMemory = 5, maxVisibleDOM
     }
 
     const annoncesSnap = await getDocs(annoncesQuery);
-
+    
     if (annoncesSnap.empty) {
       console.log("Toutes les annonces ont été chargées ✅");
       window.allAnnoncesLoaded = true;
-      spinner.style.display = "none";
+
+      document.getElementById("spinner").style.display = "none"; // 👈 ajoute ceci
+      
+      return;
+     }
+
+
+    if (annoncesSnap.empty && window.annoncesData.length === 0) {
+      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
+      document.getElementById("spinner").style.display = "none";
       return;
     }
 
-    // ⚡ Stockage du lot
-    const newLot = annoncesSnap.docs.map(d => ({ ...d.data(), id: d.id }));
-    window.annoncesLots.push(newLot);
+    // ⚡ Ajout progressif (sans recréer tout le tableau)
+    const newAnnonces = annoncesSnap.docs.map(d => ({
+      ...d.data(),
+      id: d.id
+    }));
+    window.annoncesData.push(...newAnnonces);
     window.lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
 
-    // ⚡ Limitation du nombre de lots en mémoire
-    if (window.annoncesLots.length > maxLotsInMemory) {
-      window.annoncesLots.shift();
-      window.virtualStart = Math.max(window.virtualStart - 1, 0);
-    }
-
-    // ⚡ Cache utilisateurs
+    // ⚡ Cache utilisateurs (chargé une seule fois)
     if (!window.__usersCache) {
       try {
         const usersSnap = await getDocs(collection(db, "users"));
@@ -407,7 +411,7 @@ async function loadAnnonces(limitCount = 100, maxLotsInMemory = 5, maxVisibleDOM
       }
     }
 
-    // ⚡ Setup filtres et recherche une seule fois
+    // ⚡ Affichage progressif (rend visible au fur et à mesure)
     if (!window.hasSetupFilters) {
       setupCategoryFilters();
       setupSearchAndSort();
@@ -415,25 +419,22 @@ async function loadAnnonces(limitCount = 100, maxLotsInMemory = 5, maxVisibleDOM
       window.hasSetupFilters = true;
     }
 
-    // ⚡ Virtual Scroll : ne garde que les annonces visibles + quelques précédentes
-    const allCache = window.annoncesLots.flat();
-    const startIdx = Math.max(allCache.length - maxVisibleDOM, 0);
-    const visibleAnnonces = allCache.slice(startIdx);
-
-    applyAllFilters(visibleAnnonces); // ⚡ passe seulement les annonces visibles au render
+    applyAllFilters(); // n’affiche que les annonces du lot chargé
 
   } catch (err) {
     console.error("Erreur chargement annonces:", err);
+    annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   } finally {
-    spinner.style.display = "none";
+    document.getElementById("spinner").style.display = "none";
   }
 }
 
-// ⚡ Scroll infini et virtualisation automatique
+// ⚡ Scroll infini pour charger automatiquement les lots suivants
 window.addEventListener("scroll", () => {
+  // 🛑 Stoppe le chargement si toutes les annonces sont déjà récupérées
   if (window.allAnnoncesLoaded) return;
 
-  // 📦 Charger le lot suivant si proche du bas
+  // 📦 Si on arrive à 500px du bas de la page → on charge la suite
   if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
     loadAnnonces();
   }
