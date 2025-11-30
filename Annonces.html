@@ -299,7 +299,6 @@ const categoriesData = {
     { "label": "Autre matériel professionnel", "icon": "miscellaneous_services" }
   ]
 };
-
 const annoncesContainer = document.getElementById("annonces");
 const subContainer = document.getElementById("subcategories-container");
 const categoryElements = document.querySelectorAll(".category");
@@ -347,11 +346,12 @@ onAuthStateChanged(auth, async (user) => {
 async function loadAnnonces(limitCount = 100) {
   if (!window.annoncesData) window.annoncesData = [];
   if (!window.lastVisible) window.lastVisible = null;
+  if (!window.__usersCache) window.__usersCache = null;
 
   document.getElementById("spinner").style.display = "flex";
 
   try {
-    // ⚡ Chargement par lot (pagination Firestore)
+    // 🔹 Préparer la requête Firestore avec pagination
     let annoncesQuery = query(
       collection(db, "annonces"),
       orderBy("createdAt", "desc"),
@@ -375,28 +375,11 @@ async function loadAnnonces(limitCount = 100) {
       return;
     }
 
-    if (annoncesSnap.empty && window.annoncesData.length === 0) {
-      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
-      document.getElementById("spinner").style.display = "none";
-      return;
-    }
-
-    // ⚡ Ajout progressif (sans recréer tout le tableau)
-    const newAnnonces = annoncesSnap.docs.map(d => ({
-      ...d.data(),
-      id: d.id
-    }));
-
-    // ⚡ Limiter la taille de window.annoncesData pour éviter le lag
+    const newAnnonces = annoncesSnap.docs.map(d => ({ ...d.data(), id: d.id }));
     window.annoncesData.push(...newAnnonces);
-    if (window.annoncesData.length > 5000) {
-      // Supprime les annonces les plus anciennes du tableau
-      window.annoncesData.splice(0, window.annoncesData.length - 5000);
-    }
-
     window.lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
 
-    // ⚡ Cache utilisateurs (chargé une seule fois)
+    // 🔹 Charger le cache utilisateurs si pas déjà fait
     if (!window.__usersCache) {
       try {
         const usersSnap = await getDocs(collection(db, "users"));
@@ -415,7 +398,7 @@ async function loadAnnonces(limitCount = 100) {
       }
     }
 
-    // ⚡ Affichage progressif (rend visible au fur et à mesure)
+    // 🔹 Setup filtres et menus si pas déjà fait
     if (!window.hasSetupFilters) {
       setupCategoryFilters();
       setupSearchAndSort();
@@ -423,7 +406,8 @@ async function loadAnnonces(limitCount = 100) {
       window.hasSetupFilters = true;
     }
 
-    applyAllFilters(); // n’affiche que les annonces du lot chargé
+    // 🔹 Rendu virtuel : seulement les annonces visibles dans le viewport
+    renderAnnonces(window.annoncesData, true); // le `true` indique virtual scroll
 
   } catch (err) {
     console.error("Erreur chargement annonces:", err);
@@ -433,7 +417,7 @@ async function loadAnnonces(limitCount = 100) {
   }
 }
 
-// ⚡ Scroll infini pour charger automatiquement les lots suivants
+// ⚡ Scroll infini
 window.addEventListener("scroll", () => {
   if (window.allAnnoncesLoaded) return;
   if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
