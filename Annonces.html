@@ -342,16 +342,18 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-// ✅ VERSION OPTIMISÉE : supporte +100 000 annonces sans lag
-async function loadAnnonces(limitCount = 100) {
-  if (!window.annoncesData) window.annoncesData = [];
+// ✅ VERSION ULTIME : scroll virtuel + support massif
+async function loadAnnonces(limitCount = 100, maxLotsInMemory = 5, maxVisibleDOM = 50) {
+  // ⚡ Initialisation
+  if (!window.annoncesLots) window.annoncesLots = [];
   if (!window.lastVisible) window.lastVisible = null;
-  if (!window.__usersCache) window.__usersCache = null;
+  if (!window.virtualStart) window.virtualStart = 0;
 
-  document.getElementById("spinner").style.display = "flex";
+  const spinner = document.getElementById("spinner");
+  spinner.style.display = "flex";
 
   try {
-    // 🔹 Préparer la requête Firestore avec pagination
+    // ⚡ Pagination Firestore
     let annoncesQuery = query(
       collection(db, "annonces"),
       orderBy("createdAt", "desc"),
@@ -371,15 +373,22 @@ async function loadAnnonces(limitCount = 100) {
     if (annoncesSnap.empty) {
       console.log("Toutes les annonces ont été chargées ✅");
       window.allAnnoncesLoaded = true;
-      document.getElementById("spinner").style.display = "none";
+      spinner.style.display = "none";
       return;
     }
 
-    const newAnnonces = annoncesSnap.docs.map(d => ({ ...d.data(), id: d.id }));
-    window.annoncesData.push(...newAnnonces);
+    // ⚡ Stockage du lot
+    const newLot = annoncesSnap.docs.map(d => ({ ...d.data(), id: d.id }));
+    window.annoncesLots.push(newLot);
     window.lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
 
-    // 🔹 Charger le cache utilisateurs si pas déjà fait
+    // ⚡ Limitation du nombre de lots en mémoire
+    if (window.annoncesLots.length > maxLotsInMemory) {
+      window.annoncesLots.shift();
+      window.virtualStart = Math.max(window.virtualStart - 1, 0);
+    }
+
+    // ⚡ Cache utilisateurs
     if (!window.__usersCache) {
       try {
         const usersSnap = await getDocs(collection(db, "users"));
@@ -398,7 +407,7 @@ async function loadAnnonces(limitCount = 100) {
       }
     }
 
-    // 🔹 Setup filtres et menus si pas déjà fait
+    // ⚡ Setup filtres et recherche une seule fois
     if (!window.hasSetupFilters) {
       setupCategoryFilters();
       setupSearchAndSort();
@@ -406,20 +415,25 @@ async function loadAnnonces(limitCount = 100) {
       window.hasSetupFilters = true;
     }
 
-    // 🔹 Rendu virtuel : seulement les annonces visibles dans le viewport
-    renderAnnonces(window.annoncesData, true); // le `true` indique virtual scroll
+    // ⚡ Virtual Scroll : ne garde que les annonces visibles + quelques précédentes
+    const allCache = window.annoncesLots.flat();
+    const startIdx = Math.max(allCache.length - maxVisibleDOM, 0);
+    const visibleAnnonces = allCache.slice(startIdx);
+
+    applyAllFilters(visibleAnnonces); // ⚡ passe seulement les annonces visibles au render
 
   } catch (err) {
     console.error("Erreur chargement annonces:", err);
-    annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   } finally {
-    document.getElementById("spinner").style.display = "none";
+    spinner.style.display = "none";
   }
 }
 
-// ⚡ Scroll infini
+// ⚡ Scroll infini et virtualisation automatique
 window.addEventListener("scroll", () => {
   if (window.allAnnoncesLoaded) return;
+
+  // 📦 Charger le lot suivant si proche du bas
   if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
     loadAnnonces();
   }
