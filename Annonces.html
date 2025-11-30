@@ -299,6 +299,7 @@ const categoriesData = {
     { "label": "Autre matériel professionnel", "icon": "miscellaneous_services" }
   ]
 };
+
 const annoncesContainer = document.getElementById("annonces");
 const subContainer = document.getElementById("subcategories-container");
 const categoryElements = document.querySelectorAll(".category");
@@ -439,7 +440,6 @@ window.addEventListener("scroll", () => {
     loadAnnonces();
   }
 });
-
 
 function escapeHTML(str) {
   if (!str) return "";
