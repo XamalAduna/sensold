@@ -7,7 +7,7 @@
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
 <style>
-body { font-family:Arial, sans-serif; background:black; margin:0; padding:8px; padding-bottom:100px; }
+body { font-family:Arial, sans-serif; background:#E8F5F3; margin:0; padding:8px; padding-bottom:100px; }
 h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 .annonces-container { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:20px; }
 @media (min-width:1024px){ .annonces-container { grid-template-columns:repeat(4,1fr); } }
@@ -115,42 +115,6 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
         <i class="material-icons">home</i>
         <p>Immobilier</p>
       </div>
-      <div class="category" data-cat="mode">
-        <i class="material-icons">checkroom</i>
-        <p>Mode & Beauté</p>
-      </div>
-      <div class="category" data-cat="electromenager">
-        <i class="material-icons">kitchen</i>
-        <p>Électroménager</p>
-      </div>
-      <div class="category" data-cat="maison">
-        <i class="material-icons">king_bed</i>
-        <p>Pour la maison</p>
-      </div>
-      <div class="category" data-cat="emplois">
-        <i class="material-icons">work</i>
-        <p>Emplois</p>
-      </div>
-      <div class="category" data-cat="services">
-        <i class="material-icons">handshake</i>
-        <p>Services</p>
-      </div>
-      <div class="category" data-cat="sports_loisirs">
-        <i class="material-icons">sports_basketball</i>
-        <p>Sports & Loisirs</p>
-      </div>
-      <div class="category" data-cat="alimentation">
-        <i class="material-icons">restaurant</i>
-        <p>Alimentation</p>
-      </div>
-      <div class="category" data-cat="animaux">
-        <i class="material-icons">pets</i>
-        <p>Animaux</p>
-      </div>
-      <div class="category" data-cat="materiel_pro">
-        <i class="material-icons">build</i>
-        <p>Matériel Pro</p>
-      </div>
     </div>
   </div>
   <div id="subcategories-container"></div>
@@ -160,7 +124,7 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 </div>
 <div id="annonces" class="annonces-container"></div>
 <div id="notLoggedMsg" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; padding:20px 30px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.25); text-align:center; z-index:99999;">
-  <p>Veuillez vous connecter pour ajouter  cette annonce à vos favoris.</p>
+  <p>Veuillez vous connecter pour ajouter cette annonce à vos favoris.</p>
   <a href="login.html">Se connecter</a>
 </div>
 <script type="module">
@@ -212,91 +176,6 @@ const categoriesData = {
     { "label": "Montres connectées & GPS", "icon": "watch" },
     { "label": "Imprimantes & Photocopieurs", "icon": "print" },
     { "label": "Autres électronique", "icon": "devices_other" }
-  ],
-  "mode": [
-    { "label": "Vêtements Homme", "icon": "checkroom" },
-    { "label": "Vêtements Femme", "icon": "checkroom" },
-    { "label": "Chaussures Homme", "icon": "hiking" },
-    { "label": "Chaussures Femme", "icon": "hiking" },
-    { "label": "Montres & Bijoux", "icon": "watch" },
-    { "label": "Cosmétique & Parfums", "icon": "spa" },
-    { "label": "Maroquinerie & Bagagerie", "icon": "work" },
-    { "label": "Accessoires cheveux, Coiffure & Cils", "icon": "content_cut" },
-    { "label": "Tissus & Foulards", "icon": "texture" },
-    { "label": "Lingerie", "icon": "favorite" },
-    { "label": "Lunettes", "icon": "visibility" },
-    { "label": "Autres accessoires", "icon": "more_horiz" }
-  ],
-  "electromenager": [
-    { "label": "Cuisinières, Gazinières & Fours", "icon": "kitchen" },
-    { "label": "Réfrigérateurs & Congélateurs", "icon": "ac_unit" },
-    { "label": "Climatiseurs & ventilateurs", "icon": "air" },
-    { "label": "Machine à laver vaisselles & linges", "icon": "local_laundry_service" },
-    { "label": "Petit électroménager", "icon": "blender" },
-    { "label": "Autre électroménager", "icon": "devices_other" }
-  ],
-  "maison": [
-    { "label": "Meubles", "icon": "weekend" },
-    { "label": "Vaisselle", "icon": "restaurant" },
-    { "label": "Décoration & luminaires", "icon": "lightbulb" },
-    { "label": "Linges de maison", "icon": "hotel" },
-    { "label": "Jardin & Piscine", "icon": "pool" },
-    { "label": "Bricolage", "icon": "build" },
-    { "label": "Literie & Matelas", "icon": "bed" },
-    { "label": "Autres pour la maison", "icon": "home" }
-  ],
-  "emplois": [
-    { "label": "Offre d'emploi", "icon": "work" },
-    { "label": "Demande d'emploi", "icon": "search" },
-    { "label": "Formation", "icon": "school" }
-  ],
-  "services": [
-    { "label": "Covoiturage", "icon": "directions_car" },
-    { "label": "Cours particuliers", "icon": "school" },
-    { "label": "Babysitting et nounou", "icon": "child_care" },
-    { "label": "Ménage & Cuisine", "icon": "cleaning_services" },
-    { "label": "Courses, livraisons & déménagement", "icon": "local_shipping" },
-    { "label": "Travaux, bricolage et jardinage", "icon": "construction" },
-    { "label": "Services Web, Design & Photo", "icon": "photo_camera" },
-    { "label": "Services Mode, Beauté & Bien-être", "icon": "spa" },
-    { "label": "Autres services", "icon": "miscellaneous_services" }
-  ],
-  "enfant": [
-    { "label": "Vêtements Enfants", "icon": "checkroom" },
-    { "label": "Chaussures Enfants", "icon": "hiking" },
-    { "label": "Mobilier & Équipement bébé", "icon": "crib" },
-    { "label": "Jeux et Jouets", "icon": "toys" },
-    { "label": "Fournitures Scolaires", "icon": "menu_book" },
-    { "label": "Autres", "icon": "child_friendly" }
-  ],
-  "sports_loisirs": [
-    { "label": "DVDs, CDs & Livres", "icon": "library_books" },
-    { "label": "Vélos & Trottinettes", "icon": "directions_bike" },
-    { "label": "Instruments de musique", "icon": "music_note" },
-    { "label": "Sport & Fitness", "icon": "fitness_center" },
-    { "label": "Événements", "icon": "event" },
-    { "label": "Art & Artisanat", "icon": "palette" },
-    { "label": "Voyage & Tourisme", "icon": "flight_takeoff" },
-    { "label": "Autres Sports & Loisirs", "icon": "sports" }
-  ],
-  "alimentation": [],
-  "animaux": [
-    { "label": "Chiens", "icon": "pets" },
-    { "label": "Moutons", "icon": "yard" },
-    { "label": "Poules, Lapins & Pigeons", "icon": "egg" },
-    { "label": "Matériel pour animaux", "icon": "pets" },
-    { "label": "Autres animaux", "icon": "eco" }
-  ],
-  "materiel_pro": [
-    { "label": "Matériel Agricole", "icon": "agriculture" },
-    { "label": "Transport & Manutention", "icon": "local_shipping" },
-    { "label": "Matériaux Construction, BTP, Outillages", "icon": "construction" },
-    { "label": "Fournitures de Bureaux", "icon": "business_center" },
-    { "label": "Matériel Marchés & Commerces", "icon": "store" },
-    { "label": "Matériel Médical", "icon": "medical_services" },
-    { "label": "Énergie, Groupes Électrogène & Panneaux solaires", "icon": "battery_charging_full" },
-    { "label": "Caméras et Matériel de surveillance", "icon": "videocam" },
-    { "label": "Autre matériel professionnel", "icon": "miscellaneous_services" }
   ]
 };
 
