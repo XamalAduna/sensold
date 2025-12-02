@@ -850,48 +850,50 @@ function isBoostActive(annonce) {
   return boostEndDate > now;
 }
 
-// ✅ VERSION OPTIMISÉE : applyAllFilters pour +20 000 annonces
+// ✅ VERSION ULTRA-OPTIMISÉE : applyAllFilters pour 100k+ annonces
 function applyAllFilters() {
-  // ⚡ On travaille sur le cache global window.annoncesData
-  let filtered = window.annoncesData || [];
+  const lowerSearch = searchText?.toLowerCase();
+  
+  // ⚡ Un seul passage pour filtrer et préparer les timestamps
+  const filtered = (window.annoncesData || []).filter(a => {
+    // Filtrage catégorie / sous-catégorie
+    if (selectedCategory && selectedCategory !== "all" && a.categorie !== selectedCategory) return false;
+    if (selectedSubcategory && a.souscategorie !== selectedSubcategory) return false;
 
-  // ⚡ Filtrage catégorie / sous-catégorie / recherche
-  if (selectedCategory && selectedCategory !== "all") {
-    filtered = filtered.filter(a => a.categorie === selectedCategory);
-  }
-  if (selectedSubcategory) {
-    filtered = filtered.filter(a => a.souscategorie === selectedSubcategory);
-  }
-  if (searchText) {
-    const lowerSearch = searchText.toLowerCase();
-    filtered = filtered.filter(a => 
-      (a.title?.toLowerCase().includes(lowerSearch)) || 
-      (a.city?.toLowerCase().includes(lowerSearch))
-    );
-  }
+    // Filtrage recherche texte
+    if (lowerSearch) {
+      if (!(
+        a.title?.toLowerCase().includes(lowerSearch) || 
+        a.city?.toLowerCase().includes(lowerSearch)
+      )) return false;
+    }
 
-  // ⚡ Tri optimisé avec boost et prix/date
+    // Pré-calcul timestamps pour boost et création
+    a._boostTS = a.boostEnd ? (a.boostEnd.toDate?.()?.getTime() || new Date(a.boostEnd).getTime()) : 0;
+    a._createdTS = a.createdAt ? a.createdAt.seconds * 1000 : 0;
+
+    return true;
+  });
+
+  // ⚡ Tri optimisé
   filtered.sort((a, b) => {
     const aBoost = isBoostActive(a);
     const bBoost = isBoostActive(b);
 
+    // Boost prioritaires
     if (aBoost && !bBoost) return -1;
     if (!aBoost && bBoost) return 1;
-    if (aBoost && bBoost) {
-      const aEnd = a.boostEnd ? (a.boostEnd.toDate ? a.boostEnd.toDate() : new Date(a.boostEnd)) : 0;
-      const bEnd = b.boostEnd ? (b.boostEnd.toDate ? b.boostEnd.toDate() : new Date(b.boostEnd)) : 0;
-      return bEnd - aEnd;
-    }
+    if (aBoost && bBoost) return b._boostTS - a._boostTS;
 
+    // Tri prix
     if (sortOrder === "asc") return (a.price || 0) - (b.price || 0);
     if (sortOrder === "desc") return (b.price || 0) - (a.price || 0);
 
-    const aDate = a.createdAt ? a.createdAt.seconds * 1000 : 0;
-    const bDate = b.createdAt ? b.createdAt.seconds * 1000 : 0;
-    return bDate - aDate;
+    // Tri date par défaut
+    return b._createdTS - a._createdTS;
   });
 
-  // ⚡ Affichage uniquement du lot actuel pour fluidité
+  // ⚡ Envoi au render
   renderAnnonces(filtered);
 }
 
