@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="fr"> 
 <head> 
 <meta charset="UTF-8"> 
@@ -850,52 +850,50 @@ function isBoostActive(annonce) {
   return boostEndDate > now;
 }
 
-// ✅ VERSION ULTRA-PERFECT : applyAllFilters pour 100k+ annonces
+// ✅ VERSION OPTIMISÉE : applyAllFilters pour +20 000 annonces
 function applyAllFilters() {
-  const lowerSearch = searchText?.toLowerCase();
+  // ⚡ On travaille sur le cache global window.annoncesData
+  let filtered = window.annoncesData || [];
 
-  // ⚡ Un seul passage pour filtrage + préparation des champs calculés
-  const filtered = (window.annoncesData || []).filter(a => {
-    // Pré-calcul des champs texte et timestamps si pas déjà faits
-    if (a._prepared !== true) {
-      a._boostTS = a.boostEnd ? (a.boostEnd.toDate?.()?.getTime() || new Date(a.boostEnd).getTime()) : 0;
-      a._createdTS = a.createdAt ? a.createdAt.seconds * 1000 : 0;
-      a._titleLower = a.title?.toLowerCase() || "";
-      a._cityLower = a.city?.toLowerCase() || "";
-      a._prepared = true;
-    }
+  // ⚡ Filtrage catégorie / sous-catégorie / recherche
+  if (selectedCategory && selectedCategory !== "all") {
+    filtered = filtered.filter(a => a.categorie === selectedCategory);
+  }
+  if (selectedSubcategory) {
+    filtered = filtered.filter(a => a.souscategorie === selectedSubcategory);
+  }
+  if (searchText) {
+    const lowerSearch = searchText.toLowerCase();
+    filtered = filtered.filter(a => 
+      (a.title?.toLowerCase().includes(lowerSearch)) || 
+      (a.city?.toLowerCase().includes(lowerSearch))
+    );
+  }
 
-    // Filtrage catégorie / sous-catégorie
-    if (selectedCategory && selectedCategory !== "all" && a.categorie !== selectedCategory) return false;
-    if (selectedSubcategory && a.souscategorie !== selectedSubcategory) return false;
-
-    // Filtrage recherche texte
-    if (lowerSearch) {
-      if (!(a._titleLower.includes(lowerSearch) || a._cityLower.includes(lowerSearch))) return false;
-    }
-
-    return true;
-  });
-
-  // ⚡ Tri ultra-rapide basé sur champs pré-calculés
+  // ⚡ Tri optimisé avec boost et prix/date
   filtered.sort((a, b) => {
     const aBoost = isBoostActive(a);
     const bBoost = isBoostActive(b);
 
     if (aBoost && !bBoost) return -1;
     if (!aBoost && bBoost) return 1;
-    if (aBoost && bBoost) return b._boostTS - a._boostTS;
+    if (aBoost && bBoost) {
+      const aEnd = a.boostEnd ? (a.boostEnd.toDate ? a.boostEnd.toDate() : new Date(a.boostEnd)) : 0;
+      const bEnd = b.boostEnd ? (b.boostEnd.toDate ? b.boostEnd.toDate() : new Date(b.boostEnd)) : 0;
+      return bEnd - aEnd;
+    }
 
     if (sortOrder === "asc") return (a.price || 0) - (b.price || 0);
     if (sortOrder === "desc") return (b.price || 0) - (a.price || 0);
 
-    return b._createdTS - a._createdTS;
+    const aDate = a.createdAt ? a.createdAt.seconds * 1000 : 0;
+    const bDate = b.createdAt ? b.createdAt.seconds * 1000 : 0;
+    return bDate - aDate;
   });
 
-  // ⚡ Render uniquement le lot visible
+  // ⚡ Affichage uniquement du lot actuel pour fluidité
   renderAnnonces(filtered);
 }
-
 
 </script>  
 </body>
