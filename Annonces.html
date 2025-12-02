@@ -895,19 +895,15 @@ function applyAllFilters() {
   renderAnnonces(filtered);
 }
 
-
-// ⚡ Scroll infini
+// ⚡ Scroll infini pour charger automatiquement les lots suivants
 window.addEventListener("scroll", () => {
+  if (window.allAnnoncesLoaded) return; // Plus rien à charger
 
-  // Si toutes les annonces sont déjà chargées → STOP
-  if (window.allAnnoncesLoaded) return;
-
-  // Détection si l'utilisateur est en bas
   const scrollPosition = window.innerHeight + window.scrollY;
-  const bottom = document.body.offsetHeight - 300;  
+  const bottom = document.documentElement.offsetHeight - 300;
 
   if (scrollPosition >= bottom) {
-      loadAnnonces(5); // 🔥 Charge les 5 prochaines annonces
+    loadAnnonces(5); // 🔥 Charger 5 annonces de plus
   }
 });
 
