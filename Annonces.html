@@ -850,52 +850,52 @@ function isBoostActive(annonce) {
   return boostEndDate > now;
 }
 
-// ✅ VERSION ULTRA-OPTIMISÉE : applyAllFilters pour 100k+ annonces
+// ✅ VERSION ULTRA-PERFECT : applyAllFilters pour 100k+ annonces
 function applyAllFilters() {
   const lowerSearch = searchText?.toLowerCase();
-  
-  // ⚡ Un seul passage pour filtrer et préparer les timestamps
+
+  // ⚡ Un seul passage pour filtrage + préparation des champs calculés
   const filtered = (window.annoncesData || []).filter(a => {
+    // Pré-calcul des champs texte et timestamps si pas déjà faits
+    if (a._prepared !== true) {
+      a._boostTS = a.boostEnd ? (a.boostEnd.toDate?.()?.getTime() || new Date(a.boostEnd).getTime()) : 0;
+      a._createdTS = a.createdAt ? a.createdAt.seconds * 1000 : 0;
+      a._titleLower = a.title?.toLowerCase() || "";
+      a._cityLower = a.city?.toLowerCase() || "";
+      a._prepared = true;
+    }
+
     // Filtrage catégorie / sous-catégorie
     if (selectedCategory && selectedCategory !== "all" && a.categorie !== selectedCategory) return false;
     if (selectedSubcategory && a.souscategorie !== selectedSubcategory) return false;
 
     // Filtrage recherche texte
     if (lowerSearch) {
-      if (!(
-        a.title?.toLowerCase().includes(lowerSearch) || 
-        a.city?.toLowerCase().includes(lowerSearch)
-      )) return false;
+      if (!(a._titleLower.includes(lowerSearch) || a._cityLower.includes(lowerSearch))) return false;
     }
-
-    // Pré-calcul timestamps pour boost et création
-    a._boostTS = a.boostEnd ? (a.boostEnd.toDate?.()?.getTime() || new Date(a.boostEnd).getTime()) : 0;
-    a._createdTS = a.createdAt ? a.createdAt.seconds * 1000 : 0;
 
     return true;
   });
 
-  // ⚡ Tri optimisé
+  // ⚡ Tri ultra-rapide basé sur champs pré-calculés
   filtered.sort((a, b) => {
     const aBoost = isBoostActive(a);
     const bBoost = isBoostActive(b);
 
-    // Boost prioritaires
     if (aBoost && !bBoost) return -1;
     if (!aBoost && bBoost) return 1;
     if (aBoost && bBoost) return b._boostTS - a._boostTS;
 
-    // Tri prix
     if (sortOrder === "asc") return (a.price || 0) - (b.price || 0);
     if (sortOrder === "desc") return (b.price || 0) - (a.price || 0);
 
-    // Tri date par défaut
     return b._createdTS - a._createdTS;
   });
 
-  // ⚡ Envoi au render
+  // ⚡ Render uniquement le lot visible
   renderAnnonces(filtered);
 }
+
 
 </script>  
 </body>
