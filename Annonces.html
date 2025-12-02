@@ -344,7 +344,7 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // ✅ VERSION OPTIMISÉE : supporte +20 000 annonces sans lag
-async function loadAnnonces(limitCount = 100) {
+async function loadAnnonces(limitCount = 5) {
   // ⚡ Ne vide plus le conteneur à chaque appel (préserve l’affichage progressif)
   if (!window.annoncesData) window.annoncesData = [];
   if (!window.lastVisible) window.lastVisible = null;
