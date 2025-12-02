@@ -1,12 +1,10 @@
-
 <!DOCTYPE html> 
-<html lang="fr"> 
-<head> 
+<html lang="fr">
+<head>
 <meta charset="UTF-8"> 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Annonces</title>
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
 <style>
 body { font-family:Arial, sans-serif; background:#f7f7f7; margin:0; padding:8px; padding-bottom:100px; }
 h2 { text-align:center; margin-bottom:20px; color:#00796B; }
@@ -68,11 +66,9 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 .annonce-card .title.long-text { font-size:14px; }
 .location { line-height:1.2; }
 .annonce-card .price, .annonce-card .title { margin:0 5px; line-height:1.2; }
-.seller-info { position: relative;overflow: hidden;white-space: nowrap;text-overflow: ellipsis; padding-right: 70px;min-height: 30px; display: flex; align-items: center; }
-.seller-info .boutique-pro {position: absolute;right: 0;top: 50%;transform: translateY(-50%);background: white;color: #00796B;font-size: 34px;padding: 6px;border-radius: 6px;display: flex;align-items: center;justify-content: center;}
-.material-symbols-outlined {font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0, 'opsz' 24; font-size: 30px; color: #1f1f1f; }
-.image-container {position: relative; display: block;}
-.boost-icon {position: absolute;bottom: 8px;right: 8px;font-size: 40px;color: #00796B;background: transparent; border-radius: 0; padding: 0; z-index: 20;display: flex; align-items: center;justify-content: center; line-height: 1;}
+.seller-info .boutique-pro { position:absolute; right:0; top:50%; transform:translateY(-50%); background:#00796B; color:white; font-size:10px; padding:2px 6px; border-radius:4px; white-space:nowrap; display:none; }
+
+
 </style>
 </head>
 <body>
@@ -96,10 +92,11 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
     <span class="label">Prix ↓</span>
   </button>
 </div>
+
 <section class="categories">
   <div class="categories-wrapper">
     <div class="categories-scroll">
-     
+      <!-- Exemple : chaque catégorie a un attribut data-cat -->
       <div class="category" data-cat="all">
          <i class="material-icons">apps</i>
         <p>Tous</p>
@@ -160,10 +157,6 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
   <div class="loader"></div>
 </div>
 <div id="annonces" class="annonces-container"></div>
-<div id="notLoggedMsg" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; padding:20px 30px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.25); text-align:center; z-index:99999;">
-  <p>Veuillez vous connecter pour ajouter  cette annonce à vos favoris.</p>
-  <a href="login.html">Se connecter</a>
-</div>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getFirestore, collection, getDocs, query, orderBy, limit, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
@@ -300,6 +293,7 @@ const categoriesData = {
     { "label": "Autre matériel professionnel", "icon": "miscellaneous_services" }
   ]
 };
+
 const annoncesContainer = document.getElementById("annonces");
 const subContainer = document.getElementById("subcategories-container");
 const categoryElements = document.querySelectorAll(".category");
@@ -317,29 +311,10 @@ let selectedCategory = "all";
 let selectedSubcategory = null;
 let searchText = "";
 let sortOrder = "default";
+
 let currentPage = 1;
-const annoncesPerPage = 20;
+const annoncesPerPage = 10;
 
-// --- RESTAURATION DU CACHE ---
-const cachedHTML = window.sessionStorage.getItem('cachedAnnoncesHTML');
-const cachedState = window.sessionStorage.getItem('cachedAnnoncesState');
-
-if (cachedHTML && cachedState) {
-    // Il y a un cache : on restaure
-    annoncesContainer.innerHTML = cachedHTML;
-    const state = JSON.parse(cachedState);
-    selectedCategory = state.selectedCategory;
-    selectedSubcategory = state.selectedSubcategory;
-    searchText = state.searchText;
-    sortOrder = state.sortOrder;
-    currentPage = state.currentPage;
-    userFavorites = state.userFavorites || [];
-} else {
-    // Pas de cache : on charge depuis Firebase
-    loadAnnonces();
-}
-
-  
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
@@ -351,6 +326,7 @@ function timeAgo(timestamp){
   const days = Math.floor(hours/24);
   return `il y a ${days} j`;
 }
+
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
   if(user){
@@ -360,21 +336,8 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     userFavorites = [];
   }
-
-  // Ne reload Firebase que si aucun cache n'existe
-  if(!cachedHTML || !cachedState){
-    loadAnnonces();
-  } else {
-    // Sinon, juste mettre à jour les favoris des cartes existantes
-    const favBtns = document.querySelectorAll(".favorite");
-    favBtns.forEach(btn => {
-      const cardId = btn.closest(".annonce-card").dataset.id;
-      if(currentUser && userFavorites.includes(cardId)) btn.classList.add("active");
-      else btn.classList.remove("active");
-    });
-  }
+  loadAnnonces();
 });
-
 
 async function loadAnnonces() {
   annoncesContainer.innerHTML = "";
@@ -389,11 +352,13 @@ async function loadAnnonces() {
       document.getElementById("spinner").style.display = "none";
       return; 
     }
+
     annoncesData = [];
     annoncesSnap.forEach(docSnap => {
-    const data = docSnap.data();
-    data.id = docSnap.id;
-    annoncesData.push(data);});
+      const data = docSnap.data();
+      data.id = docSnap.id;
+      annoncesData.push(data);
+    });
 
     if (!window.__usersCache) {
       try {
@@ -423,6 +388,7 @@ async function loadAnnonces() {
     document.getElementById("spinner").style.display = "none"; 
   }
 }
+  
 function escapeHTML(str) {
   if (!str) return "";
   return str
@@ -430,7 +396,9 @@ function escapeHTML(str) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
+
 async function renderAnnonces(filtered) {
   annoncesContainer.innerHTML = "";
   if (filtered.length === 0) {
@@ -477,12 +445,6 @@ async function renderAnnonces(filtered) {
     if (!sellerData && a.uid) sellerData = window.__usersCache.byId[a.uid];
     if (!sellerData && a.user && typeof a.user === "object") sellerData = a.user;
 
-    let isPro = false;
-    if (sellerData && sellerData.subscribe === true) {
-      const now = new Date();
-      const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
-      if (subEnd > now) isPro = true;}
-
     let fullName = "Utilisateur inconnu";
     if (sellerData) {
       fullName =
@@ -496,6 +458,7 @@ async function renderAnnonces(filtered) {
           "Utilisateur"
         );
     }
+
     let sellerPhoto =
       (sellerData && (
         sellerData.profileImage ||
@@ -512,44 +475,38 @@ async function renderAnnonces(filtered) {
     sellerPhoto = escapeHTML(sellerPhoto);
     let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
     card.innerHTML = `
-  <div class="image-container">
-    <img src="${annonceImage}" 
-         loading="lazy"
-         alt="${escapeHTML(a.title || 'Annonce')}"
-         onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
-    ${isBoostActive(a) ? '<span class="boost-icon material-symbols-outlined">arrow_shape_up</span>' : ''}
-    <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
-    <span class="material-icons favorite ${isFav ? 'active' : ''}">
-      ${isFav ? 'favorite' : 'favorite_border'}
-    </span>
-  </div>
+  <img src="${annonceImage}" 
+       loading="lazy"
+       alt="${escapeHTML(a.title || 'Annonce')}"
+       onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=Annonce'">
+  <span class="time-badge">⏰ ${timeAgo(a.createdAt)}</span>
+  <span class="material-icons favorite ${isFav ? 'active' : ''}">
+    ${isFav ? 'favorite' : 'favorite_border'}
+  </span>
   <div class="content">
     <p class="price">${escapeHTML(a.price ? a.price + " FCFA" : "Prix sur demande")}</p>
     <h3 class="title">${escapeHTML(a.title || "Sans titre")}</h3>
     <p class="location">📍 ${escapeHTML(a.city || "Ville non précisée")}${a.quartier ? ", " + escapeHTML(a.quartier) : ""}</p>
   </div>
-  <div class="seller">
-    <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
-    <div class="seller-info">
-      <strong>${fullName}</strong>
-      ${isPro ? '<span class="boutique-pro material-symbols-outlined" title="Boutique Pro">storefront</span>' : ''}
-    </div>
+  
+ <div class="seller">
+  <img src="${sellerPhoto}" loading="lazy" alt="profil vendeur" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
+  <div class="seller-info">
+    <strong>${fullName}</strong>
+    ${isBoostActive(a) ? '<span class="boutique-pro" style="display:block;">BOOST</span>' : ''}
   </div>
+</div>
 `;
+
     const titleEl = card.querySelector('.title');
-      if ((a.title || "").length > 30) {
+      if ((a.title || "").length > 30) { // tu peux ajuster 50 à 40 si tu veux
       titleEl.classList.add('long-text');}
+
+
     const favBtn = card.querySelector(".favorite");
     favBtn.addEventListener("click", async e => {
       e.stopPropagation();
-
-      if (!currentUser) {
-      const msg = document.getElementById("notLoggedMsg");
-      msg.style.display = "block";
-      setTimeout(() => { msg.style.display = "none"; }, 3000);
-      return;}
-
-      
+      if (!currentUser) { alert("Connectez-vous !"); return; }
       const favRef = doc(db, "users", currentUser.uid);
       if (favBtn.classList.contains("active")) {
         favBtn.classList.remove("active");
@@ -563,7 +520,7 @@ async function renderAnnonces(filtered) {
         await updateDoc(favRef, { favorites: arrayUnion(docId) });
       }
     });
-    
+
     card.addEventListener("click", e => {
       if (e.target.classList.contains("favorite")) return;
       window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
@@ -571,16 +528,6 @@ async function renderAnnonces(filtered) {
 
     annoncesContainer.appendChild(card);
   }
-  // Sauvegarde dans sessionStorage
-window.sessionStorage.setItem('cachedAnnoncesHTML', annoncesContainer.innerHTML);
-window.sessionStorage.setItem('cachedAnnoncesState', JSON.stringify({
-    selectedCategory,
-    selectedSubcategory,
-    searchText,
-    sortOrder,
-    currentPage,
-    userFavorites
-}));
 
   renderPagination(Math.ceil(filtered.length / annoncesPerPage));
 }
@@ -692,6 +639,7 @@ function setupCategoryFilters() {
           });
         });
       }
+
       applyAllFilters();
     });
   });
@@ -725,34 +673,27 @@ function isBoostActive(annonce) {
   return boostEndDate > now;
 }
 
+
 function applyAllFilters() {
   let filtered = annoncesData;
-  if(selectedCategory && selectedCategory !== "all") 
-      filtered = filtered.filter(a => a.categorie === selectedCategory);
-  if(selectedSubcategory) 
-      filtered = filtered.filter(a => a.souscategorie === selectedSubcategory);
-  if(searchText) 
-      filtered = filtered.filter(a => 
-        (a.title?.toLowerCase().includes(searchText.toLowerCase())) || 
-        (a.city?.toLowerCase().includes(searchText.toLowerCase()))
-      );
 
-  filtered.sort((a, b) => {
-    const aBoost = isBoostActive(a);
-    const bBoost = isBoostActive(b);
-    if(aBoost && !bBoost) return -1;
-    if(!aBoost && bBoost) return 1;
-    if(aBoost && bBoost){
-      const aEnd = a.boostEnd ? a.boostEnd.toDate ? a.boostEnd.toDate() : new Date(a.boostEnd) : 0;
-      const bEnd = b.boostEnd ? b.boostEnd.toDate ? b.boostEnd.toDate() : new Date(b.boostEnd) : 0;
-      return bEnd - aEnd;
-    }
-    if(sortOrder === "asc") return (a.price || 0) - (b.price || 0);
-    if(sortOrder === "desc") return (b.price || 0) - (a.price || 0);
-    const aDate = a.createdAt ? a.createdAt.seconds * 1000 : 0;
-    const bDate = b.createdAt ? b.createdAt.seconds * 1000 : 0;
-    return bDate - aDate;
-  });
+  if(selectedCategory && selectedCategory !== "all") filtered = filtered.filter(a => a.categorie === selectedCategory);
+  if(selectedSubcategory) filtered = filtered.filter(a => a.souscategorie === selectedSubcategory);
+  if(searchText) filtered = filtered.filter(a => 
+    (a.title?.toLowerCase().includes(searchText.toLowerCase())) || 
+    (a.city?.toLowerCase().includes(searchText.toLowerCase()))
+  );
+
+  if(sortOrder === "asc") filtered.sort((a,b)=>(a.price||0)-(b.price||0));
+  else if(sortOrder === "desc") filtered.sort((a,b)=>(b.price||0)-(a.price||0));
+
+  // Trier pour mettre les boost actifs en premier
+filtered.sort((a, b) => {
+  const aBoost = isBoostActive(a) ? 1 : 0;
+  const bBoost = isBoostActive(b) ? 1 : 0;
+  return bBoost - aBoost; // boost actif en premier
+});
+
   renderAnnonces(filtered);}
 </script>  
 </body>
