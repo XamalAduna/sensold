@@ -320,6 +320,11 @@ let sortOrder = "default";
 let currentPage = 1;
 const annoncesPerPage = 20;
 
+let isLoading = false;   // empêche de recharger plusieurs fois en même temps
+let lastVisible = null;  // marqueur pour savoir où on s’est arrêté
+let allLoaded = false;   // pour savoir si on a tout chargé
+
+
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
@@ -345,14 +350,13 @@ onAuthStateChanged(auth, async (user) => {
 
 // ✅ VERSION OPTIMISÉE : supporte +20 000 annonces sans lag
 async function loadAnnonces(limitCount = 5) {
-  // ⚡ Ne vide plus le conteneur à chaque appel (préserve l’affichage progressif)
-  if (!window.annoncesData) window.annoncesData = [];
-  if (!window.lastVisible) window.lastVisible = null;
+  if (window.allAnnoncesLoaded) return;  // Stop si tout est chargé
+  if (window.isLoading) return;          // Stop si un chargement est en cours
+  window.isLoading = true;
 
   document.getElementById("spinner").style.display = "flex";
 
   try {
-    // ⚡ Chargement par lot (pagination Firestore)
     let annoncesQuery = query(
       collection(db, "annonces"),
       orderBy("createdAt", "desc"),
@@ -368,32 +372,17 @@ async function loadAnnonces(limitCount = 5) {
     }
 
     const annoncesSnap = await getDocs(annoncesQuery);
-    
+
     if (annoncesSnap.empty) {
       console.log("Toutes les annonces ont été chargées ✅");
       window.allAnnoncesLoaded = true;
-
-      document.getElementById("spinner").style.display = "none"; // 👈 ajoute ceci
-      
-      return;
-     }
-
-
-    if (annoncesSnap.empty && window.annoncesData.length === 0) {
-      annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
-      document.getElementById("spinner").style.display = "none";
       return;
     }
 
-    // ⚡ Ajout progressif (sans recréer tout le tableau)
-    const newAnnonces = annoncesSnap.docs.map(d => ({
-      ...d.data(),
-      id: d.id
-    }));
+    const newAnnonces = annoncesSnap.docs.map(d => ({ ...d.data(), id: d.id }));
     window.annoncesData.push(...newAnnonces);
     window.lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
 
-    // ⚡ Cache utilisateurs (chargé une seule fois)
     if (!window.__usersCache) {
       try {
         const usersSnap = await getDocs(collection(db, "users"));
@@ -412,7 +401,6 @@ async function loadAnnonces(limitCount = 5) {
       }
     }
 
-    // ⚡ Affichage progressif (rend visible au fur et à mesure)
     if (!window.hasSetupFilters) {
       setupCategoryFilters();
       setupSearchAndSort();
@@ -420,27 +408,24 @@ async function loadAnnonces(limitCount = 5) {
       window.hasSetupFilters = true;
     }
 
-    applyAllFilters(); // n’affiche que les annonces du lot chargé
+    applyAllFilters();
 
   } catch (err) {
     console.error("Erreur chargement annonces:", err);
     annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   } finally {
     document.getElementById("spinner").style.display = "none";
+    window.isLoading = false; // ✅ permet le prochain chargement
   }
 }
 
-// ⚡ Scroll infini pour charger automatiquement les lots suivants
+// ⚡ Scroll infini
 window.addEventListener("scroll", () => {
-  // 🛑 Stoppe le chargement si toutes les annonces sont déjà récupérées
-  if (window.allAnnoncesLoaded) return;
-
-  // 📦 Si on arrive à 500px du bas de la page → on charge la suite
+  if (window.allAnnoncesLoaded || window.isLoading) return;
   if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
     loadAnnonces();
   }
 });
-
 
 
 
