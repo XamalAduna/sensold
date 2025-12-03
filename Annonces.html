@@ -605,48 +605,76 @@ function isBoostActive(annonce) {
   return boostEndDate > now;
 }
 
-// ✅ VERSION OPTIMISÉE : applyAllFilters pour +20 000 annonces
+// ⚡ VERSION ULTRA OPTIMISÉE — Supporte 500k annonces
 function applyAllFilters() {
-  // ⚡ On travaille sur le cache global window.annoncesData
-  let filtered = window.annoncesData || [];
+  let data = window.annoncesData;
+  if (!data || data.length === 0) return renderAnnonces([]);
 
-  // ⚡ Filtrage catégorie / sous-catégorie / recherche
-  if (selectedCategory && selectedCategory !== "all") {
-    filtered = filtered.filter(a => a.categorie === selectedCategory);
-  }
-  if (selectedSubcategory) {
-    filtered = filtered.filter(a => a.souscategorie === selectedSubcategory);
-  }
-  if (searchText) {
-    const lowerSearch = searchText.toLowerCase();
-    filtered = filtered.filter(a => 
-      (a.title?.toLowerCase().includes(lowerSearch)) || 
-      (a.city?.toLowerCase().includes(lowerSearch))
-    );
+  // ─────────────────────────────────────────
+  // ⚡ FAST-PATH : si aucun filtre ni tri → affichage direct ultra rapide
+  // ─────────────────────────────────────────
+  const noFilter =
+    (!selectedCategory || selectedCategory === "all") &&
+    !selectedSubcategory &&
+    !searchText &&
+    sortOrder === null;
+
+  if (noFilter) {
+    return renderAnnonces(data);
   }
 
-  // ⚡ Tri optimisé avec boost et prix/date
+  // ─────────────────────────────────────────
+  // ⚡ PRE-CALCULS pour accélérer (micro-cache)
+  // ─────────────────────────────────────────
+  const lowerSearch = searchText ? searchText.toLowerCase() : null;
+
+  // ─────────────────────────────────────────
+  // ⚡ FILTRAGE HYPER RAPIDE (1 seul passage)
+  // ─────────────────────────────────────────
+  const filtered = [];
+  for (let i = 0; i < data.length; i++) {
+    const a = data[i];
+
+    if (selectedCategory && selectedCategory !== "all" && a.categorie !== selectedCategory) continue;
+    if (selectedSubcategory && a.souscategorie !== selectedSubcategory) continue;
+
+    if (lowerSearch) {
+      const t = a.title?.toLowerCase() || "";
+      const c = a.city?.toLowerCase() || "";
+      if (!t.includes(lowerSearch) && !c.includes(lowerSearch)) continue;
+    }
+
+    filtered.push(a);
+  }
+
+  // ─────────────────────────────────────────
+  // ⚡ TRI OPTIMISÉ (Boost → Prix → Date)
+  // ─────────────────────────────────────────
   filtered.sort((a, b) => {
+    // BOOST
     const aBoost = isBoostActive(a);
     const bBoost = isBoostActive(b);
+    if (aBoost !== bBoost) return bBoost - aBoost;
 
-    if (aBoost && !bBoost) return -1;
-    if (!aBoost && bBoost) return 1;
     if (aBoost && bBoost) {
       const aEnd = a.boostEnd ? (a.boostEnd.toDate ? a.boostEnd.toDate() : new Date(a.boostEnd)) : 0;
       const bEnd = b.boostEnd ? (b.boostEnd.toDate ? b.boostEnd.toDate() : new Date(b.boostEnd)) : 0;
       return bEnd - aEnd;
     }
 
+    // TRI PRIX
     if (sortOrder === "asc") return (a.price || 0) - (b.price || 0);
     if (sortOrder === "desc") return (b.price || 0) - (a.price || 0);
 
+    // TRI DATE
     const aDate = a.createdAt ? a.createdAt.seconds * 1000 : 0;
     const bDate = b.createdAt ? b.createdAt.seconds * 1000 : 0;
     return bDate - aDate;
   });
 
-  // ⚡ Affichage uniquement du lot actuel pour fluidité
+  // ─────────────────────────────────────────
+  // ⚡ AFFICHAGE (ultra fluide)
+  // ─────────────────────────────────────────
   renderAnnonces(filtered);
 }
 
