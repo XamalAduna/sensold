@@ -222,7 +222,7 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // ✅ VERSION OPTIMISÉE : supporte 1M+ annonces sans lag
-async function loadAnnonces(limitCount = 100) {
+async function loadAnnonces(limitCount = 5) {
   if (!window.annoncesData) window.annoncesData = [];
   if (!window.lastVisible) window.lastVisible = null;
   if (window.isLoading) return; // ⚡ Stop double chargement
