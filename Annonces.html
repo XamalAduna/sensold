@@ -257,14 +257,7 @@ async function loadAnnonces(limitCount = 5) {
     }
 
     // ⚡ Ajout progressif
-    let newAnnonces = annoncesSnap.docs.map(d => ({ ...d.data(), id: d.id }));
-    
-    // ⚡ Prioriser les annonces boostées non expirées
-    const now = new Date().getTime();
-    const boosted = newAnnonces.filter(a => a.boost && a.boostEnd && a.boostEnd.toMillis() > now);
-    const nonBoosted = newAnnonces.filter(a => !a.boost || !a.boostEnd || a.boostEnd.toMillis() <= now);
-    newAnnonces = [...boosted, ...nonBoosted]; // boostées en premier
-
+    const newAnnonces = annoncesSnap.docs.map(d => ({ ...d.data(), id: d.id }));
     window.annoncesData.push(...newAnnonces);
     window.lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
 
