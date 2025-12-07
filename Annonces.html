@@ -127,6 +127,10 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
   <a href="login.html">Se connecter</a>
 </div>
 <script type="module">
+if ('scrollRestoration' in history) {
+    history.scrollRestoration = 'manual';
+}
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getFirestore, collection, getDocs, query, orderBy, limit, startAfter, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
@@ -218,7 +222,13 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     userFavorites = [];
   }
-  loadAnnonces();
+ 
+
+  if (!window.annoncesData || window.annoncesData.length === 0) {
+    loadAnnonces();
+} else {
+    applyAllFilters();  // ⚡ Réaffiche instantanément sans rechargement Firestore
+}
 });
 
 // ✅ VERSION OPTIMISÉE : supporte 1M+ annonces sans lag
