@@ -196,7 +196,7 @@ let selectedSubcategory = null;
 let searchText = "";
 let sortOrder = "default";
 let currentPage = 1;
-const annoncesPerPage = 20;
+const annoncesPerPage = 50;
 
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
@@ -677,7 +677,6 @@ function applyAllFilters() {
   // ─────────────────────────────────────────
   renderAnnonces(filtered);
 }
-
 </script>  
 </body>
 </html>
