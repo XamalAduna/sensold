@@ -3,7 +3,7 @@
 <head> 
 <meta charset="UTF-8"> 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Annonces</title>
+<title>Annonces</title> 
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
 <style>
@@ -222,7 +222,7 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // ✅ VERSION OPTIMISÉE : supporte 1M+ annonces sans lag
-async function loadAnnonces(limitCount = 5) {
+async function loadAnnonces(limitCount = 50) {
   if (!window.annoncesData) window.annoncesData = [];
   if (!window.lastVisible) window.lastVisible = null;
   if (window.isLoading) return; // ⚡ Stop double chargement
