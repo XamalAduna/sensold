@@ -198,6 +198,23 @@ let sortOrder = "default";
 let currentPage = 1;
 const annoncesPerPage = 50;
 
+window.addEventListener('popstate', (event) => {
+  if (event.state) {
+    selectedCategory = event.state.selectedCategory || 'all';
+    selectedSubcategory = event.state.selectedSubcategory || null;
+    searchText = event.state.searchText || '';
+    sortOrder = event.state.sortOrder || 'default';
+    currentPage = event.state.currentPage || 1;
+
+    // Charger les annonces déjà récupérées et appliquer les filtres
+    applyAllFilters();
+
+    // Restaurer la position de scroll
+    window.scrollTo(0, event.state.scrollY || 0);
+  }
+});
+
+
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
@@ -452,13 +469,23 @@ async function renderAnnonces(filtered) {
       }
     });
 
-    // ⚡ Clic sur card
-    card.addEventListener("click", e => {
-      if (!e.target.classList.contains("favorite")) {
-        window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
-      }
-    });
-
+    // ⚡ Clic sur card avec sauvegarde de l'état
+card.addEventListener("click", e => {
+  if (!e.target.classList.contains("favorite")) {
+    // Sauvegarde de l'état actuel dans history
+    const state = {
+      scrollY: window.scrollY,
+      selectedCategory,
+      selectedSubcategory,
+      searchText,
+      sortOrder,
+      currentPage
+    };
+    history.replaceState(state, ''); // Remplace l'état actuel
+    window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
+  }
+});
+    
     fragment.appendChild(card);
   }
 
