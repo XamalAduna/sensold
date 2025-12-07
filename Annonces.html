@@ -127,10 +127,6 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
   <a href="login.html">Se connecter</a>
 </div>
 <script type="module">
-if ('scrollRestoration' in history) {
-    history.scrollRestoration = 'manual';
-}
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getFirestore, collection, getDocs, query, orderBy, limit, startAfter, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
@@ -214,60 +210,18 @@ function timeAgo(timestamp){
   return `il y a ${days} j`;
 }
   
-// 🔹 Sauvegarde automatique
-function saveState() {
-  const state = {
-    annonces: window.annoncesData || [],
-    page: currentPage,
-    category: selectedCategory,
-    subcategory: selectedSubcategory,
-    search: searchText,
-    sort: sortOrder,
-    scrollY: window.scrollY
-  };
-  sessionStorage.setItem("annoncesState", JSON.stringify(state));
-}
-
-// 🔹 Restauration à l'arrivée
-function restoreState() {
-  const stateStr = sessionStorage.getItem("annoncesState");
-  if (!stateStr) return false;
-  const state = JSON.parse(stateStr);
-
-  window.annoncesData = state.annonces || [];
-  currentPage = state.page || 1;
-  selectedCategory = state.category || "all";
-  selectedSubcategory = state.subcategory || null;
-  searchText = state.search || "";
-  sortOrder = state.sort || "default";
-
-  applyAllFilters();
-
-  // Scroll après affichage
-  setTimeout(() => { window.scrollTo(0, state.scrollY || 0); }, 50);
-
-  return true;
-}
-
-// 🔹 Au chargement
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
-  if (user) {
-    const userSnap = await getDoc(doc(db, "users", user.uid));
+  if(user){
+    const userRef = doc(db,"users",user.uid);
+    const userSnap = await getDoc(userRef);
     userFavorites = userSnap.data()?.favorites || [];
   } else {
     userFavorites = [];
   }
-
-  if (!restoreState()) {
-    loadAnnonces(); // Chargement normal si pas de cache
-  }
+  loadAnnonces();
 });
-
-// 🔹 Avant de quitter la page
-window.addEventListener("beforeunload", saveState);
-
-
+  
 // ✅ VERSION OPTIMISÉE : supporte 1M+ annonces sans lag
 async function loadAnnonces(limitCount = 50) {
   if (!window.annoncesData) window.annoncesData = [];
