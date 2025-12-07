@@ -256,9 +256,23 @@ async function loadAnnonces(limitCount = 5) {
       return;
     }
 
-    // ⚡ Ajout progressif
-    let newAnnonces = annoncesSnap.docs.map(d => ({ ...d.data(), id: d.id }));
-    
+    // ⚡ Ajout progressif + priorité boost
+let newAnnonces = annoncesSnap.docs.map(d => ({ ...d.data(), id: d.id }));
+
+// ⚡ Prioriser les annonces boostées non expirées
+const now = Date.now();
+const boosted = newAnnonces.filter(
+  a => a.boost === true && a.boostEnd && a.boostEnd.toMillis() > now
+);
+
+const nonBoosted = newAnnonces.filter(
+  a => !a.boost || !a.boostEnd || a.boostEnd.toMillis() <= now
+);
+
+// ⚡ Boostées en premier
+newAnnonces = [...boosted, ...nonBoosted];
+
+   
     // ⚡ Prioriser les annonces boostées non expirées
     const now = new Date().getTime();
     const boosted = newAnnonces.filter(a => a.boost && a.boostEnd && a.boostEnd.toMillis() > now);
