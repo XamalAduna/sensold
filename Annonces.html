@@ -226,45 +226,8 @@ onAuthStateChanged(auth, async (user) => {
   loadAnnonces();
 });
 
-// ⚡ Sauvegarder l'état actuel
-function saveState() {
-  const state = {
-    annoncesData: window.annoncesData || [],
-    lastVisible: window.lastVisible || null,
-    currentPage: currentPage,
-    scrollY: window.scrollY
-  };
-  sessionStorage.setItem('annoncesState', JSON.stringify(state));
-}
-
-// ⚡ Restaurer l'état au chargement
-function restoreState() {
-  const state = sessionStorage.getItem('annoncesState');
-  if(state){
-    const parsed = JSON.parse(state);
-    window.annoncesData = parsed.annoncesData || [];
-    window.lastVisible = parsed.lastVisible || null;
-    currentPage = parsed.currentPage || 1;
-    applyAllFilters(); // réaffiche les annonces
-    window.scrollTo(0, parsed.scrollY || 0);
-  } else {
-    loadAnnonces(); // sinon charger normalement
-  }
-}
-
-// ⚡ Appeler restoreState au chargement de la page
-window.addEventListener('load', restoreState);
-
-
 // ✅ VERSION OPTIMISÉE : supporte 1M+ annonces sans lag
 async function loadAnnonces(limitCount = 50) {
-  
-  // ⚡ Si on a déjà des annonces en mémoire, on les affiche directement sans recharger
-  if (window.annoncesData && window.annoncesData.length > 0) {
-  applyAllFilters();
-  return;
-}
-
   if (!window.annoncesData) window.annoncesData = [];
   if (!window.lastVisible) window.lastVisible = null;
   if (window.isLoading) return; // ⚡ Stop double chargement
@@ -495,16 +458,14 @@ async function renderAnnonces(filtered) {
 
     // ⚡ Clic sur card
     card.addEventListener("click", e => {
-  if (!e.target.classList.contains("favorite")) {
-    saveState(); // ⚡ Sauvegarder l'état avant navigation
-    window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
-  }
-});
-
+      if (!e.target.classList.contains("favorite")) {
+        window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
+      }
+    });
 
     fragment.appendChild(card);
   }
- 
+
   annoncesContainer.appendChild(fragment);
   renderPagination(totalPages);
 }
@@ -721,6 +682,27 @@ function applyAllFilters() {
   // ─────────────────────────────────────────
   renderAnnonces(filtered);
 }
+
+// 🔹 Restaurer l'état de la page si on revient en arrière
+window.addEventListener('pageshow', (event) => {
+  // Vérifie si la page provient du cache du navigateur
+  if (event.persisted) {
+    // Restaurer annonces déjà chargées
+    if (window.annoncesData && window.annoncesData.length) {
+      applyAllFilters();
+    }
+    // Restaurer scroll
+    if (sessionStorage.scrollY) {
+      window.scrollTo(0, parseInt(sessionStorage.scrollY));
+    }
+  }
+});
+
+// 🔹 Sauvegarder le scroll avant de quitter la page
+window.addEventListener('beforeunload', () => {
+  sessionStorage.scrollY = window.scrollY;
+});
+
 </script>  
 </body>
 </html>
