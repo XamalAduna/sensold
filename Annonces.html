@@ -195,13 +195,35 @@ const priceDescBtn = document.getElementById("price-desc");
 
 let currentUser = null;
 let userFavorites = [];
-let annoncesData = [];
+  
+window.annoncesData = [];
+
+  
 let selectedCategory = "all";
 let selectedSubcategory = null;
 let searchText = "";
 let sortOrder = "default";
 let currentPage = 1;
 const annoncesPerPage = 50;
+
+const savedState = sessionStorage.getItem("annoncesState");
+
+if (savedState) {
+  const state = JSON.parse(savedState);
+
+  window.annoncesData = state.data || [];
+  selectedCategory = state.selectedCategory;
+  selectedSubcategory = state.selectedSubcategory;
+  searchText = state.searchText;
+  sortOrder = state.sortOrder;
+  currentPage = state.currentPage || 1;
+  window.lastVisible = state.lastVisible || null;
+
+  // ⛔ empêche Firestore de recharger
+  window.__RESTORED_FROM_BACK__ = true;
+}
+
+
 
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
@@ -214,6 +236,7 @@ function timeAgo(timestamp){
   const days = Math.floor(hours/24);
   return `il y a ${days} j`;
 }
+  
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
   if(user){
@@ -223,7 +246,16 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     userFavorites = [];
   }
+  
+  if (window.__RESTORED_FROM_BACK__) {
+  applyAllFilters();
+  setTimeout(() => {
+    window.scrollTo(0, JSON.parse(sessionStorage.getItem("annoncesState"))?.scrollY || 0);
+  }, 0);
+} else {
   loadAnnonces();
+}
+
 });
 
 // ✅ VERSION OPTIMISÉE : supporte 1M+ annonces sans lag
@@ -456,12 +488,25 @@ async function renderAnnonces(filtered) {
       }
     });
 
-    // ⚡ Clic sur card
-    card.addEventListener("click", e => {
-      if (!e.target.classList.contains("favorite")) {
-        window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
-      }
-    });
+    // ⚡ Clic sur card (sauvegarde état AVANT navigation)
+card.addEventListener("click", e => {
+  if (!e.target.classList.contains("favorite")) {
+
+    sessionStorage.setItem("annoncesState", JSON.stringify({
+      data: window.annoncesData,
+      selectedCategory,
+      selectedSubcategory,
+      searchText,
+      sortOrder,
+      currentPage,
+      lastVisible: window.lastVisible,
+      scrollY: window.scrollY
+    }));
+
+    window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
+  }
+});
+
 
     fragment.appendChild(card);
   }
@@ -622,7 +667,8 @@ function applyAllFilters() {
     (!selectedCategory || selectedCategory === "all") &&
     !selectedSubcategory &&
     !searchText &&
-    sortOrder === null;
+    sortOrder === "default";
+
 
   if (noFilter) {
     return renderAnnonces(data);
@@ -682,26 +728,6 @@ function applyAllFilters() {
   // ─────────────────────────────────────────
   renderAnnonces(filtered);
 }
-
-// 🔹 Restaurer l'état de la page si on revient en arrière
-window.addEventListener('pageshow', (event) => {
-  // Vérifie si la page provient du cache du navigateur
-  if (event.persisted) {
-    // Restaurer annonces déjà chargées
-    if (window.annoncesData && window.annoncesData.length) {
-      applyAllFilters();
-    }
-    // Restaurer scroll
-    if (sessionStorage.scrollY) {
-      window.scrollTo(0, parseInt(sessionStorage.scrollY));
-    }
-  }
-});
-
-// 🔹 Sauvegarder le scroll avant de quitter la page
-window.addEventListener('beforeunload', () => {
-  sessionStorage.scrollY = window.scrollY;
-});
 
 </script>  
 </body>
