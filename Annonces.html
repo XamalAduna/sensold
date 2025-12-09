@@ -128,13 +128,9 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 </div>
 <script type="module">
 
-// ✅ Laisse le navigateur restaurer la page
 if ('scrollRestoration' in history) {
-  history.scrollRestoration = 'auto';
+  history.scrollRestoration = 'manual';
 }
-
-  
-
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getFirestore, collection, getDocs, query, orderBy, limit, startAfter, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
@@ -218,27 +214,57 @@ function timeAgo(timestamp){
   const days = Math.floor(hours/24);
   return `il y a ${days} j`;
 }
-
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
-
-  if (user) {
+  if(user){
     const userRef = doc(db,"users",user.uid);
     const userSnap = await getDoc(userRef);
     userFavorites = userSnap.data()?.favorites || [];
   } else {
     userFavorites = [];
   }
-
-  // ✅ IMPORTANT : ne recharge que si rien n’est déjà en mémoire
-  if (!window.annoncesData || window.annoncesData.length === 0) {
-    loadAnnonces();
-  }
+  loadAnnonces();
 });
+
+// ⚡ Sauvegarder l'état actuel
+function saveState() {
+  const state = {
+    annoncesData: window.annoncesData || [],
+    lastVisible: window.lastVisible || null,
+    currentPage: currentPage,
+    scrollY: window.scrollY
+  };
+  sessionStorage.setItem('annoncesState', JSON.stringify(state));
+}
+
+// ⚡ Restaurer l'état au chargement
+function restoreState() {
+  const state = sessionStorage.getItem('annoncesState');
+  if(state){
+    const parsed = JSON.parse(state);
+    window.annoncesData = parsed.annoncesData || [];
+    window.lastVisible = parsed.lastVisible || null;
+    currentPage = parsed.currentPage || 1;
+    applyAllFilters(); // réaffiche les annonces
+    window.scrollTo(0, parsed.scrollY || 0);
+  } else {
+    loadAnnonces(); // sinon charger normalement
+  }
+}
+
+// ⚡ Appeler restoreState au chargement de la page
+window.addEventListener('load', restoreState);
 
 
 // ✅ VERSION OPTIMISÉE : supporte 1M+ annonces sans lag
 async function loadAnnonces(limitCount = 50) {
+  
+  // ⚡ Si on a déjà des annonces en mémoire, on les affiche directement sans recharger
+  if (window.annoncesData && window.annoncesData.length > 0) {
+  applyAllFilters();
+  return;
+}
+
   if (!window.annoncesData) window.annoncesData = [];
   if (!window.lastVisible) window.lastVisible = null;
   if (window.isLoading) return; // ⚡ Stop double chargement
@@ -469,14 +495,16 @@ async function renderAnnonces(filtered) {
 
     // ⚡ Clic sur card
     card.addEventListener("click", e => {
-      if (!e.target.classList.contains("favorite")) {
-        window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
-      }
-    });
+  if (!e.target.classList.contains("favorite")) {
+    saveState(); // ⚡ Sauvegarder l'état avant navigation
+    window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
+  }
+});
+
 
     fragment.appendChild(card);
   }
-
+ 
   annoncesContainer.appendChild(fragment);
   renderPagination(totalPages);
 }
@@ -693,21 +721,6 @@ function applyAllFilters() {
   // ─────────────────────────────────────────
   renderAnnonces(filtered);
 }
-
-
-
-window.addEventListener("pageshow", (event) => {
-  if (event.persisted) {
-    console.log("✅ Page restaurée depuis le cache navigateur");
-
-    if (window.annoncesData && window.annoncesData.length > 0) {
-      applyAllFilters(); // Réaffiche instantanément les annonces depuis le cache
-    } else {
-      loadAnnonces(); // Charge depuis Firestore si le cache est vide
-    }
-  }
-});
-
 </script>  
 </body>
 </html>
