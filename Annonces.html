@@ -134,12 +134,7 @@ if ('scrollRestoration' in history) {
 }
 
   
-window.addEventListener("pageshow", (event) => {
-  if (event.persisted) {
-    console.log("✅ Page restaurée depuis le cache navigateur");
-    // NE RIEN FAIRE
-  }
-});
+
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getFirestore, collection, getDocs, query, orderBy, limit, startAfter, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
@@ -698,6 +693,21 @@ function applyAllFilters() {
   // ─────────────────────────────────────────
   renderAnnonces(filtered);
 }
+
+
+
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted) {
+    console.log("✅ Page restaurée depuis le cache navigateur");
+
+    if (window.annoncesData && window.annoncesData.length > 0) {
+      applyAllFilters(); // Réaffiche instantanément les annonces depuis le cache
+    } else {
+      loadAnnonces(); // Charge depuis Firestore si le cache est vide
+    }
+  }
+});
+
 </script>  
 </body>
 </html>
