@@ -127,6 +127,20 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
   <a href="login.html">Se connecter</a>
 </div>
 <script type="module">
+
+// ✅ Laisse le navigateur restaurer la page
+if ('scrollRestoration' in history) {
+  history.scrollRestoration = 'auto';
+}
+
+  
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted) {
+    console.log("✅ Page restaurée depuis le cache navigateur");
+    // NE RIEN FAIRE
+  }
+});
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getFirestore, collection, getDocs, query, orderBy, limit, startAfter, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
@@ -209,17 +223,24 @@ function timeAgo(timestamp){
   const days = Math.floor(hours/24);
   return `il y a ${days} j`;
 }
+
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
-  if(user){
+
+  if (user) {
     const userRef = doc(db,"users",user.uid);
     const userSnap = await getDoc(userRef);
     userFavorites = userSnap.data()?.favorites || [];
   } else {
     userFavorites = [];
   }
-  loadAnnonces();
+
+  // ✅ IMPORTANT : ne recharge que si rien n’est déjà en mémoire
+  if (!window.annoncesData || window.annoncesData.length === 0) {
+    loadAnnonces();
+  }
 });
+
 
 // ✅ VERSION OPTIMISÉE : supporte 1M+ annonces sans lag
 async function loadAnnonces(limitCount = 50) {
