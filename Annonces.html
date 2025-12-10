@@ -127,11 +127,6 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
   <a href="login.html">Se connecter</a>
 </div>
 <script type="module">
-
-if ('scrollRestoration' in history) {
-  history.scrollRestoration = 'manual';
-}
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getFirestore, collection, getDocs, query, orderBy, limit, startAfter, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
@@ -195,35 +190,13 @@ const priceDescBtn = document.getElementById("price-desc");
 
 let currentUser = null;
 let userFavorites = [];
-  
-window.annoncesData = [];
-
-  
+let annoncesData = [];
 let selectedCategory = "all";
 let selectedSubcategory = null;
 let searchText = "";
 let sortOrder = "default";
 let currentPage = 1;
 const annoncesPerPage = 50;
-
-const savedState = sessionStorage.getItem("annoncesState");
-
-if (savedState) {
-  const state = JSON.parse(savedState);
-
-  window.annoncesData = state.data || [];
-  selectedCategory = state.selectedCategory;
-  selectedSubcategory = state.selectedSubcategory;
-  searchText = state.searchText;
-  sortOrder = state.sortOrder;
-  currentPage = state.currentPage || 1;
-  window.lastVisible = state.lastVisible || null;
-
-  // ⛔ empêche Firestore de recharger
-  window.__RESTORED_FROM_BACK__ = true;
-}
-
-
 
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
@@ -236,7 +209,6 @@ function timeAgo(timestamp){
   const days = Math.floor(hours/24);
   return `il y a ${days} j`;
 }
-  
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
   if(user){
@@ -246,16 +218,7 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     userFavorites = [];
   }
-  
-  if (window.__RESTORED_FROM_BACK__) {
-  applyAllFilters();
-  setTimeout(() => {
-    window.scrollTo(0, JSON.parse(sessionStorage.getItem("annoncesState"))?.scrollY || 0);
-  }, 0);
-} else {
   loadAnnonces();
-}
-
 });
 
 // ✅ VERSION OPTIMISÉE : supporte 1M+ annonces sans lag
@@ -488,25 +451,12 @@ async function renderAnnonces(filtered) {
       }
     });
 
-    // ⚡ Clic sur card (sauvegarde état AVANT navigation)
-card.addEventListener("click", e => {
-  if (!e.target.classList.contains("favorite")) {
-
-    sessionStorage.setItem("annoncesState", JSON.stringify({
-      data: window.annoncesData,
-      selectedCategory,
-      selectedSubcategory,
-      searchText,
-      sortOrder,
-      currentPage,
-      lastVisible: window.lastVisible,
-      scrollY: window.scrollY
-    }));
-
-    window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
-  }
-});
-
+    // ⚡ Clic sur card
+    card.addEventListener("click", e => {
+      if (!e.target.classList.contains("favorite")) {
+        window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
+      }
+    });
 
     fragment.appendChild(card);
   }
@@ -667,8 +617,7 @@ function applyAllFilters() {
     (!selectedCategory || selectedCategory === "all") &&
     !selectedSubcategory &&
     !searchText &&
-    sortOrder === "default";
-
+    sortOrder === null;
 
   if (noFilter) {
     return renderAnnonces(data);
@@ -728,7 +677,6 @@ function applyAllFilters() {
   // ─────────────────────────────────────────
   renderAnnonces(filtered);
 }
-
 </script>  
 </body>
 </html>
