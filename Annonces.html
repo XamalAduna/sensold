@@ -190,7 +190,9 @@ const priceDescBtn = document.getElementById("price-desc");
 
 let currentUser = null;
 let userFavorites = [];
-let annoncesData = [];
+  
+window.annoncesData = [];
+
 let selectedCategory = "all";
 let selectedSubcategory = null;
 let searchText = "";
@@ -218,7 +220,11 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     userFavorites = [];
   }
+  
+  if (!window.hasRestoredState) {
   loadAnnonces();
+}
+
 });
 
 // ✅ VERSION OPTIMISÉE : supporte 1M+ annonces sans lag
@@ -451,12 +457,23 @@ async function renderAnnonces(filtered) {
       }
     });
 
-    // ⚡ Clic sur card
     card.addEventListener("click", e => {
-      if (!e.target.classList.contains("favorite")) {
-        window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
-      }
-    });
+  if (e.target.classList.contains("favorite")) return;
+
+  sessionStorage.setItem("annonces_state", JSON.stringify({
+    annoncesData: window.annoncesData,
+    selectedCategory,
+    selectedSubcategory,
+    searchText,
+    sortOrder,
+    currentPage,
+    scrollY: window.scrollY,
+    lastVisible: window.lastVisible ? window.lastVisible.id : null
+  }));
+
+  window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
+});
+
 
     fragment.appendChild(card);
   }
@@ -617,7 +634,7 @@ function applyAllFilters() {
     (!selectedCategory || selectedCategory === "all") &&
     !selectedSubcategory &&
     !searchText &&
-    sortOrder === null;
+    sortOrder === "default"
 
   if (noFilter) {
     return renderAnnonces(data);
@@ -677,6 +694,34 @@ function applyAllFilters() {
   // ─────────────────────────────────────────
   renderAnnonces(filtered);
 }
+
+window.addEventListener("pageshow", () => {
+  const saved = sessionStorage.getItem("annonces_state");
+  if (!saved) return;
+
+  const state = JSON.parse(saved);
+
+  window.annoncesData = state.annoncesData || [];
+  window.lastVisible = state.lastVisible || null;
+  window.allAnnoncesLoaded = false;
+
+  selectedCategory = state.selectedCategory;
+  selectedSubcategory = state.selectedSubcategory;
+  searchText = state.searchText;
+  sortOrder = state.sortOrder;
+  currentPage = state.currentPage || 1;
+
+  applyAllFilters();
+
+  setTimeout(() => {
+    window.scrollTo(0, state.scrollY || 0);
+  }, 0);
+
+  window.hasRestoredState = true;
+  sessionStorage.removeItem("annonces_state");
+});
+
+
 </script>  
 </body>
 </html>
