@@ -1,3 +1,5 @@
+
+
 <!DOCTYPE html> 
 <html lang="fr"> 
 <head> 
@@ -126,14 +128,11 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
   <p>Veuillez vous connecter pour ajouter  cette annonce à vos favoris.</p>
   <a href="login.html">Se connecter</a>
 </div>
-
-
-<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js"></script>
-
-<script>
-  const firebaseConfig = {
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
+import { getFirestore, collection, getDocs, query, orderBy, limit, startAfter, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
+const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
   authDomain: "diallo-ee5aa.firebaseapp.com",
   projectId: "diallo-ee5aa",
@@ -142,27 +141,9 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
   appId: "1:662485613383:web:c1129a35c335cc95c0ea62",
   measurementId: "G-F3092DTNZY"
 };
-  
-  // ✅ Initialise Firebase seulement si ce n'est pas déjà fait
-const app = !firebase.apps.length ? firebase.initializeApp(firebaseConfig) : firebase.app();
-const db = firebase.firestore();
-const auth = firebase.auth();
-
-
-</script>
-
-
-<script>
-window.addEventListener("pageshow", (event) => {
-    if (event.persisted) {
-        console.log("🔥 RESTAURATION BFCache → rien ne se recharge");
-        window.isBFCache = true;
-        return;
-    }
-
-    window.isBFCache = false;
-});
-
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth();
 const categoriesData = {
   "vehicules": [
     {"label": "Voitures & utilitaires", "icon": "directions_car"},
@@ -230,31 +211,20 @@ function timeAgo(timestamp){
   const days = Math.floor(hours/24);
   return `il y a ${days} j`;
 }
-  
-auth.onAuthStateChanged(async (user) => {
-  if (window.isBFCache) return;
-
+onAuthStateChanged(auth, async (user) => {
   currentUser = user;
-
-  if (user) {
-    const userRef = doc(db, "users", user.uid);
+  if(user){
+    const userRef = doc(db,"users",user.uid);
     const userSnap = await getDoc(userRef);
     userFavorites = userSnap.data()?.favorites || [];
   } else {
     userFavorites = [];
   }
-
   loadAnnonces();
 });
 
-
 // ✅ VERSION OPTIMISÉE : supporte 1M+ annonces sans lag
 async function loadAnnonces(limitCount = 50) {
-  if (window.isBFCache) {
-        console.log("⛔ BFCache actif → on ne recharge PAS les annonces");
-        return;
-    }
-  
   if (!window.annoncesData) window.annoncesData = [];
   if (!window.lastVisible) window.lastVisible = null;
   if (window.isLoading) return; // ⚡ Stop double chargement
@@ -709,6 +679,14 @@ function applyAllFilters() {
   // ─────────────────────────────────────────
   renderAnnonces(filtered);
 }
+
+window.addEventListener('pageshow', (event) => {
+  if (event.persisted) {
+    // La page vient du bfcache, on recharge seulement le contenu nécessaire
+    applyAllFilters();
+  }
+});
+
 </script>  
 </body>
 </html>
