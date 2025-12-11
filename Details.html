@@ -64,9 +64,15 @@ h2 { text-align:center; color:#00796B; margin-bottom:20px; }
   <div class="seller" id="seller-info"></div>
   <div class="buttons" id="contact-buttons"></div>
 </div>
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js"></script>
+
+<script>
+window.addEventListener("pageshow", (event) => {
+    window.isBFCache = event.persisted;
+});
+
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
   authDomain: "diallo-ee5aa.firebaseapp.com",
@@ -76,8 +82,11 @@ const firebaseConfig = {
   appId: "1:662485613383:web:c1129a35c335cc95c0ea62",
   measurementId: "G-F3092DTNZY"
 };
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+  
+const app = firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+  
 const params = new URLSearchParams(window.location.search);
 const id = params.get('id');
 let images = [];
@@ -137,8 +146,10 @@ function showSecurityModal(callback) {
 }
 async function loadDetails() {
   try {
-    const docRef = doc(db, "annonces", id);
-    const docSnap = await getDoc(docRef);
+    
+    const docRef = db.collection("annonces").doc(id);
+    const docSnap = await docRef.get();
+
     if (!docSnap.exists()) {
       document.getElementById('details').textContent = "Produit non trouvé.";
       return;
@@ -204,8 +215,11 @@ async function loadDetails() {
     });
     let seller = {};
     if (data.ownerId) {
-      const sellerRef = doc(db, "users", data.ownerId);
-      const sellerSnap = await getDoc(sellerRef);
+      
+      const sellerRef = db.collection("users").doc(data.ownerId);
+      const sellerSnap = await sellerRef.get();
+
+      
       if (sellerSnap.exists()) {
         seller = sellerSnap.data();
         seller.uid = sellerSnap.id;
