@@ -1,3 +1,4 @@
+
 <!DOCTYPE html> 
 <html lang="fr"> 
 <head> 
@@ -198,6 +199,17 @@ let sortOrder = "default";
 let currentPage = 1;
 const annoncesPerPage = 50;
 
+// 🔹 Conserver l'état lors du retour arrière
+window.addEventListener('pageshow', (event) => {
+  if (event.persisted || window.annoncesData?.length) {
+    // Si le navigateur vient du bfcache ou qu'on a déjà des annonces
+    applyAllFilters(); // affichage instantané
+  } else {
+    loadAnnonces(); // sinon chargement normal depuis Firebase
+  }
+});
+  
+  
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
@@ -209,6 +221,7 @@ function timeAgo(timestamp){
   const days = Math.floor(hours/24);
   return `il y a ${days} j`;
 }
+
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
   if(user){
@@ -218,17 +231,12 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     userFavorites = [];
   }
-  loadAnnonces();
+  // Ne pas recharger si annoncesData existe
+  if (!window.annoncesData?.length) loadAnnonces();
 });
 
 // ✅ VERSION OPTIMISÉE : supporte 1M+ annonces sans lag
 async function loadAnnonces(limitCount = 50) {
-  if (window.annoncesData && window.annoncesData.length) {
-    // ⚡ Données déjà en cache → affichage instantané
-    applyAllFilters();
-    return;
-  }
-  
   if (!window.annoncesData) window.annoncesData = [];
   if (!window.lastVisible) window.lastVisible = null;
   if (window.isLoading) return; // ⚡ Stop double chargement
@@ -683,15 +691,6 @@ function applyAllFilters() {
   // ─────────────────────────────────────────
   renderAnnonces(filtered);
 }
-
-window.addEventListener('pageshow', (event) => {
-  if (window.annoncesData && window.annoncesData.length) {
-    applyAllFilters();
-    document.getElementById("spinner").style.display = "none";
-  }
-});
-
-
 </script>  
 </body>
 </html>
