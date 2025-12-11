@@ -1,3 +1,5 @@
+
+
 <!DOCTYPE html> 
 <html lang="fr"> 
 <head> 
@@ -188,37 +190,6 @@ const filterMenu = document.getElementById("filter-menu");
 const priceAscBtn = document.getElementById("price-asc");
 const priceDescBtn = document.getElementById("price-desc");
 
-et ca ou doit je le placer ?:
-// Exemple : tri prix
-priceAscBtn.addEventListener("click", () => {
-  sortOrder = "asc"; currentPage = 1;
-  applyAllFilters();
-  saveStateToSession();
-});
-
-priceDescBtn.addEventListener("click", () => {
-  sortOrder = "desc"; currentPage = 1;
-  applyAllFilters();
-  saveStateToSession();
-});
-
-// Exemple : recherche
-searchBtn.addEventListener("click", () => {
-  searchText = searchInput.value; currentPage = 1;
-  applyAllFilters();
-  saveStateToSession();
-});
-
-// Exemple : catégorie
-categoryElements.forEach(cat => {
-  cat.addEventListener("click", () => {
-    selectedCategory = cat.dataset.cat; selectedSubcategory = null; currentPage = 1;
-    applyAllFilters();
-    saveStateToSession();
-  });
-});
-
-
 let currentUser = null;
 let userFavorites = [];
 let annoncesData = [];
@@ -228,15 +199,6 @@ let searchText = "";
 let sortOrder = "default";
 let currentPage = 1;
 const annoncesPerPage = 50;
-
-function saveStateToSession() {
-  sessionStorage.setItem('selectedCategory', selectedCategory);
-  sessionStorage.setItem('selectedSubcategory', selectedSubcategory);
-  sessionStorage.setItem('searchText', searchText);
-  sessionStorage.setItem('sortOrder', sortOrder);
-  sessionStorage.setItem('currentPage', currentPage);
-}
-
 
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
@@ -249,7 +211,6 @@ function timeAgo(timestamp){
   const days = Math.floor(hours/24);
   return `il y a ${days} j`;
 }
-
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
   if(user){
@@ -259,15 +220,8 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     userFavorites = [];
   }
-
-  // ✅ Ne charger que si aucune donnée en mémoire
-  if(window.annoncesData && window.annoncesData.length > 0){
-    applyAllFilters(); // réaffiche les annonces depuis le cache
-  } else {
-    loadAnnonces(); // sinon on charge depuis Firebase
-  }
+  loadAnnonces();
 });
-
 
 // ✅ VERSION OPTIMISÉE : supporte 1M+ annonces sans lag
 async function loadAnnonces(limitCount = 50) {
@@ -725,32 +679,6 @@ function applyAllFilters() {
   // ─────────────────────────────────────────
   renderAnnonces(filtered);
 }
-
-
-// 🔹 Restaurer la page depuis le bfcache
-window.addEventListener('pageshow', (event) => {
-  // Restaurer filtres et pagination
-  selectedCategory = sessionStorage.getItem('selectedCategory') || 'all';
-  selectedSubcategory = sessionStorage.getItem('selectedSubcategory') || null;
-  searchText = sessionStorage.getItem('searchText') || '';
-  sortOrder = sessionStorage.getItem('sortOrder') || 'default';
-  currentPage = parseInt(sessionStorage.getItem('currentPage')) || 1;
-
-  // Réaffiche depuis le cache local si possible
-  if(window.annoncesData && window.annoncesData.length > 0){
-    applyAllFilters();
-  }
-});
-
-// 🔹 Sauvegarder l’état avant de quitter
-window.addEventListener('beforeunload', () => {
-  sessionStorage.setItem('selectedCategory', selectedCategory);
-  sessionStorage.setItem('selectedSubcategory', selectedSubcategory);
-  sessionStorage.setItem('searchText', searchText);
-  sessionStorage.setItem('sortOrder', sortOrder);
-  sessionStorage.setItem('currentPage', currentPage);
-});
-
 </script>  
 </body>
 </html>
