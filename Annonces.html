@@ -682,6 +682,28 @@ function applyAllFilters() {
   // ─────────────────────────────────────────
   renderAnnonces(filtered);
 }
+
+// Sauvegarde l'état avant de quitter
+window.addEventListener("pagehide", () => {
+  sessionStorage.setItem("annonces_cache", JSON.stringify(window.annoncesData || []));
+  sessionStorage.setItem("scroll_pos", window.scrollY);
+});
+
+// Restauration instantanée si retour arrière
+window.addEventListener("pageshow", (e) => {
+  const saved = sessionStorage.getItem("annonces_cache");
+  const scroll = sessionStorage.getItem("scroll_pos");
+
+  if (saved) {
+    window.annoncesData = JSON.parse(saved);
+    applyAllFilters(); // ⚡ Rendu instantané
+  }
+
+  if (scroll) {
+    window.scrollTo(0, parseInt(scroll));
+  }
+});
+
 </script>  
 </body>
 </html>
