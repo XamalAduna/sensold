@@ -127,6 +127,30 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
   <a href="login.html">Se connecter</a>
 </div>
 <script type="module">
+
+window.addEventListener('pageshow', (event) => {
+  if (event.persisted) {
+    console.log("Restauration depuis bfcache");
+
+    // ⚡ Si les annonces sont déjà chargées
+    if (window.annoncesData && window.annoncesData.length > 0) {
+      applyAllFilters();
+    }
+
+    // ⚡ Restaurer les filtres si tu veux
+    const searchInput = document.getElementById("search-input");
+    if (searchInput) searchInput.value = searchText || "";
+    
+    // ⚡ Restaurer le menu filtre
+    if (filterMenu) filterMenu.style.display = "none";
+    
+    // ⚡ Restaurer la catégorie active
+    categoryElements.forEach(c => {
+      c.classList.toggle("active", c.dataset.cat === selectedCategory);
+    });
+  }
+});
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getFirestore, collection, getDocs, query, orderBy, limit, startAfter, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
