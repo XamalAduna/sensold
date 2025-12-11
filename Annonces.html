@@ -695,6 +695,7 @@ function applyAllFilters() {
 // ⚡ RESTAURATION BFCACHE
 window.addEventListener('pageshow', (event) => {
   if (event.persisted) { // Page restaurée depuis le bfcache
+
     // Restaurer les annonces déjà chargées
     if (window.annoncesData && window.annoncesData.length > 0) {
       applyAllFilters(); // réaffiche les annonces
@@ -702,12 +703,19 @@ window.addEventListener('pageshow', (event) => {
       loadAnnonces(); // si rien n'est chargé, relancer le chargement
     }
 
-    // Restaurer les filtres
+    // Restaurer la recherche
     const searchInput = document.getElementById("search-input");
-    if (searchInput) searchInput.value = searchText || "";
-    categoryElements.forEach(c => c.classList.toggle("active", c.dataset.cat === selectedCategory));
+    if (searchInput) searchInput.value = window.searchText || "";
+
+    // Restaurer la catégorie active
+    if (window.categoryElements) {
+      window.categoryElements.forEach(c => {
+        c.classList.toggle("active", c.dataset.cat === window.selectedCategory);
+      });
+    }
   }
 });
+
 
 </script>  
 </body>
