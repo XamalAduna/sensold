@@ -127,9 +127,25 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
   <a href="login.html">Se connecter</a>
 </div>
 
+
 <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js"></script>
+
+<script>
+  const firebaseConfig = { /* ta config */ };
+
+  // ⚡ Initialisation UNE seule fois
+  const app = firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const auth = firebase.auth();
+
+  window.addEventListener("pageshow", (event) => {
+      window.isBFCache = event.persisted;
+      if (event.persisted) console.log("🔥 BFCache restauré → ne pas recharger");
+  });
+</script>
+
 
 <script>
 window.addEventListener("pageshow", (event) => {
@@ -142,23 +158,6 @@ window.addEventListener("pageshow", (event) => {
     window.isBFCache = false;
 });
 
-  
-
-const firebaseConfig = {
-  apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
-  authDomain: "diallo-ee5aa.firebaseapp.com",
-  projectId: "diallo-ee5aa",
-  storageBucket: "diallo-ee5aa.firebasestorage.app",
-  messagingSenderId: "662485613383",
-  appId: "1:662485613383:web:c1129a35c335cc95c0ea62",
-  measurementId: "G-F3092DTNZY"
-};
-  
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const auth = firebase.auth();
-
-  
 const categoriesData = {
   "vehicules": [
     {"label": "Voitures & utilitaires", "icon": "directions_car"},
