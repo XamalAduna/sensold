@@ -127,6 +127,13 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
   <a href="login.html">Se connecter</a>
 </div>
 <script type="module">
+
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted && window.annoncesData && window.annoncesData.length > 0) {
+    applyAllFilters();
+  }
+});
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getFirestore, collection, getDocs, query, orderBy, limit, startAfter, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
@@ -190,9 +197,7 @@ const priceDescBtn = document.getElementById("price-desc");
 
 let currentUser = null;
 let userFavorites = [];
-  
-window.annoncesData = [];
-
+let annoncesData = [];
 let selectedCategory = "all";
 let selectedSubcategory = null;
 let searchText = "";
@@ -220,11 +225,9 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     userFavorites = [];
   }
-  
-  if (!window.hasRestoredState) {
-  loadAnnonces();
-}
-
+ 
+  if (!window.annoncesData || window.annoncesData.length === 0) loadAnnonces();
+  else applyAllFilters();
 });
 
 // ✅ VERSION OPTIMISÉE : supporte 1M+ annonces sans lag
@@ -234,7 +237,9 @@ async function loadAnnonces(limitCount = 50) {
   if (window.isLoading) return; // ⚡ Stop double chargement
   window.isLoading = true;
 
+  if (!window.annoncesData || window.annoncesData.length === 0) {
   document.getElementById("spinner").style.display = "flex";
+}
 
   try {
     let annoncesQuery = query(
@@ -327,7 +332,7 @@ function escapeHTML(str) {
 }
 
 async function renderAnnonces(filtered) {
-  annoncesContainer.innerHTML = ""; // vide le conteneur avant affichage
+  if (!annoncesContainer.hasChildNodes()) annoncesContainer.innerHTML = "";
 
   if (filtered.length === 0) {
     annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
@@ -457,23 +462,12 @@ async function renderAnnonces(filtered) {
       }
     });
 
+    // ⚡ Clic sur card
     card.addEventListener("click", e => {
-  if (e.target.classList.contains("favorite")) return;
-
-  sessionStorage.setItem("annonces_state", JSON.stringify({
-    annoncesData: window.annoncesData,
-    selectedCategory,
-    selectedSubcategory,
-    searchText,
-    sortOrder,
-    currentPage,
-    scrollY: window.scrollY,
-    lastVisible: window.lastVisible ? window.lastVisible.id : null
-  }));
-
-  window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
-});
-
+      if (!e.target.classList.contains("favorite")) {
+        window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
+      }
+    });
 
     fragment.appendChild(card);
   }
@@ -624,6 +618,8 @@ function isBoostActive(annonce) {
 
 // ⚡ VERSION ULTRA OPTIMISÉE — Supporte 500k annonces
 function applyAllFilters() {
+  if (!window.annoncesData || window.annoncesData.length === 0) return;
+
   let data = window.annoncesData;
   if (!data || data.length === 0) return renderAnnonces([]);
 
@@ -634,7 +630,7 @@ function applyAllFilters() {
     (!selectedCategory || selectedCategory === "all") &&
     !selectedSubcategory &&
     !searchText &&
-    sortOrder === "default"
+    sortOrder === null;
 
   if (noFilter) {
     return renderAnnonces(data);
@@ -694,34 +690,6 @@ function applyAllFilters() {
   // ─────────────────────────────────────────
   renderAnnonces(filtered);
 }
-
-window.addEventListener("pageshow", () => {
-  const saved = sessionStorage.getItem("annonces_state");
-  if (!saved) return;
-
-  const state = JSON.parse(saved);
-
-  window.annoncesData = state.annoncesData || [];
-  window.lastVisible = state.lastVisible || null;
-  window.allAnnoncesLoaded = false;
-
-  selectedCategory = state.selectedCategory;
-  selectedSubcategory = state.selectedSubcategory;
-  searchText = state.searchText;
-  sortOrder = state.sortOrder;
-  currentPage = state.currentPage || 1;
-
-  applyAllFilters();
-
-  setTimeout(() => {
-    window.scrollTo(0, state.scrollY || 0);
-  }, 0);
-
-  window.hasRestoredState = true;
-  sessionStorage.removeItem("annonces_state");
-});
-
-
 </script>  
 </body>
 </html>
