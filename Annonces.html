@@ -223,6 +223,12 @@ onAuthStateChanged(auth, async (user) => {
 
 // ✅ VERSION OPTIMISÉE : supporte 1M+ annonces sans lag
 async function loadAnnonces(limitCount = 50) {
+  if (window.annoncesData && window.annoncesData.length) {
+    // ⚡ Données déjà en cache → affichage instantané
+    applyAllFilters();
+    return;
+  }
+  
   if (!window.annoncesData) window.annoncesData = [];
   if (!window.lastVisible) window.lastVisible = null;
   if (window.isLoading) return; // ⚡ Stop double chargement
@@ -677,6 +683,15 @@ function applyAllFilters() {
   // ─────────────────────────────────────────
   renderAnnonces(filtered);
 }
+
+window.addEventListener('pageshow', (event) => {
+  if (window.annoncesData && window.annoncesData.length) {
+    applyAllFilters();
+    document.getElementById("spinner").style.display = "none";
+  }
+});
+
+
 </script>  
 </body>
 </html>
