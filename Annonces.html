@@ -177,10 +177,14 @@ const categoriesData = {
     { "label": "Autres électronique", "icon": "devices_other" }
   ]
 };
-
+  
+window.categoriesData = categoriesData; // AJOUTE CECI
+  
 const annoncesContainer = document.getElementById("annonces");
 const subContainer = document.getElementById("subcategories-container");
 const categoryElements = document.querySelectorAll(".category");
+window.categoryElements = categoryElements; // AJOUTE CECI
+  
 const suggestionsBox = document.getElementById("suggestions");
 
 const filterToggle = document.getElementById("filter-toggle");
