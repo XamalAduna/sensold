@@ -188,14 +188,16 @@ const filterMenu = document.getElementById("filter-menu");
 const priceAscBtn = document.getElementById("price-asc");
 const priceDescBtn = document.getElementById("price-desc");
 
-let currentUser = null;
-let userFavorites = [];
-let annoncesData = [];
-let selectedCategory = "all";
-let selectedSubcategory = null;
-let searchText = "";
-let sortOrder = "default";
-let currentPage = 1;
+window.currentUser = null;
+window.userFavorites = [];
+if (!window.annoncesData) window.annoncesData = [];
+window.selectedCategory = "all";
+window.selectedSubcategory = null;
+window.searchText = "";
+window.sortOrder = "default";
+window.currentPage = 1;
+
+  
 const annoncesPerPage = 50;
 
 function timeAgo(timestamp){
@@ -209,17 +211,20 @@ function timeAgo(timestamp){
   const days = Math.floor(hours/24);
   return `il y a ${days} j`;
 }
+  
 onAuthStateChanged(auth, async (user) => {
-  currentUser = user;
+  window.currentUser = user;
   if(user){
     const userRef = doc(db,"users",user.uid);
     const userSnap = await getDoc(userRef);
-    userFavorites = userSnap.data()?.favorites || [];
+  
+    window.userFavorites = userSnap.data()?.favorites || [];
   } else {
-    userFavorites = [];
+    window.userFavorites = [];
   }
   loadAnnonces();
 });
+
 
 // ✅ VERSION OPTIMISÉE : supporte 1M+ annonces sans lag
 async function loadAnnonces(limitCount = 50) {
@@ -302,13 +307,13 @@ let scrollTimeout = null;
 window.addEventListener("scroll", () => {
   if (window.allAnnoncesLoaded) return;
   if (scrollTimeout) return;
-  
+
   scrollTimeout = setTimeout(() => {
     scrollTimeout = null;
     if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
-      loadAnnonces();
+      if (!window.isLoading) loadAnnonces();
     }
-  }, 200); // ⚡ ne déclenche pas plus d'une fois toutes les 200ms
+  }, 200);
 });
 
 function escapeHTML(str) {
@@ -329,10 +334,10 @@ async function renderAnnonces(filtered) {
   }
 
   // ⚡ Pagination
-  const totalPages = Math.ceil(filtered.length / annoncesPerPage);
-  if (currentPage > totalPages) currentPage = 1;
-  const start = (currentPage - 1) * annoncesPerPage;
-  const end = start + annoncesPerPage;
+  const totalPages = Math.ceil(filtered.length / window.annoncesPerPage);
+  if (window.currentPage > totalPages) window.currentPage = 1;
+  const start = (window.currentPage - 1) * window.annoncesPerPage;
+  const end = start + window.annoncesPerPage;
   const pageItems = filtered.slice(start, end);
 
   // ⚡ Cache utilisateurs
@@ -361,7 +366,7 @@ async function renderAnnonces(filtered) {
     const card = document.createElement("div");
     card.className = "annonce-card";
 
-    const isFav = currentUser && userFavorites.includes(a.id);
+    const isFav = window.currentUser && window.userFavorites.includes(a.id);
 
     // ⚡ Récupération vendeur
     let sellerData = null;
@@ -431,20 +436,20 @@ async function renderAnnonces(filtered) {
     // ⚡ Bouton favoris
     card.querySelector(".favorite").addEventListener("click", async e => {
       e.stopPropagation();
-      if (!currentUser) {
+      if (!window.currentUser) {
         const msg = document.getElementById("notLoggedMsg");
         msg.style.display = "block";
         setTimeout(() => { msg.style.display = "none"; }, 3000);
         return;
       }
-      const favRef = doc(db, "users", currentUser.uid);
-      if (userFavorites.includes(docId)) {
-        userFavorites = userFavorites.filter(id => id !== docId);
+      const favRef = doc(db, "users", window.currentUser.uid);
+      if (window.userFavorites.includes(docId)) {
+        window.userFavorites = window.userFavorites.filter(id => id !== docId);
         await updateDoc(favRef, { favorites: arrayRemove(docId) });
         e.target.classList.remove("active");
         e.target.textContent = "favorite_border";
       } else {
-        userFavorites.push(docId);
+        window.userFavorites.push(docId);
         await updateDoc(favRef, { favorites: arrayUnion(docId) });
         e.target.classList.add("active");
         e.target.textContent = "favorite";
@@ -483,19 +488,19 @@ function renderPagination(totalPages){
     btn.style.margin = "0 5px";
     btn.style.padding = "6px 12px";
     btn.style.borderRadius = "6px";
-    btn.style.border = num === currentPage ? "2px solid #009688" : "1px solid #ccc";
-    btn.style.background = num === currentPage ? "#009688" : "#fff";
-    btn.style.color = num === currentPage ? "#fff" : "#000";
+    btn.style.border = num === window.currentPage ? "2px solid #009688" : "1px solid #ccc";
+    btn.style.background = num === window.currentPage ? "#009688" : "#fff";
+    btn.style.color = num === window.currentPage ? "#fff" : "#000";
     btn.style.cursor = "pointer";
     btn.addEventListener("click", () => {
-      currentPage = num;
+      window.currentPage = num;
       applyAllFilters();
     });
     return btn;
   }
 
   const maxButtons = 7;
-  let startPage = Math.max(1, currentPage - 3);
+  let startPage = Math.max(1, window.currentPage - 3);
   let endPage = Math.min(totalPages, startPage + maxButtons - 1);
   startPage = Math.max(1, endPage - maxButtons + 1);
 
@@ -525,19 +530,19 @@ function setupCategoryFilters() {
     }
   });
 
-  categoryElements.forEach(cat => {
+  window.categoryElements.forEach(cat => {
     cat.addEventListener("click", () => {
-      categoryElements.forEach(c => c.classList.remove("active"));
+      window.categoryElements.forEach(c => c.classList.remove("active"));
       cat.classList.add("active");
 
-      selectedCategory = cat.dataset.cat;
-      selectedSubcategory = null;
-      currentPage = 1;
-      const subs = categoriesData[selectedCategory] || [];
+      window.selectedCategory = cat.dataset.cat;
+      window.selectedSubcategory = null;
+      window.currentPage = 1;
+      const subs = window.categoriesData[window.selectedCategory] || [];
       if (subs.length === 0) {
-        subContainer.innerHTML = "<p style='text-align:center;color:#777;'>Aucune sous-catégorie</p>";
+        window.subContainer.innerHTML = "<p style='text-align:center;color:#777;'>Aucune sous-catégorie</p>";
       } else {
-        subContainer.innerHTML = `
+        window.subContainer.innerHTML = `
           <div style="text-align:center; margin-top:10px; position:relative; display:inline-block;">
             <button id="subDropdownBtn" style="padding:8px 12px; border-radius:8px; border:1px solid #ccc; background:#fff; cursor:pointer;">
               Sélectionner une sous-catégorie ▼
@@ -564,10 +569,10 @@ function setupCategoryFilters() {
             items.forEach(i => { i.style.background = "#fff"; i.style.color = "#000"; });
             item.style.background = "#009688";
             item.style.color = "#fff";
-            selectedSubcategory = item.querySelector("span").textContent.trim();
-            btn.textContent = selectedSubcategory + " ▼";
+            window.selectedSubcategory = item.querySelector("span").textContent.trim();
+            btn.textContent = window.selectedSubcategory + " ▼";
             document.getElementById("subDropdownMenu").style.display = "none";
-            currentPage = 1;
+            window.currentPage = 1;
             applyAllFilters();
           });
         });
@@ -577,24 +582,47 @@ function setupCategoryFilters() {
   });
 }
 
+
 function setupSearchAndSort(){
   const searchInput = document.getElementById("search-input");
   const searchBtn = document.getElementById("search-btn");
 
-  searchInput.addEventListener("input", ()=>{ searchText = searchInput.value; });
-  searchBtn.addEventListener("click", ()=>{ searchText = searchInput.value; currentPage = 1; applyAllFilters(); });
-  searchInput.addEventListener("keypress", e=>{ if(e.key==="Enter"){ searchText = searchInput.value; currentPage = 1; applyAllFilters(); } });
+  searchInput.addEventListener("input", ()=>{ window.searchText = searchInput.value; });
+  searchBtn.addEventListener("click", ()=>{
+    window.searchText = searchInput.value;
+    window.currentPage = 1;
+    applyAllFilters();
+  });
+  searchInput.addEventListener("keypress", e=>{
+    if(e.key==="Enter"){
+      window.searchText = searchInput.value;
+      window.currentPage = 1;
+      applyAllFilters();
+    }
+  });
 }
 
 function setupFilterMenu(){
-  if(!filterToggle) return;
+  if(!window.filterToggle) return;
 
-  filterToggle.addEventListener("click", () => { filterMenu.style.display = filterMenu.style.display === "block" ? "none" : "block"; });
-  priceAscBtn.addEventListener("click", () => { sortOrder = "asc"; currentPage = 1; applyAllFilters(); filterMenu.style.display = "none"; });
-  priceDescBtn.addEventListener("click", () => { sortOrder = "desc"; currentPage = 1; applyAllFilters(); filterMenu.style.display = "none"; });
+  window.filterToggle.addEventListener("click", () => {
+    window.filterMenu.style.display = window.filterMenu.style.display === "block" ? "none" : "block";
+  });
+  window.priceAscBtn.addEventListener("click", () => {
+    window.sortOrder = "asc";
+    window.currentPage = 1;
+    applyAllFilters();
+    window.filterMenu.style.display = "none";
+  });
+  window.priceDescBtn.addEventListener("click", () => {
+    window.sortOrder = "desc";
+    window.currentPage = 1;
+    applyAllFilters();
+    window.filterMenu.style.display = "none";
+  });
 
   document.addEventListener("click", (e) => {
-    if (!filterMenu.contains(e.target) && e.target !== filterToggle) filterMenu.style.display = "none";
+    if (!window.filterMenu.contains(e.target) && e.target !== window.filterToggle) window.filterMenu.style.display = "none";
   });
 }
 
@@ -614,29 +642,23 @@ function applyAllFilters() {
   // ⚡ FAST-PATH : si aucun filtre ni tri → affichage direct ultra rapide
   // ─────────────────────────────────────────
   const noFilter =
-    (!selectedCategory || selectedCategory === "all") &&
-    !selectedSubcategory &&
-    !searchText &&
-    sortOrder === null;
+    (!window.selectedCategory || window.selectedCategory === "all") &&
+    !window.selectedSubcategory &&
+    !window.searchText &&
+    window.sortOrder === null;
 
   if (noFilter) {
     return renderAnnonces(data);
   }
 
-  // ─────────────────────────────────────────
-  // ⚡ PRE-CALCULS pour accélérer (micro-cache)
-  // ─────────────────────────────────────────
-  const lowerSearch = searchText ? searchText.toLowerCase() : null;
+  const lowerSearch = window.searchText ? window.searchText.toLowerCase() : null;
 
-  // ─────────────────────────────────────────
-  // ⚡ FILTRAGE HYPER RAPIDE (1 seul passage)
-  // ─────────────────────────────────────────
   const filtered = [];
   for (let i = 0; i < data.length; i++) {
     const a = data[i];
 
-    if (selectedCategory && selectedCategory !== "all" && a.categorie !== selectedCategory) continue;
-    if (selectedSubcategory && a.souscategorie !== selectedSubcategory) continue;
+    if (window.selectedCategory && window.selectedCategory !== "all" && a.categorie !== window.selectedCategory) continue;
+    if (window.selectedSubcategory && a.souscategorie !== window.selectedSubcategory) continue;
 
     if (lowerSearch) {
       const t = a.title?.toLowerCase() || "";
@@ -647,11 +669,7 @@ function applyAllFilters() {
     filtered.push(a);
   }
 
-  // ─────────────────────────────────────────
-  // ⚡ TRI OPTIMISÉ (Boost → Prix → Date)
-  // ─────────────────────────────────────────
   filtered.sort((a, b) => {
-    // BOOST
     const aBoost = isBoostActive(a);
     const bBoost = isBoostActive(b);
     if (aBoost !== bBoost) return bBoost - aBoost;
@@ -662,43 +680,35 @@ function applyAllFilters() {
       return bEnd - aEnd;
     }
 
-    // TRI PRIX
-    if (sortOrder === "asc") return (a.price || 0) - (b.price || 0);
-    if (sortOrder === "desc") return (b.price || 0) - (a.price || 0);
+    if (window.sortOrder === "asc") return (a.price || 0) - (b.price || 0);
+    if (window.sortOrder === "desc") return (b.price || 0) - (a.price || 0);
 
-    // TRI DATE
     const aDate = a.createdAt ? a.createdAt.seconds * 1000 : 0;
     const bDate = b.createdAt ? b.createdAt.seconds * 1000 : 0;
     return bDate - aDate;
   });
 
-  // ─────────────────────────────────────────
-  // ⚡ AFFICHAGE (ultra fluide)
-  // ─────────────────────────────────────────
   renderAnnonces(filtered);
 }
 
-// 🔹 Assurer le BFCACHE
-window.addEventListener('pageshow', (event) => {
-  if (event.persisted) {
-    // Restaurer les annonces et les filtres déjà chargés
-    if (window.annoncesData && window.annoncesData.length > 0) {
-      applyAllFilters();
 
-      // Restaurer la position de scroll
-      if (window.scrollYPos) {
-        window.scrollTo(0, window.scrollYPos);
-      }
+// ⚡ RESTAURATION BFCACHE
+window.addEventListener('pageshow', (event) => {
+  if (event.persisted) { // Page restaurée depuis le bfcache
+    // Restaurer les annonces déjà chargées
+    if (window.annoncesData && window.annoncesData.length > 0) {
+      applyAllFilters(); // réaffiche les annonces
+    } else {
+      loadAnnonces(); // si rien n'est chargé, relancer le chargement
     }
+
+    // Restaurer les filtres
+    const searchInput = document.getElementById("search-input");
+    if (searchInput) searchInput.value = searchText || "";
+    categoryElements.forEach(c => c.classList.toggle("active", c.dataset.cat === selectedCategory));
   }
 });
 
-// Sauvegarder la position de scroll à chaque mouvement
-window.addEventListener('scroll', () => {
-  window.scrollYPos = window.scrollY;
-});
-
-  
 </script>  
 </body>
 </html>
