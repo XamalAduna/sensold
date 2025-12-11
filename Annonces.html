@@ -127,13 +127,6 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
   <a href="login.html">Se connecter</a>
 </div>
 <script type="module">
-
-window.addEventListener("pageshow", (event) => {
-  if (event.persisted && window.annoncesData && window.annoncesData.length > 0) {
-    applyAllFilters();
-  }
-});
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getFirestore, collection, getDocs, query, orderBy, limit, startAfter, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
@@ -196,8 +189,8 @@ const priceAscBtn = document.getElementById("price-asc");
 const priceDescBtn = document.getElementById("price-desc");
 
 let currentUser = null;
-let userFavorites = [];
-let annoncesData = [];
+let userFavorites = []; 
+window.annoncesData = window.annoncesData || [];
 let selectedCategory = "all";
 let selectedSubcategory = null;
 let searchText = "";
@@ -216,7 +209,9 @@ function timeAgo(timestamp){
   const days = Math.floor(hours/24);
   return `il y a ${days} j`;
 }
-onAuthStateChanged(auth, async (user) => {
+
+async function initUser() {
+  const user = auth.currentUser;
   currentUser = user;
   if(user){
     const userRef = doc(db,"users",user.uid);
@@ -225,10 +220,16 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     userFavorites = [];
   }
- 
-  if (!window.annoncesData || window.annoncesData.length === 0) loadAnnonces();
-  else applyAllFilters();
-});
+  // ⚡ Si annonces déjà en cache, ne recharge pas
+  if(window.annoncesData && window.annoncesData.length > 0){
+    applyAllFilters();
+  } else {
+    loadAnnonces();
+  }
+}
+
+onAuthStateChanged(auth, initUser);
+
 
 // ✅ VERSION OPTIMISÉE : supporte 1M+ annonces sans lag
 async function loadAnnonces(limitCount = 50) {
@@ -237,9 +238,7 @@ async function loadAnnonces(limitCount = 50) {
   if (window.isLoading) return; // ⚡ Stop double chargement
   window.isLoading = true;
 
-  if (!window.annoncesData || window.annoncesData.length === 0) {
   document.getElementById("spinner").style.display = "flex";
-}
 
   try {
     let annoncesQuery = query(
@@ -332,7 +331,7 @@ function escapeHTML(str) {
 }
 
 async function renderAnnonces(filtered) {
-  if (!annoncesContainer.hasChildNodes()) annoncesContainer.innerHTML = "";
+  annoncesContainer.innerHTML = ""; // vide le conteneur avant affichage
 
   if (filtered.length === 0) {
     annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
@@ -619,8 +618,6 @@ function isBoostActive(annonce) {
 // ⚡ VERSION ULTRA OPTIMISÉE — Supporte 500k annonces
 function applyAllFilters() {
   let data = window.annoncesData;
-  
-  
   if (!data || data.length === 0) return renderAnnonces([]);
 
   // ─────────────────────────────────────────
@@ -690,6 +687,16 @@ function applyAllFilters() {
   // ─────────────────────────────────────────
   renderAnnonces(filtered);
 }
+
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted) {
+    // ⚡ La page revient du bfcache : restaurer les annonces
+    if(window.annoncesData && window.annoncesData.length > 0){
+      applyAllFilters();
+    }
+  }
+});
+
 </script>  
 </body>
 </html>
