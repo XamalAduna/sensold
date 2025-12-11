@@ -618,9 +618,9 @@ function isBoostActive(annonce) {
 
 // ⚡ VERSION ULTRA OPTIMISÉE — Supporte 500k annonces
 function applyAllFilters() {
-  if (!window.annoncesData || window.annoncesData.length === 0) return;
-
   let data = window.annoncesData;
+  
+  
   if (!data || data.length === 0) return renderAnnonces([]);
 
   // ─────────────────────────────────────────
