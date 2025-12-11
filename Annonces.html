@@ -1,4 +1,3 @@
-
 <!DOCTYPE html> 
 <html lang="fr"> 
 <head> 
@@ -199,17 +198,6 @@ let sortOrder = "default";
 let currentPage = 1;
 const annoncesPerPage = 50;
 
-// 🔹 Conserver l'état lors du retour arrière
-window.addEventListener('pageshow', (event) => {
-  if (event.persisted || window.annoncesData?.length) {
-    // Si le navigateur vient du bfcache ou qu'on a déjà des annonces
-    applyAllFilters(); // affichage instantané
-  } else {
-    loadAnnonces(); // sinon chargement normal depuis Firebase
-  }
-});
-  
-  
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
@@ -231,9 +219,15 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     userFavorites = [];
   }
-  // Ne pas recharger si annoncesData existe
-  if (!window.annoncesData?.length) loadAnnonces();
+
+  // ✅ Ne charger que si aucune donnée en mémoire
+  if(window.annoncesData && window.annoncesData.length > 0){
+    applyAllFilters(); // réaffiche les annonces depuis le cache
+  } else {
+    loadAnnonces(); // sinon on charge depuis Firebase
+  }
 });
+
 
 // ✅ VERSION OPTIMISÉE : supporte 1M+ annonces sans lag
 async function loadAnnonces(limitCount = 50) {
@@ -691,6 +685,34 @@ function applyAllFilters() {
   // ─────────────────────────────────────────
   renderAnnonces(filtered);
 }
+
+
+// 🔹 Restaurer la page depuis le bfcache
+window.addEventListener('pageshow', (event) => {
+  if(event.persisted){
+    // Restaurer filtres et pagination
+    selectedCategory = sessionStorage.getItem('selectedCategory') || 'all';
+    selectedSubcategory = sessionStorage.getItem('selectedSubcategory') || null;
+    searchText = sessionStorage.getItem('searchText') || '';
+    sortOrder = sessionStorage.getItem('sortOrder') || 'default';
+    currentPage = parseInt(sessionStorage.getItem('currentPage')) || 1;
+
+    // ⚡ Réaffiche les annonces sans recharger Firebase
+    if(window.annoncesData && window.annoncesData.length > 0){
+      applyAllFilters();
+    }
+  }
+});
+
+// 🔹 Sauvegarder l’état avant de quitter
+window.addEventListener('beforeunload', () => {
+  sessionStorage.setItem('selectedCategory', selectedCategory);
+  sessionStorage.setItem('selectedSubcategory', selectedSubcategory);
+  sessionStorage.setItem('searchText', searchText);
+  sessionStorage.setItem('sortOrder', sortOrder);
+  sessionStorage.setItem('currentPage', currentPage);
+});
+
 </script>  
 </body>
 </html>
