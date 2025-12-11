@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html> 
 <html lang="fr"> 
 <head> 
@@ -680,13 +678,27 @@ function applyAllFilters() {
   renderAnnonces(filtered);
 }
 
+// 🔹 Assurer le BFCACHE
 window.addEventListener('pageshow', (event) => {
   if (event.persisted) {
-    // La page vient du bfcache, on recharge seulement le contenu nécessaire
-    applyAllFilters();
+    // Restaurer les annonces et les filtres déjà chargés
+    if (window.annoncesData && window.annoncesData.length > 0) {
+      applyAllFilters();
+
+      // Restaurer la position de scroll
+      if (window.scrollYPos) {
+        window.scrollTo(0, window.scrollYPos);
+      }
+    }
   }
 });
 
+// Sauvegarder la position de scroll à chaque mouvement
+window.addEventListener('scroll', () => {
+  window.scrollYPos = window.scrollY;
+});
+
+  
 </script>  
 </body>
 </html>
