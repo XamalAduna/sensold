@@ -235,6 +235,7 @@ function timeAgo(timestamp){
   const days = Math.floor(hours/24);
   return `il y a ${days} j`;
 }
+  
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
   if(user){
@@ -244,7 +245,13 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     userFavorites = [];
   }
-  loadAnnonces();
+
+  // ✅ Si les annonces sont déjà chargées, juste appliquer les filtres
+  if (window.annoncesData && window.annoncesData.length > 0) {
+    applyAllFilters();
+  } else {
+    loadAnnonces();
+  }
 });
 
 // ✅ VERSION OPTIMISÉE : supporte 1M+ annonces sans lag
