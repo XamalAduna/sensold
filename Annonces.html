@@ -1,4 +1,3 @@
-
 <!DOCTYPE html> 
 <html lang="fr"> 
 <head> 
@@ -474,15 +473,53 @@ async function renderAnnonces(filtered) {
   modalInner.innerHTML = "<p style='text-align:center;'>Chargement...</p>";
 
   try {
-    const response = await fetch(`Details.html?id=${encodeURIComponent(docId)}`);
-    if (!response.ok) throw new Error("Impossible de charger les détails.");
-    const html = await response.text();
-    modalInner.innerHTML = html;
+    const docRef = doc(db, "annonces", docId);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) throw new Error("Annonce introuvable.");
+
+    const a = docSnap.data();
+    
+    // Seller info
+    let sellerData = window.__usersCache.byId[a.userId] || {};
+    let fullName = sellerData.fullName || "Utilisateur inconnu";
+    let sellerPhoto = sellerData.profileImage || "https://via.placeholder.com/50";
+
+    // Images
+    let mainImage = a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce";
+    let thumbnails = a.images?.map(img => `<img src="${img}" />`).join('') || "";
+
+    modalInner.innerHTML = `
+      <div class="container">
+        <div class="image-wrapper">
+          <img class="main-image" src="${mainImage}" />
+        </div>
+        <div class="product-header">
+          <p class="price">${a.price ? a.price + " FCFA" : "Prix sur demande"}</p>
+          <h1>${a.title}</h1>
+        </div>
+        <div class="details">
+          <p><i class="material-icons">place</i> ${a.city || "Ville non précisée"}${a.quartier ? ", "+a.quartier : ""}</p>
+          <div class="description-content">${a.description || "Pas de description"}</div>
+        </div>
+        <div class="seller">
+          <a href="#">
+            <img src="${sellerPhoto}" />
+            <div>
+              <strong>${fullName}</strong>
+              <span class="material-symbols-outlined">storefront</span>
+            </div>
+          </a>
+        </div>
+        <div class="buttons">
+          <a class="button whatsapp" href="https://wa.me/${a.whatsapp}" target="_blank">WhatsApp</a>
+          <a class="button phone" href="tel:${a.phone}">Appeler</a>
+        </div>
+      </div>
+    `;
   } catch (err) {
     modalInner.innerHTML = `<p style="color:red;">Erreur : ${err.message}</p>`;
   }
 });
-
 
     fragment.appendChild(card);
   }
