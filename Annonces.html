@@ -130,35 +130,6 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getFirestore, collection, getDocs, query, orderBy, limit, startAfter, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
-
-// ======================
-// 🚀 BFCache ACTIVATION
-// ======================
-window.addEventListener("pageshow", (event) => {
-    if (event.persisted) {
-        console.log("🔙 Retour arrière BFCache → pas de rechargement");
-        // On réaffiche directement les annonces déjà présentes
-        if (window.annoncesData && window.annoncesData.length > 0) {
-            applyAllFilters(); 
-        }
-        // On stoppe TOUT chargement Firebase
-        window.isLoading = false;
-        return;
-    }
-});
-
-// Bloque le rechargement si BFCache veut restaurer l’état
-if (performance.getEntriesByType("navigation")[0].type === "back_forward") {
-    console.log("⚡ Page restaurée depuis BFCache");
-}
-
-// Empêcher le rechargement complet quand on revient arrière
-document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") {
-        window.isLoading = false;
-    }
-});
-
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
   authDomain: "diallo-ee5aa.firebaseapp.com",
