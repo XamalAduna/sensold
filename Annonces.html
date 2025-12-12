@@ -1,3 +1,4 @@
+
 <!DOCTYPE html> 
 <html lang="fr"> 
 <head> 
@@ -470,58 +471,15 @@ async function renderAnnonces(filtered) {
   const modal = document.getElementById("detailsModal");
   const modalInner = document.getElementById("modalInnerContent");
   modal.style.display = "flex";
-
-  // Récupération de l'annonce complète depuis Firestore si nécessaire
   modalInner.innerHTML = "<p style='text-align:center;'>Chargement...</p>";
+
   try {
-    const docRef = doc(db, "annonces", docId);
-    const docSnap = await getDoc(docRef);
-
-    if (!docSnap.exists()) {
-      modalInner.innerHTML = "<p style='color:red;text-align:center;'>Annonce introuvable</p>";
-      return;
-    }
-
-    const annonce = docSnap.data();
-
-    // Récupération vendeur
-    let sellerData = window.__usersCache.byId[annonce.userId] || { fullName: "Utilisateur inconnu", profileImage: "https://via.placeholder.com/40" };
-
-    // Images
-    const images = annonce.images || ["https://via.placeholder.com/400x200?text=Annonce"];
-    let imagesHTML = images.map((img, i) => `<img src="${escapeHTML(img)}" class="${i===0?'active':''}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;margin-right:5px;cursor:pointer;">`).join("");
-
-    modalInner.innerHTML = `
-      <h2>${escapeHTML(annonce.title || "Sans titre")}</h2>
-      <div class="image-wrapper" style="position:relative; text-align:center;">
-        <img src="${escapeHTML(images[0])}" id="mainModalImage" style="width:100%; max-height:400px; object-fit:contain; border-radius:12px; background:#fff;">
-        <div class="thumbnails" style="display:flex; justify-content:center; margin-top:10px;">${imagesHTML}</div>
-      </div>
-      <p class="price" style="font-size:24px; font-weight:bold; color:#00796B;">${escapeHTML(annonce.price ? annonce.price + " FCFA" : "Prix sur demande")}</p>
-      <p class="location">📍 ${escapeHTML(annonce.city || "")}${annonce.quartier ? ", " + escapeHTML(annonce.quartier) : ""}</p>
-      <div class="description-content" style="padding:8px;border:1px solid #ddd;border-radius:8px;background:#f1f1f1;margin-bottom:5px;">
-        ${escapeHTML(annonce.description || "Pas de description")}
-      </div>
-      <div class="seller" style="display:flex; align-items:center; gap:10px; margin-top:10px;">
-        <img src="${escapeHTML(sellerData.profileImage || 'https://via.placeholder.com/50')}" style="width:50px;height:50px;border-radius:50%;object-fit:cover;">
-        <div>
-          <strong>${escapeHTML(sellerData.fullName || "Utilisateur")}</strong>
-        </div>
-      </div>
-    `;
-
-    // Gestion clic sur les miniatures
-    const mainImg = modalInner.querySelector("#mainModalImage");
-    modalInner.querySelectorAll(".thumbnails img").forEach(img => {
-      img.addEventListener("click", () => {
-        mainImg.src = img.src;
-        modalInner.querySelectorAll(".thumbnails img").forEach(i => i.classList.remove("active"));
-        img.classList.add("active");
-      });
-    });
-
-  } catch(err) {
-    modalInner.innerHTML = `<p style="color:red;text-align:center;">Erreur : ${err.message}</p>`;
+    const response = await fetch(`Details.html?id=${encodeURIComponent(docId)}`);
+    if (!response.ok) throw new Error("Impossible de charger les détails.");
+    const html = await response.text();
+    modalInner.innerHTML = html;
+  } catch (err) {
+    modalInner.innerHTML = `<p style="color:red;">Erreur : ${err.message}</p>`;
   }
 });
 
