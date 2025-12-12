@@ -127,11 +127,38 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
   <a href="login.html">Se connecter</a>
 </div>
 <script type="module">
-
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getFirestore, collection, getDocs, query, orderBy, limit, startAfter, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
+
+// ======================
+// 🚀 BFCache ACTIVATION
+// ======================
+window.addEventListener("pageshow", (event) => {
+    if (event.persisted) {
+        console.log("🔙 Retour arrière BFCache → pas de rechargement");
+        // On réaffiche directement les annonces déjà présentes
+        if (window.annoncesData && window.annoncesData.length > 0) {
+            applyAllFilters(); 
+        }
+        // On stoppe TOUT chargement Firebase
+        window.isLoading = false;
+        return;
+    }
+});
+
+// Bloque le rechargement si BFCache veut restaurer l’état
+if (performance.getEntriesByType("navigation")[0].type === "back_forward") {
+    console.log("⚡ Page restaurée depuis BFCache");
+}
+
+// Empêcher le rechargement complet quand on revient arrière
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+        window.isLoading = false;
+    }
+});
+
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
   authDomain: "diallo-ee5aa.firebaseapp.com",
@@ -200,31 +227,6 @@ let sortOrder = "default";
 let currentPage = 1;
 const annoncesPerPage = 50;
 
-// ⚡ Restaurer les annonces et l'état si on revient en arrière
-window.addEventListener("pageshow", (event) => {
-  // Récupérer l’état sauvegardé
-  const savedState = sessionStorage.getItem("annoncesState");
-  if (savedState) {
-    const s = JSON.parse(savedState);
-    currentPage = s.currentPage || 1;
-    selectedCategory = s.selectedCategory || "all";
-    selectedSubcategory = s.selectedSubcategory || null;
-    searchText = s.searchText || "";
-    sortOrder = s.sortOrder || "default";
-    if (s.annoncesData) window.annoncesData = s.annoncesData;
-    sessionStorage.removeItem("annoncesState");
-  }
-
-  // ⚡ Si les annonces sont déjà chargées → affichage instantané
-  if (window.annoncesData && window.annoncesData.length > 0) {
-    applyAllFilters();
-  } else {
-    // Sinon, charger depuis Firebase
-    loadAnnonces();
-  }
-});
-
-  
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
@@ -236,7 +238,6 @@ function timeAgo(timestamp){
   const days = Math.floor(hours/24);
   return `il y a ${days} j`;
 }
-  
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
   if(user){
@@ -246,13 +247,7 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     userFavorites = [];
   }
-
-  // ✅ Si les annonces sont déjà chargées, juste appliquer les filtres
-  if (window.annoncesData && window.annoncesData.length > 0) {
-    applyAllFilters();
-  } else {
-    loadAnnonces();
-  }
+  loadAnnonces();
 });
 
 // ✅ VERSION OPTIMISÉE : supporte 1M+ annonces sans lag
@@ -487,20 +482,10 @@ async function renderAnnonces(filtered) {
 
     // ⚡ Clic sur card
     card.addEventListener("click", e => {
-  if (!e.target.classList.contains("favorite")) {
-    const state = {
-      currentPage,
-      selectedCategory,
-      selectedSubcategory,
-      searchText,
-      sortOrder,
-      annoncesData: window.annoncesData // ⚡ On ajoute les données
-    };
-    sessionStorage.setItem("annoncesState", JSON.stringify(state));
-    window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
-  }
-});
-
+      if (!e.target.classList.contains("favorite")) {
+        window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
+      }
+    });
 
     fragment.appendChild(card);
   }
