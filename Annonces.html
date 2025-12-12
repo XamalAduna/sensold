@@ -128,28 +128,6 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
 </div>
 <script type="module">
 
-window.addEventListener('pageshow', (event) => {
-  if (event.persisted) {
-    console.log("Restauration depuis bfcache");
-
-    // ⚡ Si les annonces sont déjà chargées
-    if (window.annoncesData && window.annoncesData.length > 0) {
-      applyAllFilters();
-    }
-
-    // ⚡ Restaurer les filtres si tu veux
-    const searchInput = document.getElementById("search-input");
-    if (searchInput) searchInput.value = searchText || "";
-    
-    // ⚡ Restaurer le menu filtre
-    if (filterMenu) filterMenu.style.display = "none";
-    
-    // ⚡ Restaurer la catégorie active
-    categoryElements.forEach(c => {
-      c.classList.toggle("active", c.dataset.cat === selectedCategory);
-    });
-  }
-});
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getFirestore, collection, getDocs, query, orderBy, limit, startAfter, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
@@ -221,6 +199,30 @@ let searchText = "";
 let sortOrder = "default";
 let currentPage = 1;
 const annoncesPerPage = 50;
+
+// ⚡ Restaurer les annonces et l'état si on revient en arrière
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted) {
+    if (window.annoncesData && window.annoncesData.length > 0) {
+      // Les annonces sont déjà chargées → on applique les filtres existants
+      const savedState = sessionStorage.getItem("annoncesState");
+      if (savedState) {
+        const s = JSON.parse(savedState);
+        currentPage = s.currentPage || 1;
+        selectedCategory = s.selectedCategory || "all";
+        selectedSubcategory = s.selectedSubcategory || null;
+        searchText = s.searchText || "";
+        sortOrder = s.sortOrder || "default";
+        sessionStorage.removeItem("annoncesState");
+      }
+      applyAllFilters();
+    } else {
+      // Rien en cache → recharge les annonces
+      loadAnnonces();
+    }
+  }
+});
+
 
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
@@ -477,10 +479,21 @@ async function renderAnnonces(filtered) {
 
     // ⚡ Clic sur card
     card.addEventListener("click", e => {
-      if (!e.target.classList.contains("favorite")) {
-        window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
-      }
-    });
+  if (!e.target.classList.contains("favorite")) {
+    // ⚡ Sauvegarder l'état actuel
+    const state = {
+      currentPage,
+      selectedCategory,
+      selectedSubcategory,
+      searchText,
+      sortOrder
+    };
+    sessionStorage.setItem("annoncesState", JSON.stringify(state));
+
+    // Naviguer vers la page détail
+    window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
+  }
+});
 
     fragment.appendChild(card);
   }
