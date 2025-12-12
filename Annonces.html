@@ -202,28 +202,29 @@ const annoncesPerPage = 50;
 
 // ⚡ Restaurer les annonces et l'état si on revient en arrière
 window.addEventListener("pageshow", (event) => {
-  if (event.persisted) {
-    if (window.annoncesData && window.annoncesData.length > 0) {
-      // Les annonces sont déjà chargées → on applique les filtres existants
-      const savedState = sessionStorage.getItem("annoncesState");
-      if (savedState) {
-        const s = JSON.parse(savedState);
-        currentPage = s.currentPage || 1;
-        selectedCategory = s.selectedCategory || "all";
-        selectedSubcategory = s.selectedSubcategory || null;
-        searchText = s.searchText || "";
-        sortOrder = s.sortOrder || "default";
-        sessionStorage.removeItem("annoncesState");
-      }
-      applyAllFilters();
-    } else {
-      // Rien en cache → recharge les annonces
-      loadAnnonces();
-    }
+  // Récupérer l’état sauvegardé
+  const savedState = sessionStorage.getItem("annoncesState");
+  if (savedState) {
+    const s = JSON.parse(savedState);
+    currentPage = s.currentPage || 1;
+    selectedCategory = s.selectedCategory || "all";
+    selectedSubcategory = s.selectedSubcategory || null;
+    searchText = s.searchText || "";
+    sortOrder = s.sortOrder || "default";
+    if (s.annoncesData) window.annoncesData = s.annoncesData;
+    sessionStorage.removeItem("annoncesState");
+  }
+
+  // ⚡ Si les annonces sont déjà chargées → affichage instantané
+  if (window.annoncesData && window.annoncesData.length > 0) {
+    applyAllFilters();
+  } else {
+    // Sinon, charger depuis Firebase
+    loadAnnonces();
   }
 });
 
-
+  
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
@@ -487,20 +488,19 @@ async function renderAnnonces(filtered) {
     // ⚡ Clic sur card
     card.addEventListener("click", e => {
   if (!e.target.classList.contains("favorite")) {
-    // ⚡ Sauvegarder l'état actuel
     const state = {
       currentPage,
       selectedCategory,
       selectedSubcategory,
       searchText,
-      sortOrder
+      sortOrder,
+      annoncesData: window.annoncesData // ⚡ On ajoute les données
     };
     sessionStorage.setItem("annoncesState", JSON.stringify(state));
-
-    // Naviguer vers la page détail
     window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
   }
 });
+
 
     fragment.appendChild(card);
   }
