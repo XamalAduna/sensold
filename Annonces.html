@@ -127,6 +127,23 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
   <a href="login.html">Se connecter</a>
 </div>
 <script type="module">
+
+onAuthStateChanged(auth, async (user) => {
+  currentUser = user;
+  if(user){
+    const userRef = doc(db,"users",user.uid);
+    const userSnap = await getDoc(userRef);
+    userFavorites = userSnap.data()?.favorites || [];
+  } else {
+    userFavorites = [];
+  }
+
+  // ⚡ Restaurer l'état si existant, sinon charger normalement
+  if (!restoreState()) {
+    loadAnnonces();
+  }
+});
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getFirestore, collection, getDocs, query, orderBy, limit, startAfter, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
@@ -209,6 +226,7 @@ function timeAgo(timestamp){
   const days = Math.floor(hours/24);
   return `il y a ${days} j`;
 }
+  
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
   if(user){
@@ -220,6 +238,30 @@ onAuthStateChanged(auth, async (user) => {
   }
   loadAnnonces();
 });
+
+function restoreState() {
+  const state = sessionStorage.getItem("annoncesState");
+  if (state) {
+    const parsed = JSON.parse(state);
+    window.annoncesData = parsed.data || [];
+    currentPage = parsed.currentPage || 1;
+    selectedCategory = parsed.selectedCategory || "all";
+    selectedSubcategory = parsed.selectedSubcategory || null;
+    searchText = parsed.searchText || "";
+    sortOrder = parsed.sortOrder || "default";
+    
+    // ⚡ Restaurer le dernier élément pour scroll infini
+    if (parsed.lastVisible) {
+      window.lastVisible = { id: parsed.lastVisible }; // ⚠️ Si tu veux le document complet, tu peux le récupérer
+    }
+
+    applyAllFilters(); // 🔄 Réaffiche les annonces instantanément
+    return true; // indique que l'état a été restauré
+  }
+  return false;
+}
+
+  
 
 // ✅ VERSION OPTIMISÉE : supporte 1M+ annonces sans lag
 async function loadAnnonces(limitCount = 50) {
@@ -453,10 +495,21 @@ async function renderAnnonces(filtered) {
 
     // ⚡ Clic sur card
     card.addEventListener("click", e => {
-      if (!e.target.classList.contains("favorite")) {
-        window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
-      }
-    });
+  if (!e.target.classList.contains("favorite")) {
+    // ⚡ Sauvegarde l'état dans sessionStorage
+    sessionStorage.setItem("annoncesState", JSON.stringify({
+      data: window.annoncesData,
+      lastVisible: window.lastVisible ? window.lastVisible.id : null,
+      currentPage,
+      selectedCategory,
+      selectedSubcategory,
+      searchText,
+      sortOrder
+    }));
+    window.location.href = `Details.html?id=${encodeURIComponent(docId)}`;
+  }
+});
+
 
     fragment.appendChild(card);
   }
@@ -677,6 +730,14 @@ function applyAllFilters() {
   // ─────────────────────────────────────────
   renderAnnonces(filtered);
 }
+
+window.addEventListener("pageshow", (event) => {
+  if (!event.persisted) {
+    // Page chargée normalement → on peut nettoyer sessionStorage si nécessaire
+    // sessionStorage.removeItem("annoncesState");
+  }
+});
+
 </script>  
 </body>
 </html>
