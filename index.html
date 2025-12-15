@@ -76,14 +76,12 @@
     <li><a href="#" onclick="openMenuFrame('Favoris/')"><i class="material-icons">favorite</i> Mes favoris</a></li>
     <li><a href="#" onclick="openMenuFrame('Publication/')"> <i class="material-icons">post_add</i> Publier une annonce</a></li>
     <li><a href="#" onclick="openMenuFrame('Booster/')" class="boost-link"><i class="material-icons">flash_on</i> Boostage</a></li>
-
     <li><a href="Abonnement/" class="boost-link"><i class="material-icons">stars</i> S’abonner</a></li>
     <li><a href="#" id="logout"><i class="material-icons">logout</i> Se déconnecter</a></li>
-    
   </ul>
 </header>
 <div id="notLoggedMsg">
-  Vous devez être connecté pour accéder au menu. <br>
+  Vous devez être connecté pour accéder au menu.<br>
   <a href="Connexion/">Se connecter</a> <hr>
   <a href="Inscription/">S'inscrire</a>
 </div>
@@ -252,15 +250,19 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 const publishBtnMain = document.getElementById("publishBtnMain");
 const notLoggedMsg = document.getElementById("notLoggedMsg");
+  
 publishBtnMain.addEventListener("click", () => {
   const user = auth.currentUser;
-  if(user){
-    window.location.href = "Publication/";
+  if (user) {
+    openMenuFrame("Publication/");
   } else {
     notLoggedMsg.style.display = "block";
-    setTimeout(() => { notLoggedMsg.style.display = "none"; }, 4000);
+    setTimeout(() => {
+      notLoggedMsg.style.display = "none";
+    }, 4000);
   }
 });
+
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js" defer></script>
 <div id="mainContent" style="margin-top:0; position: relative;">
@@ -448,7 +450,6 @@ function openMenuFrame(url) {
     if (instance) instance.close();
   }
 }
-
 // Fermer avec le X
 document.getElementById("closeMenuFrame").addEventListener("click", () => {
   const overlay = document.getElementById("menuFrameOverlay");
