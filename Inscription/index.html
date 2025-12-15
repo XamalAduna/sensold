@@ -20,19 +20,10 @@
     button:hover { background: #00796B; }
     .checkbox-group { margin-bottom: 15px; }
     .loader {display: none;border: 4px solid #f3f3f3; border-top: 4px solid #009688;border-radius: 50%;width: 30px; height: 30px; animation: spin 1s linear infinite;margin: 15px auto;}
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
+    @keyframes spin {0% { transform: rotate(0deg); }100% { transform: rotate(360deg); }}
     @media (max-width: 600px) {
-      .form-container {
-        padding: 20px;
-        width: 95%;
-      }
-      h2, input, button, a {
-        font-size: 16px;
-      }
-    }
+    .form-container { padding: 20px; width: 95%; }
+     h2, input, button, a {font-size: 16px; }}
     .brand-text {position: absolute;top: 10px;left: 15px;font-weight: bold;font-size: 18px;color: #009688;}
   </style>
 </head>
@@ -57,7 +48,6 @@
         <span class="toggle-password" onclick="togglePassword('password', this)">👁️</span>
         <div class="error" id="passwordError"></div>
       </div>
-
       <div class="form-group password-wrapper">
         <label>Confirmer le mot de passe</label>
         <input type="password" id="confirmPassword" required>
@@ -84,18 +74,14 @@
     function togglePassword(fieldId, el) {
       const field = document.getElementById(fieldId);
       field.type = field.type === "password" ? "text" : "password";
-      el.textContent = field.type === "password" ? "👁️" : "🙈";
-    }
+      el.textContent = field.type === "password" ? "👁️" : "🙈";}
   </script>
-  <!-- reCAPTCHA -->
   <script src="https://www.google.com/recaptcha/api.js?onload=initRecaptcha&render=explicit&hl=fr" async defer></script>
   <script>
     let recaptchaWidgetId;
     function initRecaptcha() {
       recaptchaWidgetId = grecaptcha.render('recaptcha', {
-        'sitekey': '6Lcej7srAAAAAP447wZkg9mQeoLzU36ElSI7RTsf'
-      });
-    }
+        'sitekey': '6Lcej7srAAAAAP447wZkg9mQeoLzU36ElSI7RTsf'});}
   </script>
   <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
@@ -115,24 +101,20 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-
 const registerForm = document.getElementById("registerForm");
 const globalMessage = document.getElementById("globalMessage");
 const loader = document.getElementById("loader");
-
 registerForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   document.querySelectorAll(".error").forEach(el => el.textContent = "");
   globalMessage.textContent = "";
   globalMessage.className = "";
-
   const fullName = document.getElementById("fullName").value.trim();
   const emailValue = document.getElementById("email").value.trim();
   const passwordValue = document.getElementById("password").value;
   const confirmPasswordValue = document.getElementById("confirmPassword").value;
   const acceptTerms = document.getElementById("acceptTerms").checked;
   const recaptchaResponse = grecaptcha.getResponse(recaptchaWidgetId);
-
   let valid = true;
   if (!fullName) { document.getElementById("fullNameError").textContent = "Veuillez entrer votre nom et prénom."; valid = false; }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(emailValue)) { document.getElementById("emailError").textContent = "Veuillez entrer un email valide."; valid = false; }
@@ -140,7 +122,6 @@ registerForm.addEventListener("submit", async (e) => {
   if (passwordValue !== confirmPasswordValue) { document.getElementById("confirmPasswordError").textContent = "Les mots de passe ne correspondent pas."; valid = false; }
   if (!acceptTerms) { document.getElementById("acceptTermsError").textContent = "Vous devez accepter les conditions de confidentialité."; valid = false; }
   if (!recaptchaResponse) { document.getElementById("recaptchaError").textContent = "Veuillez valider le reCAPTCHA."; valid = false; }
-
   if (!valid) return;
   try {
     loader.style.display = "block";
@@ -158,7 +139,6 @@ registerForm.addEventListener("submit", async (e) => {
     globalMessage.className = "success";
     registerForm.reset();
     grecaptcha.reset(recaptchaWidgetId);
-
   } catch (error) {
     let message = "Une erreur est survenue.";
     if (error.code === "auth/email-already-in-use") message = "Cet email est déjà utilisé.";
