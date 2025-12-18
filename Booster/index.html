@@ -66,14 +66,12 @@ h2 {position:fixed;top:0;left:0;right:0;background:#f7f7f7;z-index:1000;text-ali
       <option value="Wave">Wave</option>
       <option value="Orange Money">Orange Money</option>
     </select>
-    
-    <p style="text-align:left; margin-top:10px;">
-      <label>
-        <input type="checkbox" id="acceptSubscriptionRules" required />
-        <span>J’ai lu et j’accepte les <a href="/Règles/index.html" target="_blank" style="color:#00796B;text-decoration:underline;">règles de paiement</a>.</span>
+    <div style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
+      <input type="checkbox" id="acceptSubscriptionRules" required />
+      <label for="acceptSubscriptionRules" style="margin: 0;">J’ai lu et j’accepte les 
+        <a href="/Règles/index.html" target="_blank" style="color:#00796B; text-decoration:underline;">règles de paiement</a>.
       </label>
-    </p>
-
+    </div>
     <button id="confirmBoost">Confirmer et ouvrir WhatsApp</button>
   </div>
 </div>
@@ -169,7 +167,7 @@ confirmBoost.addEventListener("click", ()=> {
   const tarif = tarifSelect.value.trim();
   const clientPhoneValue = document.getElementById("clientPhone").value.trim();
   const paymentMethodValue = document.getElementById("paymentMethod").value.trim();
-  const acceptRules = document.getElementById("acceptRules").checked;
+  const acceptRules = document.getElementById("acceptSubscriptionRules").checked;
   if(!tarif || !clientPhoneValue || !paymentMethodValue || !acceptRules){
     alert("Veuillez remplir tous les champs et accepter les règles de paiement avant de continuer.");
     return;
@@ -195,7 +193,7 @@ confirmBoost.addEventListener("click", ()=> {
   tarifSelect.value = "";
   document.getElementById("clientPhone").value = "";
   document.getElementById("paymentMethod").value = "";
-  document.getElementById("acceptRules").checked = false;
+  document.getElementById("acceptSubscriptionRules").checked = false;
 });
 boostModal.addEventListener("click", e=>{
   if(e.target === boostModal) boostModal.style.display = "none";});
