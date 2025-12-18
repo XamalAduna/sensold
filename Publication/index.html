@@ -168,17 +168,14 @@ const quartierSelected = quartierDropdown.querySelector('.selected');
 const quartierOptions = quartierDropdown.querySelector('.options');
 const quartierInput = document.getElementById('quartier');
 const additionalFieldsContainer = document.getElementById("additionalFieldsContainer");
-
-const categoryLabels = {vehicules: 'Véhicules',immobilier: 'Immobilier', electronique: 'Électronique',mode: 'Mode & Beauté',electromenager: 'Électroménager',maison: 'Pour la maison',emplois: 'Emplois',services: 'Services',enfant: "Pour l'enfant",sports_loisirs: 'Sports & Loisirs',alimentation: 'Alimentation',animaux: 'Animaux',materiel_pro: 'Matériel Pro' };
-
-const categoryIcons = {vehicules: 'directions_car',immobilier: 'apartment',electronique: 'devices',mode: 'checkroom',electromenager: 'kitchen', maison: 'king_bed',emplois: 'work',services: 'handshake',enfant: 'child_friendly', sports_loisirs: 'sports',alimentation: 'restaurant', animaux: 'pets',materiel_pro: 'build'};
-
+const categoryLabels = {vehicules: 'Véhicules',immobilier: 'Immobilier', electronique: 'Électronique'};
+const categoryIcons = {vehicules: 'directions_car',immobilier: 'apartment',electronique: 'devices'};
 let categoriesMap = {};
 let quartiersDakar = [];
 const additionalFields = {
   vehicules: {
     "Voitures & utilitaires": [
-      { name: 'Marque', type: 'select', options: ['Acura','Alfa Romeo','Alpine','Aston Martin','Audi','BAIC','Bentley','BMW','Bugatti','Buick','BYD','Cadillac','Changan','Chery','Chevrolet','Chrysler','Citroën','Cupra','Dacia','Daewoo','Daihatsu','Datsun','Dodge','Dongfeng','DS Automobiles','FAW','Ferrari','Fiat','Fisker','Ford','Geely','Genesis','GMC','Great Wall','Haval','Holden','Honda','Hummer','Hyundai','Infiniti', 'Isuzu','Jaguar','Jeep','Kia','Koenigsegg', 'Lada','Lamborghini','Lancia','Land Rover','Lexus','Lincoln','Lotus','Lucid','Maserati','Maybach', 'Mazda','McLaren','Mercedes-Benz','MG','Mini', 'Mitsubishi','Nissan','Opel','Pagani','Peugeot','Polestar','Pontiac','Porsche','Proton','Ram','Renault','Rivian','Rolls-Royce','Rover','Saab', 'Samsung','Seat','Škoda','Smart','SsangYong', 'Subaru','Suzuki','Tata','Tesla','Toyota','Vauxhall','VinFast','Volkswagen','Volvo','Wuling','Zotye']},
+      { name: 'Marque', type: 'select', options: ['Toyota','Peugeot','Renault','Hyundai','Kia','Mercedes-Benz','BMW','Nissan','Mitsubishi','Ford','Volkswagen','Honda','Mazda','Suzuki','Isuzu','────────','Acura','Alfa Romeo','Alpine','Aston Martin','Audi','BAIC','Bentley','Bugatti','Buick','BYD','Cadillac','Changan','Chery','Chevrolet','Chrysler','Citroën','Cupra','Dacia','Daewoo','Daihatsu','Datsun','Dodge','Dongfeng','DS Automobiles','FAW','Ferrari','Fiat','Fisker','Geely','Genesis','GMC','Great Wall','Haval','Holden','Hummer','Infiniti','Jaguar','Jeep','Koenigsegg','Lada','Lamborghini','Lancia','Land Rover','Lexus','Lincoln','Lotus','Lucid','Maserati','Maybach','McLaren','MG','Mini','Opel','Pagani','Polestar','Pontiac','Porsche','Proton','Ram','Rivian','Rolls-Royce','Rover','Saab','Samsung','Seat','Škoda','Smart','SsangYong','Subaru','Tata','Tesla','Vauxhall','VinFast','Volvo','Wuling','Zotye']},
       { name: 'Modèle', type: 'text' },
       { name: 'Kilométrage', type: 'number' },
       { name: 'Année',type: 'select', options: Array.from({length: 2026 - 1950 + 1}, (_, i) => (2026 - i).toString())},
@@ -187,21 +184,20 @@ const additionalFields = {
       {name: 'Nombre de portes',type: 'select',options: ['Nombre de portes', '2', '3', '4', '5', '6', '7']}
       ],
     "Moto & scooters": [
-      {name: 'Marque',  type: 'select', options: ['Aprilia','Bajaj','Benelli','BMW Motorrad','CFMoto','Derbi','Ducati','Fantic','Harley-Davidson','Hero','Husqvarna','Indian','Jawa','Kawasaki','KTM','Kymco','Lifan','Moto Guzzi','Honda','Horex','Hyosung','Italjet','Lambretta','Mahindra','Mash','Malaguti','MV Agusta','Peugeot Scooters','Piaggio','Beverly','Royal Enfield','Suzuki','Sym','TVS','Triumph','Vespa','Yamaha','Zontes']},
+      {name: 'Marque',  type: 'select', options: ['Yamaha','Honda','Suzuki','TVS','Bajaj','Kawasaki','KTM','Royal Enfield','Sym','Kymco','────────','Aprilia','Benelli','BMW Motorrad','CFMoto','Derbi','Ducati','Fantic','Harley-Davidson','Hero','Husqvarna','Indian','Jawa','Lifan','Moto Guzzi','Horex','Hyosung','Italjet','Lambretta','Mahindra','Mash','Malaguti','MV Agusta','Peugeot Scooters','Piaggio','Beverly','Triumph','Vespa','Zontes']},
       { name: 'Modèle', type: 'text' },
       { name: 'Kilométrage', type: 'number' },
       {name: 'Année',type: 'select', options: Array.from({length: 2026 - 1950 + 1}, (_, i) => (2026 - i).toString())}
       ],
     "Camion & bus": [
-      { name: 'Marque',  type: 'select', options: ['Ashok Leyland','Berliet','BYD','Chevrolet','Chrysler','Daf','DAF Trucks','Daewoo','Dodge','Fuso','Fiat','Ford','Freightliner','GMC','Hino','Hyundai','Isuzu','IVECO','Kamaz','Kenworth','MAN','Mack','Mahindra','Mercedes-Benz','Mitsubishi Fuso','Navistar','Neoplan','Nikola','Renault Trucks','Scania','Setra','Tata','UD Trucks','Volvo','Western Star','ZIL']},
+      { name: 'Marque',  type: 'select', options: ['Mercedes-Benz','Renault Trucks','Volvo','Isuzu','Hyundai','Mitsubishi Fuso','Tata','MAN','Scania','IVECO','Ford','DAF Trucks','────────','Ashok Leyland','Berliet','BYD','Chevrolet','Chrysler','Daewoo','Daf','Dodge','Fiat','Freightliner','Fuso','GMC','Hino','Kamaz','Kenworth','Mack','Mahindra','Navistar','Neoplan','Nikola','Setra','UD Trucks','Western Star','ZIL']},
       { name: 'Modèle', type: 'text' },
       { name: 'Kilométrage', type: 'number' },
       {name: 'Année',type: 'select', options: Array.from({length: 2026 - 1950 + 1}, (_, i) => (2026 - i).toString())}
       ],
     "Équipements et accessoires": [],
     "Location de véhicule": [],
-    "Bateaux": []
-  },
+    "Bateaux": []},
   immobilier: {
     "Villas": [
       { name: 'Surface (m²)', type: 'number' },
