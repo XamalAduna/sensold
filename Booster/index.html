@@ -39,23 +39,9 @@ h2 {position:fixed;top:0;left:0;right:0;background:#f7f7f7;z-index:1000;text-ali
 #boostModal button:active { transform:translateY(0); }
 @media (max-width:480px) { #boostModal .modal-content { padding:25px 20px; width:92%; } #boostModal h3 { font-size:19px; } }
 #boostModal input#clientPhone { width:100%; max-width:100%; box-sizing:border-box; }
-
-#boostModal label {
-  display: inline-flex; /* inline-flex pour rester à la taille du texte */
-  align-items: center;
-  gap: 8px; /* espace entre texte et checkbox */
-  font-size: 14px;
-  color: #333;
-}
-#boostModal label span {
-  display: inline; /* texte normal */
-}
-#boostModal input[type="checkbox"] {
-  width: auto;
-  height: auto;
-  accent-color: #00b050;
-}
-
+#boostModal label {display: inline-flex; align-items: center;gap: 8px;font-size: 20px;color: #333;}
+#boostModal label span { display: inline; }
+#boostModal input[type="checkbox"] {width: auto;height: auto;accent-color: #00b050;}
 
 </style>
 </head>
@@ -87,7 +73,7 @@ h2 {position:fixed;top:0;left:0;right:0;background:#f7f7f7;z-index:1000;text-ali
    <p style="text-align:left; margin-top:10px;">
      <label>
        <input type="checkbox" id="acceptSubscriptionRules" required />
-       <span>J’ai lu et j’accepte les <a href="/Règles/index.html" target="_blank" style="color:#00796B;text-decoration:underline;">règles de paiement</a>.</span>
+       <span>J’ai lu et j’accepte les <a href="../Règles/index.html" target="_blank" style="color:#00796B;text-decoration:underline;">règles de paiement</a>.</span>
      </label>
    </p>
     <button id="confirmBoost">Confirmer et ouvrir WhatsApp</button>
