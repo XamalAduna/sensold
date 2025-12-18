@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SenSold – Annonces en ligne</title>
+  <title>SenSold</title>
   <meta name="description" content="MonCoin : Achetez et vendez facilement vos produits neufs ou d’occasion partout en Afrique.">
   <link rel="icon" type="image/png" href="assets/img/favicon.png">
   <link rel="apple-touch-icon" href="assets/img/logo-180.png">
@@ -32,16 +32,16 @@
    .nav-wrapper {position: fixed;top: 0;left: 0;width: 100%;z-index: 1000;}
     #logoutModal { position: fixed !important;top: 50% !important;left: 50% !important;transform: translate(-50%, -50%) !important;z-index: 11000 !important;top: 50% !important;}
     body {padding-top: 64px;}
-  @keyframes popIn {
-  0% {transform: scale(0.95);opacity: 0;}
-  100% { transform: scale(1); opacity: 1; }}
-.modal.open {animation: popIn 0.25s ease-out;}
-.modal.open {animation: popIn 0.3s ease-out;}
-.iframe-container {position: relative; width: 100%;height: 100vh;}
-.iframe-container iframe {width: 100%;height: 100%;border: none;}
-.sidenav {z-index: 10000 !important;}
-.boost-link { background: linear-gradient(135deg, #ff9800, #f44336); color: white !important; font-weight: bold; border-radius: 30px; margin: 10px 15px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.25); transition: all 0.3s ease; display: block; }
-.boost-link:hover { background: linear-gradient(135deg, #f44336, #ff9800); transform: scale(1.05); }
+    @keyframes popIn {0% {transform: scale(0.95);opacity: 0;} 100% { transform: scale(1); opacity: 1; }}
+    .modal.open {animation: popIn 0.25s ease-out;}
+    .modal.open {animation: popIn 0.3s ease-out;}
+    .iframe-container {position: relative; width: 100%;height: 100vh;}
+    .iframe-container iframe {width: 100%;height: 100%;border: none;}
+    .sidenav {z-index: 10000 !important;}
+    .boost-link { background: linear-gradient(135deg, #ff9800, #f44336); color: white !important; font-weight: bold; border-radius: 30px; margin: 10px 15px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.25); transition: all 0.3s ease; display: block; }
+    .boost-link:hover { background: linear-gradient(135deg, #f44336, #ff9800); transform: scale(1.05); }
+    .sidenav-trigger i.material-icons { font-size: 40px;}
+    .sidenav-trigger {padding: 10px;}
 </style>
 </head>
 <body>
@@ -274,7 +274,7 @@ publishBtnMain.addEventListener("click", () => {
 </div>
 <div id="subscribeModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.55); z-index:20000; justify-content:center; align-items:center; backdrop-filter:blur(4px);">
   <div class="modal-content" style="position:relative; background:#ffffff; padding:30px 35px; border-radius:16px; max-width:420px; width:90%; box-shadow:0 6px 30px rgba(0,0,0,0.25); text-align:center; font-family:Arial, sans-serif;">
-    <span id="closeModal" style="position:absolute; top:10px; right:15px; font-size:22px; font-weight:bold; cursor:pointer;">&times;</span>
+    <span id="closeModal" style="position:absolute; top:10px; right:15px; font-size:50px; font-weight:bold; cursor:pointer;">&times;</span>
     <span class="brand" style="position:absolute; top:12px; left:18px;color: #009688; font-weight:700; font-size:18px; letter-spacing:0.5px;">SenSold</span>
     <h3 style="margin-top:5px; margin-bottom:10px; font-size:22px; font-weight:600; color:#222;">Choisir votre abonnement</h3>
     <p style="background:#e0f7fa;padding:10px;border-radius:8px;">
@@ -391,74 +391,33 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 </script>
-
-<!-- FRAME OVERLAY POUR MENU -->
-<div id="menuFrameOverlay" style="
-  display:none;
-  position:fixed;
-  top:0; left:0;
-  width:100%;
-  height:100%;
-  background:rgba(0,0,0,0.6);
-  z-index:30000;
-  justify-content:center;
-  align-items:center;
-">
-
-  <div style="
-    position:relative;
-    width:95%;
-    height:95%;
-    background:#fff;
-    border-radius:16px;
-    overflow:hidden;
-  ">
-
-    <!-- BOUTON FERMER (GRAND X) -->
-    <span id="closeMenuFrame" style="
-      position:absolute;
-      top:15px;
-      right:20px;
-      font-size:50px;
-      font-weight:bold;
-      cursor:pointer;
-      z-index:10;
-      color:black;
-    ">&times;</span>
-
-    <!-- IFRAME -->
+<div id="menuFrameOverlay" style="display:none; position:fixed; top:0; left:0; width:100%;height:100%;background:rgba(0,0,0,0.6); z-index:30000; justify-content:center;align-items:center;">
+  <div style="position:relative;width:95%;height:95%;background:#fff;border-radius:16px;overflow:hidden;">
+    <span id="closeMenuFrame" style="position:absolute;top:15px;right:20px;font-size:50px;font-weight:bold;cursor:pointer;z-index:10;color:black;">&times;</span>
     <iframe id="menuFrame"
       src=""
       style="width:100%;height:100%;border:none;">
     </iframe>
-
   </div>
 </div>
-
 <script>
 function openMenuFrame(url) {
   const overlay = document.getElementById("menuFrameOverlay");
   const iframe = document.getElementById("menuFrame");
-
   iframe.src = url;
   overlay.style.display = "flex";
-
-  // Fermer le menu latéral
   const sidenav = document.querySelector('.sidenav');
   if (window.M && sidenav) {
     const instance = M.Sidenav.getInstance(sidenav);
     if (instance) instance.close();
   }
 }
-// Fermer avec le X
 document.getElementById("closeMenuFrame").addEventListener("click", () => {
   const overlay = document.getElementById("menuFrameOverlay");
   const iframe = document.getElementById("menuFrame");
   iframe.src = "";
   overlay.style.display = "none";
 });
-
-// Fermer en cliquant hors de la frame
 document.getElementById("menuFrameOverlay").addEventListener("click", e => {
   if (e.target.id === "menuFrameOverlay") {
     document.getElementById("menuFrame").src = "";
@@ -466,6 +425,5 @@ document.getElementById("menuFrameOverlay").addEventListener("click", e => {
   }
 });
 </script>
-
 </body>
 </html>
