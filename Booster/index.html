@@ -40,7 +40,19 @@ h2 {position:fixed;top:0;left:0;right:0;background:#f7f7f7;z-index:1000;text-ali
 @media (max-width:480px) { #boostModal .modal-content { padding:25px 20px; width:92%; } #boostModal h3 { font-size:19px; } }
 #boostModal input#clientPhone { width:100%; max-width:100%; box-sizing:border-box; }
 
-#boostModal label {display: flex;align-items: center;gap: 8px;font-size: 14px;color: #333;}
+#boostModal label {
+  display: flex;
+  flex-wrap: wrap; /* autorise le texte à revenir à la ligne */
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #333;
+  line-height: 1.4; /* rend le texte plus lisible */
+}
+#boostModal label span {
+  flex: 1;
+}
+
 </style>
 </head>
 <body>
