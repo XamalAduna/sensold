@@ -363,7 +363,7 @@ function updateSousCategories(catKey) {
     sousOptions.appendChild(div);
   });
   sousDropdown.style.display = 'block';
-  sousSelected.innerHTML = '-- Sélectionnez une sous-catégorie --';
+  sousSelected.innerHTML = 'Sous-Catégorie ▼';
   sousInput.value = '';
 }
 function showAdditionalFields(category, subCategory) {
@@ -391,7 +391,7 @@ function showAdditionalFields(category, subCategory) {
       dropdown.style.width = "100%";
       const selected = document.createElement('div');
       selected.classList.add('selected');
-      selected.textContent = `-- Sélectionner ${fieldData.name} ▼`;
+      selected.textContent = `${fieldData.name} ▼`;
       dropdown.appendChild(selected);
       const optionsContainer = document.createElement('div');
       optionsContainer.classList.add('options');
