@@ -386,57 +386,82 @@ function updateSousCategories(catKey) {
   sousInput.value = '';
 }
 function showAdditionalFields(category, subCategory) {
-  additionalFieldsContainer.innerHTML = ""; // Vide les champs précédents
+  additionalFieldsContainer.innerHTML = ""; 
   const fields = additionalFields[category][subCategory];
   if (!fields || fields.length === 0) return;
 
   fields.forEach(fieldData => {
-    // Wrapper pour chaque champ
     const fieldWrapper = document.createElement('div');
-    fieldWrapper.style.marginBottom = "12px";
-    fieldWrapper.style.position = "relative"; // Important pour mobile dropdown
+    fieldWrapper.style.marginBottom = "10px";
 
-    const fieldId = fieldData.name.replace(/\s+/g, '');
-    let field;
+    const label = document.createElement('label');
+    label.textContent = fieldData.name;
+    label.style.display = "block";
+    label.style.marginBottom = "5px";
 
-    if (fieldData.type === 'number' || fieldData.type === 'text') {
-      field = document.createElement('input');
-      field.type = fieldData.type;
+    fieldWrapper.appendChild(label);
+
+    if (fieldData.type === 'text' || fieldData.type === 'number') {
+      const input = document.createElement('input');
+      input.type = fieldData.type;
+      input.id = fieldData.name.replace(/\s+/g,'');
+      input.placeholder = fieldData.name;
+      input.style.width = "100%";
+      fieldWrapper.appendChild(input);
     } else if (fieldData.type === 'select') {
-      field = document.createElement('select');
-      field.style.width = "100%";
+      const dropdown = document.createElement('div');
+      dropdown.classList.add('custom-dropdown');
+      dropdown.style.width = "100%";
 
-      // Option placeholder
-      const placeholder = document.createElement('option');
-      placeholder.value = "";
-      placeholder.disabled = true;
-      placeholder.selected = true;
-      placeholder.textContent = `-- Sélectionner ${fieldData.name} --`;
-      field.appendChild(placeholder);
+      const selected = document.createElement('div');
+      selected.classList.add('selected');
+      selected.textContent = `-- Sélectionner ${fieldData.name} ▼`;
+      dropdown.appendChild(selected);
 
-      // Options réelles
+      const optionsContainer = document.createElement('div');
+      optionsContainer.classList.add('options');
+
       fieldData.options.forEach(optText => {
-        const opt = document.createElement('option');
-        opt.value = optText;
-        opt.textContent = optText;
-        field.appendChild(opt);
+        const optionDiv = document.createElement('div');
+        optionDiv.textContent = optText;
+        optionDiv.dataset.value = optText;
+        optionDiv.addEventListener('click', () => {
+          selected.textContent = optText;
+          dropdown.classList.remove('active');
+
+          // Créer ou mettre à jour un input hidden pour récupérer la valeur
+          let hiddenInput = document.getElementById(fieldData.name.replace(/\s+/g,''));
+          if (!hiddenInput) {
+            hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.id = fieldData.name.replace(/\s+/g,'');
+            additionalFieldsContainer.appendChild(hiddenInput);
+          }
+          hiddenInput.value = optText;
+        });
+        optionsContainer.appendChild(optionDiv);
       });
 
-      // Initialisation Materialize optimisée pour mobile
-      setTimeout(() => {
-        const instance = M.FormSelect.init(field, { dropdownOptions: { coverTrigger: false, constrainWidth: false } });
-      }, 50);
+      dropdown.appendChild(optionsContainer);
+
+      selected.addEventListener('click', e => {
+        e.stopPropagation();
+        // fermer les autres dropdowns dynamiques
+        additionalFieldsContainer.querySelectorAll('.custom-dropdown').forEach(dd => dd.classList.remove('active'));
+        dropdown.classList.add('active');
+      });
+
+      fieldWrapper.appendChild(dropdown);
     }
 
-    field.id = fieldId;
-    field.placeholder = fieldData.name;
-    field.style.width = "100%";
-
-    fieldWrapper.appendChild(field);
     additionalFieldsContainer.appendChild(fieldWrapper);
   });
-}
 
+  // fermer les dropdowns quand on clique ailleurs
+  document.addEventListener('click', () => {
+    additionalFieldsContainer.querySelectorAll('.custom-dropdown').forEach(dd => dd.classList.remove('active'));
+  });
+}
 function getAdditionalFieldsData() {
   const data = {};
   additionalFieldsContainer.querySelectorAll('input, select').forEach(field => {
