@@ -389,18 +389,40 @@ function showAdditionalFields(category, subCategory) {
   additionalFieldsContainer.innerHTML = ""; 
   const fields = additionalFields[category][subCategory];
   if (!fields || fields.length === 0) return;
+
   fields.forEach(fieldData => {
-    let fieldWrapper = document.createElement('div');
+    const fieldWrapper = document.createElement('div');
     fieldWrapper.style.marginBottom = "10px";
+    fieldWrapper.style.width = "80%";
+    fieldWrapper.style.margin = "10px auto";
+
+    const label = document.createElement('label');
+    label.textContent = fieldData.name;
+    label.style.display = "block";
+    label.style.marginBottom = "5px";
+    label.style.fontWeight = "500";
+
     let field;
     const fieldId = fieldData.name.replace(/\s+/g,''); 
+
     if (fieldData.type === 'number' || fieldData.type === 'text') {
       field = document.createElement('input');
       field.type = fieldData.type;
+      field.placeholder = fieldData.name;
+      field.style.width = "100%";
+      field.style.padding = "10px";
+      field.style.borderRadius = "10px";
+      field.style.border = "1px solid #2980b9";
+      field.style.fontSize = "16px";
     } else if (fieldData.type === 'select') {
       field = document.createElement('select');
+      field.style.width = "100%";
+      field.style.padding = "10px";
+      field.style.borderRadius = "10px";
+      field.style.border = "1px solid #2980b9";
+      field.style.fontSize = "16px";
       const placeholder = document.createElement('option');
-      placeholder.value = ""; 
+      placeholder.value = "";
       placeholder.disabled = true;
       placeholder.selected = true;
       placeholder.textContent = `-- Sélectionner ${fieldData.name} --`;
@@ -411,11 +433,10 @@ function showAdditionalFields(category, subCategory) {
         opt.textContent = optText;
         field.appendChild(opt);
       });
-      setTimeout(() => { M.FormSelect.init(field); }, 50);
     }
+
     field.id = fieldId;
-    field.placeholder = fieldData.name;
-    field.style.width = "100%";
+    fieldWrapper.appendChild(label);
     fieldWrapper.appendChild(field);
     additionalFieldsContainer.appendChild(fieldWrapper);
   });
