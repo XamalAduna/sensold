@@ -57,28 +57,9 @@ label p {font-size: 20px; margin: 0;}
 .input-left-icon i.fa-phone {color: #2980b9;}
 .error-msg {width: 80%; margin: 0 auto 10px; color: #e74c3c; font-size: 14px; display: none;}
 @media(max-width: 400px) {input, textarea, .custom-dropdown {width: 95%;}}
-
-.custom-dropdown {
-  position: relative;
-  z-index: 1;
-}
-
-.custom-dropdown.active {
-  z-index: 5000; /* 🔥 le dropdown ouvert passe devant */
-}
-
-.custom-dropdown .options {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  background: #fff;
-  border: 1px solid #ccc;
-  border-radius: 12px;
-  max-height: 200px;
-  overflow-y: auto;
-}
-
+.custom-dropdown {position: relative;z-index: 1;}
+.custom-dropdown.active {z-index: 5000;}
+.custom-dropdown .options {position: absolute;top: 100%;left: 0;right: 0;background: #fff;border: 1px solid #ccc; border-radius: 12px;max-height: 200px;overflow-y: auto;}
 textarea {position: relative; z-index: 1;}
 </style>
 </head>
@@ -106,26 +87,26 @@ textarea {position: relative; z-index: 1;}
     <input type="text" id="price" placeholder="0 FCFA">
     <div id="priceError" class="error-msg">Veuillez saisir un prix valide.</div>
     <div class="custom-dropdown" id="categorieDropdown">
-      <div class="selected">Sélectionnez une catégorie ▼</div>
+      <div class="selected">Catégorie ▼</div>
       <div class="options"></div>
     </div>
     <input type="hidden" id="categorie">
     <div id="categorieError" class="error-msg">Veuillez sélectionner une catégorie.</div>
     <div class="custom-dropdown" id="souscategorieDropdown" style="display:none;">
-      <div class="selected">Sélectionnez une sous-catégorie ▼</div>
+      <div class="selected">Sous-Catégorie ▼</div>
       <div class="options"></div>
     </div>
     <input type="hidden" id="souscategorie">
     <div id="souscategorieError" class="error-msg">Veuillez sélectionner une sous-catégorie.</div>
     <div id="additionalFieldsContainer" style="width:80%; margin:10px auto;"></div>
     <div class="custom-dropdown" id="cityDropdown">
-      <div class="selected">Sélectionnez une ville ▼</div>
+      <div class="selected">Ville ▼</div>
       <div class="options"></div>
     </div>
     <input type="hidden" id="city">
     <div id="cityError" class="error-msg">Veuillez sélectionner une ville.</div>
     <div class="custom-dropdown" id="quartierDropdown" style="display:none;">
-      <div class="selected">Sélectionnez un quartier ▼</div>
+      <div class="selected">Quartier ▼</div>
       <div class="options"></div>
     </div>
     <input type="hidden" id="quartier">
@@ -389,18 +370,14 @@ function showAdditionalFields(category, subCategory) {
   additionalFieldsContainer.innerHTML = ""; 
   const fields = additionalFields[category][subCategory];
   if (!fields || fields.length === 0) return;
-
   fields.forEach(fieldData => {
     const fieldWrapper = document.createElement('div');
     fieldWrapper.style.marginBottom = "10px";
-
     const label = document.createElement('label');
     label.textContent = fieldData.name;
     label.style.display = "block";
     label.style.marginBottom = "5px";
-
     fieldWrapper.appendChild(label);
-
     if (fieldData.type === 'text' || fieldData.type === 'number') {
       const input = document.createElement('input');
       input.type = fieldData.type;
@@ -412,15 +389,12 @@ function showAdditionalFields(category, subCategory) {
       const dropdown = document.createElement('div');
       dropdown.classList.add('custom-dropdown');
       dropdown.style.width = "100%";
-
       const selected = document.createElement('div');
       selected.classList.add('selected');
       selected.textContent = `-- Sélectionner ${fieldData.name} ▼`;
       dropdown.appendChild(selected);
-
       const optionsContainer = document.createElement('div');
       optionsContainer.classList.add('options');
-
       fieldData.options.forEach(optText => {
         const optionDiv = document.createElement('div');
         optionDiv.textContent = optText;
@@ -428,8 +402,6 @@ function showAdditionalFields(category, subCategory) {
         optionDiv.addEventListener('click', () => {
           selected.textContent = optText;
           dropdown.classList.remove('active');
-
-          // Créer ou mettre à jour un input hidden pour récupérer la valeur
           let hiddenInput = document.getElementById(fieldData.name.replace(/\s+/g,''));
           if (!hiddenInput) {
             hiddenInput = document.createElement('input');
@@ -441,23 +413,16 @@ function showAdditionalFields(category, subCategory) {
         });
         optionsContainer.appendChild(optionDiv);
       });
-
       dropdown.appendChild(optionsContainer);
-
       selected.addEventListener('click', e => {
         e.stopPropagation();
-        // fermer les autres dropdowns dynamiques
         additionalFieldsContainer.querySelectorAll('.custom-dropdown').forEach(dd => dd.classList.remove('active'));
         dropdown.classList.add('active');
       });
-
       fieldWrapper.appendChild(dropdown);
     }
-
     additionalFieldsContainer.appendChild(fieldWrapper);
   });
-
-  // fermer les dropdowns quand on clique ailleurs
   document.addEventListener('click', () => {
     additionalFieldsContainer.querySelectorAll('.custom-dropdown').forEach(dd => dd.classList.remove('active'));
   });
