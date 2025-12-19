@@ -386,61 +386,57 @@ function updateSousCategories(catKey) {
   sousInput.value = '';
 }
 function showAdditionalFields(category, subCategory) {
-  additionalFieldsContainer.innerHTML = ""; 
+  additionalFieldsContainer.innerHTML = ""; // Vide les champs précédents
   const fields = additionalFields[category][subCategory];
   if (!fields || fields.length === 0) return;
 
   fields.forEach(fieldData => {
+    // Wrapper pour chaque champ
     const fieldWrapper = document.createElement('div');
-    fieldWrapper.style.marginBottom = "10px";
-    fieldWrapper.style.width = "80%";
-    fieldWrapper.style.margin = "10px auto";
+    fieldWrapper.style.marginBottom = "12px";
+    fieldWrapper.style.position = "relative"; // Important pour mobile dropdown
 
-    const label = document.createElement('label');
-    label.textContent = fieldData.name;
-    label.style.display = "block";
-    label.style.marginBottom = "5px";
-    label.style.fontWeight = "500";
-
+    const fieldId = fieldData.name.replace(/\s+/g, '');
     let field;
-    const fieldId = fieldData.name.replace(/\s+/g,''); 
 
     if (fieldData.type === 'number' || fieldData.type === 'text') {
       field = document.createElement('input');
       field.type = fieldData.type;
-      field.placeholder = fieldData.name;
-      field.style.width = "100%";
-      field.style.padding = "10px";
-      field.style.borderRadius = "10px";
-      field.style.border = "1px solid #2980b9";
-      field.style.fontSize = "16px";
     } else if (fieldData.type === 'select') {
       field = document.createElement('select');
       field.style.width = "100%";
-      field.style.padding = "10px";
-      field.style.borderRadius = "10px";
-      field.style.border = "1px solid #2980b9";
-      field.style.fontSize = "16px";
+
+      // Option placeholder
       const placeholder = document.createElement('option');
       placeholder.value = "";
       placeholder.disabled = true;
       placeholder.selected = true;
       placeholder.textContent = `-- Sélectionner ${fieldData.name} --`;
       field.appendChild(placeholder);
+
+      // Options réelles
       fieldData.options.forEach(optText => {
         const opt = document.createElement('option');
         opt.value = optText;
         opt.textContent = optText;
         field.appendChild(opt);
       });
+
+      // Initialisation Materialize optimisée pour mobile
+      setTimeout(() => {
+        const instance = M.FormSelect.init(field, { dropdownOptions: { coverTrigger: false, constrainWidth: false } });
+      }, 50);
     }
 
     field.id = fieldId;
-    fieldWrapper.appendChild(label);
+    field.placeholder = fieldData.name;
+    field.style.width = "100%";
+
     fieldWrapper.appendChild(field);
     additionalFieldsContainer.appendChild(fieldWrapper);
   });
 }
+
 function getAdditionalFieldsData() {
   const data = {};
   additionalFieldsContainer.querySelectorAll('input, select').forEach(field => {
