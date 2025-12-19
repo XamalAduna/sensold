@@ -58,8 +58,27 @@ label p {font-size: 20px; margin: 0;}
 .error-msg {width: 80%; margin: 0 auto 10px; color: #e74c3c; font-size: 14px; display: none;}
 @media(max-width: 400px) {input, textarea, .custom-dropdown {width: 95%;}}
 
-.custom-dropdown {position: relative;z-index: 100;}
-.custom-dropdown .options {position: absolute;z-index: 9999;background: #fff;}
+.custom-dropdown {
+  position: relative;
+  z-index: 1;
+}
+
+.custom-dropdown.active {
+  z-index: 5000; /* 🔥 le dropdown ouvert passe devant */
+}
+
+.custom-dropdown .options {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
 textarea {position: relative; z-index: 1;}
 </style>
 </head>
@@ -327,9 +346,13 @@ fetchJSON('../villes.json', villes => {
     });
   });
 });
+const dropdowns = [categorieDropdown, sousDropdown, cityDropdown, quartierDropdown];
 [categorieSelected, sousSelected, citySelected, quartierSelected].forEach((el, i) => {
-  const dropdowns = [categorieDropdown, sousDropdown, cityDropdown, quartierDropdown];
-  el.addEventListener('click', () => dropdowns[i].classList.toggle('active'));
+  el.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dropdowns.forEach(d => d.classList.remove('active'));
+    dropdowns[i].classList.add('active'); 
+  });
 });
 function updateSousCategories(catKey) {
   sousOptions.innerHTML = '';
@@ -684,9 +707,6 @@ description.addEventListener('input', () => {
     descCount.style.color = '#555';
   }
 });
-
-
-/* 🔽 AJOUTE ÇA ICI */
   document.addEventListener('click', (e) => {
     document.querySelectorAll('.custom-dropdown').forEach(dd => {
       if (!dd.contains(e.target)) {
