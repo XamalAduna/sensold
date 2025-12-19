@@ -57,6 +57,10 @@ label p {font-size: 20px; margin: 0;}
 .input-left-icon i.fa-phone {color: #2980b9;}
 .error-msg {width: 80%; margin: 0 auto 10px; color: #e74c3c; font-size: 14px; display: none;}
 @media(max-width: 400px) {input, textarea, .custom-dropdown {width: 95%;}}
+
+.custom-dropdown {position: relative;z-index: 100;}
+.custom-dropdown .options {position: absolute;z-index: 9999;background: #fff;}
+textarea {position: relative; z-index: 1;}
 </style>
 </head>
 <body>
@@ -680,6 +684,16 @@ description.addEventListener('input', () => {
     descCount.style.color = '#555';
   }
 });
+
+
+/* 🔽 AJOUTE ÇA ICI */
+  document.addEventListener('click', (e) => {
+    document.querySelectorAll('.custom-dropdown').forEach(dd => {
+      if (!dd.contains(e.target)) {
+        dd.classList.remove('active');
+      }
+    });
+  });
 </script>
 </body>
 </html>
