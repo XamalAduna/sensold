@@ -318,7 +318,7 @@ fetchJSON('../villes.json', villes => {
           });
           quartierOptions.appendChild(opt);
         });
-        quartierSelected.textContent = '-- Sélectionnez un quartier --';
+        quartierSelected.textContent = 'Quartier  ▼';
         quartierInput.value = '';
       } else {
         quartierDropdown.style.display = 'none';
@@ -578,14 +578,14 @@ function escapeHTML(str) {
             .replace(/>/g, "&gt;")
             .replace(/"/g, "&quot;");}
 function resetDropdowns() {
-  categorieSelected.innerHTML = 'Sélectionnez une catégorie';
+  categorieSelected.innerHTML = 'Catégorie ▼';
   categorieInput.value = '';
-  sousSelected.innerHTML = 'Sélectionnez une sous-catégorie';
+  sousSelected.innerHTML = 'Sous-Catégorie ▼';
   sousInput.value = '';
   sousDropdown.style.display = 'none';
-  citySelected.innerHTML = 'Sélectionnez une ville';
+  citySelected.innerHTML = 'Ville ▼';
   cityInput.value = '';
-  quartierSelected.innerHTML = 'Sélectionnez un quartier';
+  quartierSelected.innerHTML = 'Quartier ▼';
   quartierInput.value = '';
   quartierDropdown.style.display = 'none';}
 function cleanAdditionalData(data) {
