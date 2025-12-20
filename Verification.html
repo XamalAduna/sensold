@@ -14,19 +14,10 @@
     .password-wrapper {position: relative;margin-top: 10px;}
     input {padding: 12px;width: 100%;border: 1px solid #ccc;border-radius: 5px;box-sizing: border-box;font-size: 16px;}
     .toggle-password {position: absolute;right: 10px;top: 50%;transform: translateY(-50%);cursor: pointer;font-size: 18px;color: #666;}
-
     @media (max-width: 600px) {
-      .container {
-        padding: 20px 15px;
-        width: 95%;
-      }
-      h1 {
-        font-size: 1.3em;
-      }
-      p, input, button, a {
-        font-size: 1em;
-      }
-    }
+    .container {padding: 20px 15px;width: 95%;}
+    h1 {font-size: 1.3em;}
+    p, input, button, a {font-size: 1em;}}
     .brand-text {position: absolute;top: 10px;left: 15px; font-weight: bold;font-size: 18px; color:black;}
   </style>
 </head>
@@ -58,11 +49,9 @@
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
-
     const urlParams = new URLSearchParams(window.location.search);
     const mode = urlParams.get("mode");
     const oobCode = urlParams.get("oobCode");
-
     if (mode === "verifyEmail" && oobCode) {
       applyActionCode(auth, oobCode)
         .then(() => {
@@ -74,16 +63,13 @@
           document.getElementById("status").textContent = "Erreur ❌";
           document.getElementById("message").textContent = "Impossible de confirmer l’email : " + error.message;
         });
-
     } else if (mode === "resetPassword" && oobCode) {
       document.getElementById("status").textContent = "Réinitialisation du mot de passe 🔑";
       document.getElementById("message").textContent = "Veuillez entrer votre nouveau mot de passe.";
       document.getElementById("passwordWrapper").style.display = "block";
       document.getElementById("resetBtn").style.display = "inline-block";
-
       const togglePassword = document.getElementById("togglePassword");
       const newPasswordInput = document.getElementById("newPassword");
-
       togglePassword.addEventListener("click", () => {
         if (newPasswordInput.type === "password") {
           newPasswordInput.type = "text";
@@ -93,7 +79,6 @@
           togglePassword.textContent = "👁️";
         }
       });
-
       document.getElementById("resetBtn").addEventListener("click", () => {
         const newPassword = newPasswordInput.value;
         if (!newPassword) {
@@ -113,7 +98,6 @@
             document.getElementById("message").textContent = "Impossible de réinitialiser : " + error.message;
           });
       });
-
     } else {
       document.getElementById("status").textContent = "Erreur ❌";
       document.getElementById("message").textContent = "Lien invalide ou expiré.";
