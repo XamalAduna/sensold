@@ -123,10 +123,7 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
   <div class="loader"></div>
 </div>
 <div id="annonces" class="annonces-container"></div>
-<div id="notLoggedMsg" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; padding:20px 30px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.25); text-align:center; z-index:99999;">
-  <p>Veuillez vous connecter pour ajouter  cette annonce à vos favoris.</p>
-  <a href="Connexion/">Se connecter</a>
-</div>
+  
 <div id="detailsModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center; overflow:auto;">
   <div id="modalContent" style="background:#fff; border-radius:12px; max-width:800px; width:90%; margin:40px auto; position:relative; padding:20px;">
     <span id="closeModal" style="position:absolute; top:10px; right:15px; cursor:pointer; font-size:50px; font-weight:bold;">&times;</span>
@@ -440,12 +437,12 @@ async function renderAnnonces(filtered) {
     // ⚡ Bouton favoris
     card.querySelector(".favorite").addEventListener("click", async e => {
       e.stopPropagation();
+      
       if (!currentUser) {
-        const msg = document.getElementById("notLoggedMsg");
-        msg.style.display = "block";
-        setTimeout(() => { msg.style.display = "none"; }, 3000);
-        return;
-      }
+        // 👉 Demande au parent d’ouvrir le modal connexion
+        window.parent.postMessage({ action: "OPEN_AUTH_MODAL" }, "*");
+        return;}
+      
       const favRef = doc(db, "users", currentUser.uid);
       if (userFavorites.includes(docId)) {
         userFavorites = userFavorites.filter(id => id !== docId);
