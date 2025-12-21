@@ -430,5 +430,22 @@ document.getElementById("menuFrameOverlay").addEventListener("click", e => {
   }
 });
 </script>
+
+<script>
+window.addEventListener("message", (event) => {
+  if (!event.data) return;
+
+  if (event.data.action === "OPEN_AUTH_MODAL") {
+    const msg = document.getElementById("notLoggedMsg");
+    if (msg) {
+      msg.style.display = "block";
+      setTimeout(() => {
+        msg.style.display = "none";
+      }, 4000);
+    }
+  }
+});
+</script>
+
 </body>
 </html>
