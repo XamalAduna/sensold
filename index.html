@@ -30,7 +30,6 @@
     #notLoggedMsg {display: none;position: fixed;top: 20%;left: 50%;transform: translateX(-50%);background: #f44336;color: white;padding: 20px;border-radius: 10px;z-index: 9999;text-align: center;}
     #notLoggedMsg a { color: #fff; font-weight: bold; text-decoration: underline; }
    .nav-wrapper {position: fixed;top: 0;left: 0;width: 100%;z-index: 1000;}
-    /*#logoutModal { position: fixed !important;top: 50% !important;left: 50% !important;transform: translate(-50%, -50%) !important;z-index: 11000 !important;top: 50% !important;}*/
     body {padding-top: 64px;}
     @keyframes popIn {0% {transform: scale(0.95);opacity: 0;} 100% { transform: scale(1); opacity: 1; }}
     .modal.open {animation: popIn 0.25s ease-out;}
@@ -46,9 +45,7 @@
     .close-menu {padding: 10px;}
     #subscribeModal input[type="checkbox"] {width: 24px; height: 24px; accent-color: #00b050; cursor: pointer;vertical-align: middle;}
     #subscribeModal label span {display: inline;font-size: 14px;}
-
     #logoutModal {z-index: 20000 !important; }
-
 </style>
 </head>
 <body>
@@ -133,8 +130,7 @@ document.addEventListener('DOMContentLoaded', function() {
     closeMenuButton.addEventListener('click', () => {
       const sidenavInstance = M.Sidenav.getInstance(elems[0]);
       sidenavInstance.close();
-    });
-  }
+    });}
   const logoutModal = document.getElementById('logoutModal');
   const modalInstance = M.Modal.init(logoutModal);
   document.getElementById("logout").addEventListener("click", (e) => {
@@ -164,7 +160,6 @@ document.addEventListener('DOMContentLoaded', function() {
         userNameElem.textContent = userData.fullName || "Utilisateur";
         userEmailElem.textContent = user.email || "";
         if (userData.profileImage) profileImageElem.src = userData.profileImage;
-      
         const abonnerLink = document.querySelector('a[href="Abonnement/"]');
         if (abonnerLink && userData.subscribe) {
           const now = new Date();
@@ -173,19 +168,16 @@ document.addEventListener('DOMContentLoaded', function() {
           abonnerLink.style.pointerEvents = "none"; 
           abonnerLink.style.opacity = "0.5";       
           abonnerLink.style.filter = "blur(1px)";  
-          abonnerLink.title = "Vous êtes déjà abonné";}} 
-      }
+          abonnerLink.title = "Vous êtes déjà abonné";}}}
     } else {
       isLoggedIn = false;
-      document.getElementById('mobile-nav').style.display = 'none';
-    }
+      document.getElementById('mobile-nav').style.display = 'none';}
     menuTrigger.addEventListener('click', function(e) {
       if (!isLoggedIn) {
         e.preventDefault();
         const msg = document.getElementById('notLoggedMsg');
         msg.style.display = 'block';
-        setTimeout(() => { msg.style.display = 'none'; }, 4000);
-      }
+        setTimeout(() => { msg.style.display = 'none'; }, 4000);}
     });
   });
   showEditBtn.addEventListener("click", () => {
@@ -218,23 +210,18 @@ document.addEventListener('DOMContentLoaded', function() {
       if (userDoc.exists()) {
         const oldImageURL = userDoc.data().profileImage || "";
         if (oldImageURL && !oldImageURL.includes("default-profile.jpg")) {
-          
           const pathIndex = oldImageURL.indexOf("/o/");
           if (pathIndex !== -1) {
             let path = oldImageURL.substring(pathIndex + 3).split("?")[0];
             path = decodeURIComponent(path);
             try { await deleteObject(ref(storage, path)); } 
-            catch (err) { console.error("Erreur suppression ancienne image :", err); }
-          }
-        }
-      }
+            catch (err) { console.error("Erreur suppression ancienne image :", err); }}}}
       await updateDoc(userDocRef, { profileImage: downloadURL });
     } catch (err) {
       console.error(err);
       alert("Erreur lors de l'upload de l'image.");
     } finally {
-      loader.remove();
-    }
+      loader.remove();}
   });
   editProfileForm.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -265,8 +252,7 @@ publishBtnMain.addEventListener("click", () => {
     notLoggedMsg.style.display = "block";
     setTimeout(() => {
       notLoggedMsg.style.display = "none";
-    }, 4000);
-  }
+    }, 4000);}
 });
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js" defer></script>
@@ -430,22 +416,17 @@ document.getElementById("menuFrameOverlay").addEventListener("click", e => {
   }
 });
 </script>
-
 <script>
 window.addEventListener("message", (event) => {
   if (!event.data) return;
-
   if (event.data.action === "OPEN_AUTH_MODAL") {
     const msg = document.getElementById("notLoggedMsg");
     if (msg) {
       msg.style.display = "block";
       setTimeout(() => {
         msg.style.display = "none";
-      }, 4000);
-    }
-  }
+      }, 4000);}}
 });
 </script>
-
 </body>
 </html>
