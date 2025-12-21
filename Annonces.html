@@ -123,7 +123,6 @@ h2 { text-align:center; margin-bottom:20px; color:#00796B; }
   <div class="loader"></div>
 </div>
 <div id="annonces" class="annonces-container"></div>
-  
 <div id="detailsModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center; overflow:auto;">
   <div id="modalContent" style="background:#fff; border-radius:12px; max-width:800px; width:90%; margin:40px auto; position:relative; padding:20px;">
     <span id="closeModal" style="position:absolute; top:10px; right:15px; cursor:pointer; font-size:50px; font-weight:bold;">&times;</span>
@@ -183,17 +182,14 @@ const categoriesData = {
     { "label": "Autres électronique", "icon": "devices_other" }
   ]
 };
-
 const annoncesContainer = document.getElementById("annonces");
 const subContainer = document.getElementById("subcategories-container");
 const categoryElements = document.querySelectorAll(".category");
 const suggestionsBox = document.getElementById("suggestions");
-
 const filterToggle = document.getElementById("filter-toggle");
 const filterMenu = document.getElementById("filter-menu");
 const priceAscBtn = document.getElementById("price-asc");
 const priceDescBtn = document.getElementById("price-desc");
-
 let currentUser = null;
 let userFavorites = [];
 let annoncesData = [];
@@ -203,7 +199,6 @@ let searchText = "";
 let sortOrder = "default";
 let currentPage = 1;
 const annoncesPerPage = 50;
-
 function timeAgo(timestamp){
   if(!timestamp) return "Date inconnue";
   const seconds = (Date.now() - timestamp.toDate().getTime()) / 1000;
@@ -213,8 +208,7 @@ function timeAgo(timestamp){
   const hours = Math.floor(minutes/60);
   if(hours < 24) return `il y a ${hours} h`;
   const days = Math.floor(hours/24);
-  return `il y a ${days} j`;
-}
+  return `il y a ${days} j`;}
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
   if(user){
@@ -222,52 +216,36 @@ onAuthStateChanged(auth, async (user) => {
     const userSnap = await getDoc(userRef);
     userFavorites = userSnap.data()?.favorites || [];
   } else {
-    userFavorites = [];
-  }
+    userFavorites = [];}
   loadAnnonces();
 });
-
-// ✅ VERSION OPTIMISÉE : supporte 1M+ annonces sans lag
 async function loadAnnonces(limitCount = 50) {
   if (!window.annoncesData) window.annoncesData = [];
   if (!window.lastVisible) window.lastVisible = null;
-  if (window.isLoading) return; // ⚡ Stop double chargement
+  if (window.isLoading) return;
   window.isLoading = true;
-
   document.getElementById("spinner").style.display = "flex";
-
   try {
     let annoncesQuery = query(
       collection(db, "annonces"),
       orderBy("createdAt", "desc"),
-      limit(limitCount)
-    );
-
+      limit(limitCount));
     if (window.lastVisible) {
       annoncesQuery = query(
         collection(db, "annonces"),
         orderBy("createdAt", "desc"),
         startAfter(window.lastVisible),
         limit(limitCount)
-      );
-    }
-
+      );}
     const annoncesSnap = await getDocs(annoncesQuery);
-
     if (annoncesSnap.empty) {
       window.allAnnoncesLoaded = true;
       if (window.annoncesData.length === 0) {
-        annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";
-      }
-      return;
-    }
-
-    // ⚡ Ajout progressif
+        annoncesContainer.innerHTML = "<p>Aucune annonce disponible.</p>";}
+      return;}
     const newAnnonces = annoncesSnap.docs.map(d => ({ ...d.data(), id: d.id }));
     window.annoncesData.push(...newAnnonces);
     window.lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
-
-    // ⚡ Cache utilisateurs (une seule fois)
     if (!window.__usersCache) {
       try {
         const usersSnap = await getDocs(collection(db, "users"));
@@ -281,42 +259,31 @@ async function loadAnnonces(limitCount = 50) {
         window.__usersCache = { byEmail, byId };
       } catch (err) {
         console.error("Erreur chargement users:", err);
-        window.__usersCache = { byEmail: {}, byId: {} };
-      }
-    }
-
-    // ⚡ Setup filtre (une seule fois)
+        window.__usersCache = { byEmail: {}, byId: {} };}}
     if (!window.hasSetupFilters) {
       setupCategoryFilters();
       setupSearchAndSort();
       setupFilterMenu();
       window.hasSetupFilters = true;
     }
-
-    applyAllFilters(); // n’affiche que le lot chargé
+    applyAllFilters(); 
   } catch (err) {
     console.error("Erreur chargement annonces:", err);
     annoncesContainer.innerHTML = `<p>⚠️ Erreur de chargement : ${err.message}</p>`;
   } finally {
     window.isLoading = false;
     document.getElementById("spinner").style.display = "none";
-  }
-}
-
-// ⚡ Scroll infini optimisé avec throttle
+  }}
 let scrollTimeout = null;
 window.addEventListener("scroll", () => {
   if (window.allAnnoncesLoaded) return;
   if (scrollTimeout) return;
-  
   scrollTimeout = setTimeout(() => {
     scrollTimeout = null;
     if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
-      loadAnnonces();
-    }
-  }, 200); // ⚡ ne déclenche pas plus d'une fois toutes les 200ms
+      loadAnnonces();}
+  }, 200);
 });
-
 function escapeHTML(str) {
   if (!str) return "";
   return str
@@ -325,23 +292,16 @@ function escapeHTML(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
 }
-
 async function renderAnnonces(filtered) {
-  annoncesContainer.innerHTML = ""; // vide le conteneur avant affichage
-
+  annoncesContainer.innerHTML = "";
   if (filtered.length === 0) {
     annoncesContainer.innerHTML = "<p>❌ Aucun résultat trouvé.</p>";
-    return;
-  }
-
-  // ⚡ Pagination
+    return;}
   const totalPages = Math.ceil(filtered.length / annoncesPerPage);
   if (currentPage > totalPages) currentPage = 1;
   const start = (currentPage - 1) * annoncesPerPage;
   const end = start + annoncesPerPage;
   const pageItems = filtered.slice(start, end);
-
-  // ⚡ Cache utilisateurs
   if (!window.__usersCache) {
     try {
       const usersSnap = await getDocs(collection(db, "users"));
@@ -356,36 +316,24 @@ async function renderAnnonces(filtered) {
     } catch (err) {
       console.error("Erreur chargement users:", err);
       window.__usersCache = { byEmail: {}, byId: {} };
-    }
-  }
-
-  // ⚡ Création batch
+    }}
   const fragment = document.createDocumentFragment();
-
   for (const a of pageItems) {
     const docId = escapeHTML(a.id || "");
     const card = document.createElement("div");
     card.className = "annonce-card";
-
     const isFav = currentUser && userFavorites.includes(a.id);
-
-    // ⚡ Récupération vendeur
     let sellerData = null;
     const annonceEmail = (a.userEmail || "").toLowerCase().trim();
     if (annonceEmail) sellerData = window.__usersCache.byEmail[annonceEmail];
     if (!sellerData && a.userId) sellerData = window.__usersCache.byId[a.userId];
     if (!sellerData && a.uid) sellerData = window.__usersCache.byId[a.uid];
     if (!sellerData && a.user && typeof a.user === "object") sellerData = a.user;
-
-    // ⚡ Boutique pro
     let isPro = false;
     if (sellerData?.subscribe) {
       const now = new Date();
       const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
-      if (subEnd > now) isPro = true;
-    }
-
-    // ⚡ Nom et photo
+      if (subEnd > now) isPro = true;}
     let fullName = sellerData
       ? escapeHTML(
           sellerData.fullName ||
@@ -393,19 +341,14 @@ async function renderAnnonces(filtered) {
           sellerData.displayName || sellerData.name || "Utilisateur"
         )
       : "Utilisateur inconnu";
-
     let sellerPhoto = escapeHTML(
       sellerData?.profileImage ||
       sellerData?.profilePic ||
       sellerData?.profile ||
       sellerData?.photoURL ||
       sellerData?.avatar ||
-      "https://via.placeholder.com/40"
-    );
-
+      "https://via.placeholder.com/40");
     let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
-
-    // ⚡ Structure HTML
     card.innerHTML = `
       <div class="image-container">
         <img src="${annonceImage}" loading="lazy" alt="${escapeHTML(a.title || 'Annonce')}"
@@ -430,19 +373,12 @@ async function renderAnnonces(filtered) {
         </div>
       </div>
     `;
-
-    // ⚡ Texte long
     if ((a.title || "").length > 30) card.querySelector('.title').classList.add('long-text');
-
-    // ⚡ Bouton favoris
     card.querySelector(".favorite").addEventListener("click", async e => {
       e.stopPropagation();
-      
       if (!currentUser) {
-        // 👉 Demande au parent d’ouvrir le modal connexion
         window.parent.postMessage({ action: "OPEN_AUTH_MODAL" }, "*");
         return;}
-      
       const favRef = doc(db, "users", currentUser.uid);
       if (userFavorites.includes(docId)) {
         userFavorites = userFavorites.filter(id => id !== docId);
@@ -453,29 +389,19 @@ async function renderAnnonces(filtered) {
         userFavorites.push(docId);
         await updateDoc(favRef, { favorites: arrayUnion(docId) });
         e.target.classList.add("active");
-        e.target.textContent = "favorite";
-      }
+        e.target.textContent = "favorite";}
     });
-
-    // ⚡ Clic sur card
     card.addEventListener("click", (e) => {
   if (e.target.classList.contains("favorite")) return;
-
   const modal = document.getElementById("detailsModal");
   const iframe = document.getElementById("modalIframe");
-  
   modal.style.display = "flex";
   iframe.src = `Details.html?id=${encodeURIComponent(docId)}`;
 });
-
-
-    fragment.appendChild(card);
-  }
-
+    fragment.appendChild(card);}
   annoncesContainer.appendChild(fragment);
   renderPagination(totalPages);
 }
-
 function renderPagination(totalPages){
   let paginationContainer = document.getElementById("pagination");
   if(!paginationContainer){
@@ -485,9 +411,7 @@ function renderPagination(totalPages){
     paginationContainer.style.marginTop = "20px";
     document.body.appendChild(paginationContainer);
   }
-
   paginationContainer.innerHTML = "";
-
   const createPageBtn = (num) => {
     const btn = document.createElement("button");
     btn.textContent = num;
@@ -504,43 +428,33 @@ function renderPagination(totalPages){
     });
     return btn;
   }
-
   const maxButtons = 7;
   let startPage = Math.max(1, currentPage - 3);
   let endPage = Math.min(totalPages, startPage + maxButtons - 1);
   startPage = Math.max(1, endPage - maxButtons + 1);
-
   if(startPage > 1){
     paginationContainer.appendChild(createPageBtn(1));
     if(startPage > 2) paginationContainer.appendChild(document.createTextNode("..."));
   }
-
   for(let i = startPage; i <= endPage; i++){
     paginationContainer.appendChild(createPageBtn(i));
   }
-
   if(endPage < totalPages){
     if(endPage < totalPages -1) paginationContainer.appendChild(document.createTextNode("..."));
     paginationContainer.appendChild(createPageBtn(totalPages));
-  }
-}
-
+  }}
 function setupCategoryFilters() {
   const allCategory = document.querySelector('.category[data-cat="all"]');
   if (allCategory) allCategory.classList.add("active");
-
   document.addEventListener("click", e => {
     const menu = document.getElementById("subDropdownMenu");
     if (menu && !menu.parentElement.contains(e.target)) {
-      menu.style.display = "none";
-    }
+      menu.style.display = "none";}
   });
-
   categoryElements.forEach(cat => {
     cat.addEventListener("click", () => {
       categoryElements.forEach(c => c.classList.remove("active"));
       cat.classList.add("active");
-
       selectedCategory = cat.dataset.cat;
       selectedSubcategory = null;
       currentPage = 1;
@@ -561,15 +475,12 @@ function setupCategoryFilters() {
             </div>
           </div>
         `;
-
         const btn = document.getElementById("subDropdownBtn");
         const items = document.querySelectorAll(".sub-item");
-
         btn.addEventListener("click", () => {
           const menu = document.getElementById("subDropdownMenu");
           menu.style.display = menu.style.display === "block" ? "none" : "block";
         });
-
         items.forEach(item => {
           item.addEventListener("click", () => {
             items.forEach(i => { i.style.background = "#fff"; i.style.color = "#000"; });
@@ -587,120 +498,74 @@ function setupCategoryFilters() {
     });
   });
 }
-
 function setupSearchAndSort(){
   const searchInput = document.getElementById("search-input");
   const searchBtn = document.getElementById("search-btn");
-
   searchInput.addEventListener("input", ()=>{ searchText = searchInput.value; });
   searchBtn.addEventListener("click", ()=>{ searchText = searchInput.value; currentPage = 1; applyAllFilters(); });
   searchInput.addEventListener("keypress", e=>{ if(e.key==="Enter"){ searchText = searchInput.value; currentPage = 1; applyAllFilters(); } });
 }
-
 function setupFilterMenu(){
   if(!filterToggle) return;
-
   filterToggle.addEventListener("click", () => { filterMenu.style.display = filterMenu.style.display === "block" ? "none" : "block"; });
   priceAscBtn.addEventListener("click", () => { sortOrder = "asc"; currentPage = 1; applyAllFilters(); filterMenu.style.display = "none"; });
   priceDescBtn.addEventListener("click", () => { sortOrder = "desc"; currentPage = 1; applyAllFilters(); filterMenu.style.display = "none"; });
-
   document.addEventListener("click", (e) => {
     if (!filterMenu.contains(e.target) && e.target !== filterToggle) filterMenu.style.display = "none";
-  });
-}
-
+  });}
 function isBoostActive(annonce) {
   if (!annonce.boost || !annonce.boostEnd) return false;
   const now = new Date();
   const boostEndDate = new Date(annonce.boostEnd.toDate ? annonce.boostEnd.toDate() : annonce.boostEnd);
   return boostEndDate > now;
 }
-
-// ⚡ VERSION ULTRA OPTIMISÉE — Supporte 500k annonces
 function applyAllFilters() {
   let data = window.annoncesData;
   if (!data || data.length === 0) return renderAnnonces([]);
-
-  // ─────────────────────────────────────────
-  // ⚡ FAST-PATH : si aucun filtre ni tri → affichage direct ultra rapide
-  // ─────────────────────────────────────────
   const noFilter =
     (!selectedCategory || selectedCategory === "all") &&
     !selectedSubcategory &&
     !searchText &&
     sortOrder === null;
-
   if (noFilter) {
     return renderAnnonces(data);
   }
-
-  // ─────────────────────────────────────────
-  // ⚡ PRE-CALCULS pour accélérer (micro-cache)
-  // ─────────────────────────────────────────
   const lowerSearch = searchText ? searchText.toLowerCase() : null;
-
-  // ─────────────────────────────────────────
-  // ⚡ FILTRAGE HYPER RAPIDE (1 seul passage)
-  // ─────────────────────────────────────────
   const filtered = [];
   for (let i = 0; i < data.length; i++) {
     const a = data[i];
-
     if (selectedCategory && selectedCategory !== "all" && a.categorie !== selectedCategory) continue;
     if (selectedSubcategory && a.souscategorie !== selectedSubcategory) continue;
-
     if (lowerSearch) {
       const t = a.title?.toLowerCase() || "";
       const c = a.city?.toLowerCase() || "";
       if (!t.includes(lowerSearch) && !c.includes(lowerSearch)) continue;
     }
-
     filtered.push(a);
   }
-
-  // ─────────────────────────────────────────
-  // ⚡ TRI OPTIMISÉ (Boost → Prix → Date)
-  // ─────────────────────────────────────────
   filtered.sort((a, b) => {
-    // BOOST
     const aBoost = isBoostActive(a);
     const bBoost = isBoostActive(b);
     if (aBoost !== bBoost) return bBoost - aBoost;
-
     if (aBoost && bBoost) {
       const aEnd = a.boostEnd ? (a.boostEnd.toDate ? a.boostEnd.toDate() : new Date(a.boostEnd)) : 0;
       const bEnd = b.boostEnd ? (b.boostEnd.toDate ? b.boostEnd.toDate() : new Date(b.boostEnd)) : 0;
       return bEnd - aEnd;
     }
-
-    // TRI PRIX
     if (sortOrder === "asc") return (a.price || 0) - (b.price || 0);
     if (sortOrder === "desc") return (b.price || 0) - (a.price || 0);
-
-    // TRI DATE
     const aDate = a.createdAt ? a.createdAt.seconds * 1000 : 0;
     const bDate = b.createdAt ? b.createdAt.seconds * 1000 : 0;
     return bDate - aDate;
   });
-
-  // ─────────────────────────────────────────
-  // ⚡ AFFICHAGE (ultra fluide)
-  // ─────────────────────────────────────────
-  renderAnnonces(filtered);
-}
-
+  renderAnnonces(filtered);}
 document.getElementById("closeModal").addEventListener("click", () => {
   document.getElementById("detailsModal").style.display = "none";
 });
-
-// Fermer si on clique en dehors du contenu
 document.getElementById("detailsModal").addEventListener("click", (e) => {
   if (e.target.id === "detailsModal") {
-    e.target.style.display = "none";
-  }
+    e.target.style.display = "none";}
 });
-
 </script> 
-
 </body>
 </html>
