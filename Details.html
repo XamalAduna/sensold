@@ -61,6 +61,21 @@ h2 { text-align:center; color:#00796B; margin-bottom:20px; }
   transform: scale(1.1);
 }
 
+
+.report-bottom {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+}
+
+.report-bottom button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #d32f2f;
+}
+
 </style>
 </head>
 <body>
@@ -239,9 +254,11 @@ let isPro = seller.subscribe === true && seller.subscribeEnd && seller.subscribe
         ${isPro ? '<span class="material-symbols-outlined" title="Boutique Pro" style="color:#00796B;font-size:28px;">storefront</span>' : ''}
       </div>
     </a>
+
   </div>
 `;
-    reportBtn.addEventListener('click', () => {
+
+    sellerDiv.querySelector('.report-btn').addEventListener('click', () => {
   const modal = document.createElement('div');
   modal.style.cssText = `
     position:fixed;top:0;left:0;width:100%;height:100%;
@@ -326,23 +343,17 @@ if(data.telephone){
   });
 } else phone.classList.add("disabled");
 contactDiv.appendChild(phone);
-    // ===== BOUTON SIGNALER SOUS LES BOUTONS =====
-const reportContainer = document.createElement('div');
-reportContainer.style.cssText = `
-  margin-top:12px;
-  display:flex;
-  justify-content:center;
+    const reportWrapper = document.createElement('div');
+reportWrapper.className = "report-bottom";
+
+reportWrapper.innerHTML = `
+  <button class="report-btn" title="Signaler ce vendeur">
+    <i class="fa-solid fa-thumbs-down"></i>
+    <span>Signaler</span>
+  </button>
 `;
 
-const reportBtn = document.createElement('button');
-reportBtn.className = "report-btn";
-reportBtn.innerHTML = `
-  <i class="fa-solid fa-thumbs-down"></i>
-  <span style="margin-left:6px;font-size:14px;">Signaler</span>
-`;
-
-reportContainer.appendChild(reportBtn);
-contactDiv.appendChild(reportContainer);
+contactDiv.appendChild(reportWrapper);
 
   } catch(err){
     console.error("Erreur chargement détails:", err);
