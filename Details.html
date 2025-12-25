@@ -43,39 +43,6 @@ h2 { text-align:center; color:#00796B; margin-bottom:20px; }
 .spinner { position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; margin: -20px 0 0 -20px; border: 4px solid #ccc; border-top: 4px solid #00796B; border-radius: 50%; animation: spin 1s linear infinite; z-index: 10; } @keyframes spin { 100% { transform: rotate(360deg); } }
 .back-btn { position: fixed; top: 15px; right: 20px; background: #d32f2f; color: white; border: none; border-radius: 50%; width: 36px; height: 36px; font-size: 20px; cursor: pointer; z-index: 10000; display: flex; justify-content: center; align-items: center; }
 .back-btn:hover { background: #9a0007; }
-
-
-.report-btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  color: #d32f2f;
-  font-size: 22px;
-  padding: 6px;
-  border-radius: 50%;
-  transition: background 0.2s, transform 0.2s;
-}
-
-.report-btn:hover {
-  background: rgba(211,47,47,0.1);
-  transform: scale(1.1);
-}
-
-
-.report-bottom {
-  margin-top: 10px;
-  display: flex;
-  justify-content: center;
-}
-
-.report-bottom button {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  color: #d32f2f;
-}
-
 </style>
 </head>
 <body>
@@ -245,60 +212,15 @@ async function loadDetails() {
         seller.uid = sellerSnap.id;}}
     const sellerDiv = document.getElementById('seller-info');
 let isPro = seller.subscribe === true && seller.subscribeEnd && seller.subscribeEnd.toDate() > new Date();
-    sellerDiv.innerHTML = `
-  <div style="display:flex;justify-content:space-between;align-items:center;">
-    <a href="Profil.html?uid=${encodeURIComponent(seller.uid || '')}" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
-      <img src="${isValidImageURL(seller.profileImage) ? seller.profileImage : 'https://via.placeholder.com/50'}" alt="Profil" loading="lazy">
-      <div class="seller-info" style="display:flex;align-items:center;gap:6px;">
-        <strong>${escapeHTML(seller.fullName || "Inconnu")}</strong>
-        ${isPro ? '<span class="material-symbols-outlined" title="Boutique Pro" style="color:#00796B;font-size:28px;">storefront</span>' : ''}
-      </div>
-    </a>
-
-  </div>
-`;
-
-
-    document.querySelector('.report-btn').addEventListener('click', () => {
-
-  const modal = document.createElement('div');
-  modal.style.cssText = `
-    position:fixed;top:0;left:0;width:100%;height:100%;
-    background:rgba(0,0,0,0.5);
-    display:flex;align-items:center;justify-content:center;
-    z-index:2000;
-  `;
-
-  const box = document.createElement('div');
-  box.style.cssText = `
-    background:white;padding:20px;border-radius:12px;
-    max-width:400px;width:90%;text-align:center;
-  `;
-
-  box.innerHTML = `
-    <h3 style="color:#d32f2f;margin-top:0;">⚠️ Signaler ce vendeur</h3>
-    <p>Souhaitez-vous signaler ce vendeur pour comportement suspect ou arnaque ?</p>
-    <div style="display:flex;gap:10px;justify-content:center;margin-top:20px;">
-      <button id="cancelReport" style="padding:10px 16px;border:none;border-radius:8px;background:#ccc;cursor:pointer;">Annuler</button>
-      <button id="confirmReport" style="padding:10px 16px;border:none;border-radius:8px;background:#d32f2f;color:white;cursor:pointer;">Signaler</button>
+sellerDiv.innerHTML = `
+  <a href="Profil.html?uid=${encodeURIComponent(seller.uid || '')}" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
+    <img src="${isValidImageURL(seller.profileImage) ? seller.profileImage : 'https://via.placeholder.com/50'}" alt="Profil" loading="lazy" style="width:50px;height:50px;border-radius:50%;object-fit:cover;">
+    <div class="seller-info" style="display:flex;align-items:center;gap:6px;">
+      <strong>${escapeHTML(seller.fullName || "Inconnu")}</strong>
+      ${isPro ? '<span class="material-symbols-outlined" title="Boutique Pro" style="color:#00796B;font-size:36px;">storefront</span>' : ''}
     </div>
-  `;
-
-  modal.appendChild(box);
-  document.body.appendChild(modal);
-
-  box.querySelector('#cancelReport').onclick = () => document.body.removeChild(modal);
-
-  box.querySelector('#confirmReport').onclick = () => {
-    alert("✅ Signalement envoyé. Merci pour votre vigilance.");
-    document.body.removeChild(modal);
-
-    // 👉 PLUS TARD : ici tu peux enregistrer le signalement dans Firestore
-    // ex: collection 'reports' avec sellerId, annonceId, date, userId
-  };
-});
-
-
+  </a>
+`;
     const contactDiv = document.getElementById('contact-buttons');
     contactDiv.innerHTML = "";
     const wa = document.createElement('a');
@@ -345,18 +267,6 @@ if(data.telephone){
   });
 } else phone.classList.add("disabled");
 contactDiv.appendChild(phone);
-    const reportWrapper = document.createElement('div');
-reportWrapper.className = "report-bottom";
-
-reportWrapper.innerHTML = `
-  <button class="report-btn" title="Signaler ce vendeur">
-    <i class="fa-solid fa-thumbs-down"></i>
-    <span>Signaler</span>
-  </button>
-`;
-
-contactDiv.appendChild(reportWrapper);
-
   } catch(err){
     console.error("Erreur chargement détails:", err);
     document.getElementById('details').textContent = "⚠️ Erreur de chargement : " + escapeHTML(err.message);
