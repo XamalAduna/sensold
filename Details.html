@@ -271,8 +271,18 @@ if(data.telephone){
 contactDiv.appendChild(phone);
     // ===== BOUTONS SIGNALER ET SUIVI =====
 
+
+
 const auth = getAuth();
-const user = auth.currentUser;
+let user = null;
+
+// On attend que Firebase Auth charge l'utilisateur
+onAuthStateChanged(auth, (u) => {
+  user = u;
+  // Ici tu peux mettre à jour l'état des boutons si nécessaire
+  checkSubscription(); // pour activer/désactiver les boutons S'abonner / Se désabonner
+});
+
 
 // Bouton Signaler
 const reportBtn = document.createElement('button');
