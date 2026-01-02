@@ -81,6 +81,21 @@ const firebaseConfig = {
   
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
+
+const auth = getAuth();
+let user = null;
+
+// Détecte si l'utilisateur est connecté
+onAuthStateChanged(auth, (currentUser) => {
+  user = currentUser;
+  if (user) {
+    // Si tu veux, tu peux ici vérifier l'abonnement directement
+    checkSubscription();
+  }
+});
+
+
 const params = new URLSearchParams(window.location.search);
 const id = params.get('id');
 let images = [];
@@ -271,8 +286,6 @@ if(data.telephone){
 contactDiv.appendChild(phone);
     // ===== BOUTONS SIGNALER ET SUIVI =====
 
-const auth = getAuth();
-const user = auth.currentUser;
 
 // Bouton Signaler
 const reportBtn = document.createElement('button');
