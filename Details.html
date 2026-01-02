@@ -79,6 +79,10 @@ const firebaseConfig = {
   
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+// Auth Firebase
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
+const auth = getAuth(app);
+  
 const params = new URLSearchParams(window.location.search);
 const id = params.get('id');
 let images = [];
@@ -267,6 +271,122 @@ if(data.telephone){
   });
 } else phone.classList.add("disabled");
 contactDiv.appendChild(phone);
+    import { collection, addDoc, deleteDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+
+// Bouton Signaler
+const reportBtn = document.createElement('button');
+reportBtn.className = "button email"; // style similaire, tu peux customiser
+reportBtn.innerHTML = `<i class="fa-regular fa-thumbs-down"></i> Signaler ce vendeur`;
+reportBtn.addEventListener('click', () => {
+  // modal signalement
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;';
+  const box = document.createElement('div');
+  box.style.cssText = 'background:white;padding:20px;border-radius:12px;max-width:400px;text-align:center;position:relative;';
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '×';
+  closeBtn.style.cssText = 'position:absolute;top:10px;right:10px;background:transparent;border:none;font-size:24px;cursor:pointer;color:#00796B;';
+  closeBtn.addEventListener('click', () => document.body.removeChild(modal));
+  box.appendChild(closeBtn);
+
+  const title = document.createElement('p');
+  title.textContent = "Choisissez le motif du signalement :";
+  title.style.marginBottom = "15px";
+  box.appendChild(title);
+
+  const select = document.createElement('select');
+  select.style.padding = "8px";
+  select.style.width = "100%";
+  select.style.marginBottom = "15px";
+  ["Produit faux", "Arnaque", "Comportement inapproprié", "Autre"].forEach(opt => {
+    const option = document.createElement('option');
+    option.value = opt;
+    option.textContent = opt;
+    select.appendChild(option);
+  });
+  box.appendChild(select);
+
+  const submit = document.createElement('button');
+  submit.textContent = "Confirmer";
+  submit.style.cssText = 'padding:10px 20px;background:#d32f2f;color:white;border:none;border-radius:8px;cursor:pointer;';
+  submit.addEventListener('click', async () => {
+    try {
+      await addDoc(collection(db, "reports"), {
+        annonceId: id,
+        reportedOwnerId: seller.uid,
+        reporterId: firebase.auth?.currentUser?.uid || "anonyme",
+        motif: select.value,
+        createdAt: new Date()
+      });
+      alert("Signalement enregistré ✅");
+      document.body.removeChild(modal);
+    } catch(e) {
+      alert("Erreur lors du signalement : " + e.message);
+    }
+  });
+  box.appendChild(submit);
+
+  modal.appendChild(box);
+  document.body.appendChild(modal);
+});
+contactDiv.appendChild(reportBtn);
+
+// Boutons S'abonner / Se désabonner
+const subscribeBtn = document.createElement('button');
+subscribeBtn.className = "button whatsapp";
+subscribeBtn.textContent = "S'abonner";
+
+const unsubscribeBtn = document.createElement('button');
+unsubscribeBtn.className = "button phone";
+unsubscribeBtn.textContent = "Se désabonner";
+unsubscribeBtn.classList.add("disabled"); // désactivé par défaut
+
+contactDiv.appendChild(subscribeBtn);
+contactDiv.appendChild(unsubscribeBtn);
+
+async function updateSubscriptionButtons() {
+  const userId = firebase.auth?.currentUser?.uid;
+  if(!userId) return;
+
+  const q = query(collection(db, "subscriptions"), 
+                  where("followerId","==",userId),
+                  where("followedId","==",seller.uid));
+  const snap = await getDocs(q);
+  if(snap.empty){
+    subscribeBtn.classList.remove("disabled");
+    unsubscribeBtn.classList.add("disabled");
+  } else {
+    subscribeBtn.classList.add("disabled");
+    unsubscribeBtn.classList.remove("disabled");
+  }
+}
+
+subscribeBtn.addEventListener('click', async () => {
+  const userId = firebase.auth?.currentUser?.uid;
+  if(!userId) return alert("Vous devez être connecté !");
+  await addDoc(collection(db, "subscriptions"), {
+    followerId: userId,
+    followedId: seller.uid,
+    createdAt: new Date()
+  });
+  updateSubscriptionButtons();
+});
+
+unsubscribeBtn.addEventListener('click', async () => {
+  const userId = firebase.auth?.currentUser?.uid;
+  const q = query(collection(db, "subscriptions"), 
+                  where("followerId","==",userId),
+                  where("followedId","==",seller.uid));
+  const snap = await getDocs(q);
+  snap.forEach(async docSnap => {
+    await deleteDoc(doc(db, "subscriptions", docSnap.id));
+  });
+  updateSubscriptionButtons();
+});
+
+// Initialisation des boutons selon l'état
+updateSubscriptionButtons();
+
   } catch(err){
     console.error("Erreur chargement détails:", err);
     document.getElementById('details').textContent = "⚠️ Erreur de chargement : " + escapeHTML(err.message);
