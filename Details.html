@@ -66,8 +66,9 @@ h2 { text-align:center; color:#00796B; margin-bottom:20px; }
 </div>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
-  
+import { getFirestore, doc, getDoc, collection, addDoc, deleteDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
+
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
   authDomain: "diallo-ee5aa.firebaseapp.com",
@@ -269,8 +270,6 @@ if(data.telephone){
 } else phone.classList.add("disabled");
 contactDiv.appendChild(phone);
     // ===== BOUTONS SIGNALER ET SUIVI =====
-import { collection, addDoc, deleteDoc, setDoc, getDoc, doc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 
 const auth = getAuth();
 const user = auth.currentUser;
