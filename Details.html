@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -79,10 +80,6 @@ const firebaseConfig = {
   
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-// Auth Firebase
-import { getAuth } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
-const auth = getAuth(app);
-  
 const params = new URLSearchParams(window.location.search);
 const id = params.get('id');
 let images = [];
@@ -271,121 +268,138 @@ if(data.telephone){
   });
 } else phone.classList.add("disabled");
 contactDiv.appendChild(phone);
-    import { collection, addDoc, deleteDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+    import { collection, addDoc, deleteDoc, getDoc, doc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 
-// Bouton Signaler
+const auth = getAuth();
+let currentUserId = null;
+
+auth.onAuthStateChanged(user => {
+  if(user) currentUserId = user.uid;
+  initSubscriptionButtons();
+});
+
+// --- Bouton Signaler ---
 const reportBtn = document.createElement('button');
-reportBtn.className = "button email"; // style similaire, tu peux customiser
+reportBtn.className = "button email"; // style comme email mais peut personnaliser
 reportBtn.innerHTML = `<i class="fa-regular fa-thumbs-down"></i> Signaler ce vendeur`;
-reportBtn.addEventListener('click', () => {
-  // modal signalement
+reportBtn.addEventListener('click', () => openReportModal());
+contactDiv.appendChild(reportBtn);
+
+function openReportModal() {
   const modal = document.createElement('div');
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;';
+  
   const box = document.createElement('div');
   box.style.cssText = 'background:white;padding:20px;border-radius:12px;max-width:400px;text-align:center;position:relative;';
+  
   const closeBtn = document.createElement('button');
   closeBtn.textContent = '×';
   closeBtn.style.cssText = 'position:absolute;top:10px;right:10px;background:transparent;border:none;font-size:24px;cursor:pointer;color:#00796B;';
   closeBtn.addEventListener('click', () => document.body.removeChild(modal));
   box.appendChild(closeBtn);
-
+  
   const title = document.createElement('p');
-  title.textContent = "Choisissez le motif du signalement :";
-  title.style.marginBottom = "15px";
+  title.textContent = "Sélectionnez le motif du signalement :";
   box.appendChild(title);
 
   const select = document.createElement('select');
-  select.style.padding = "8px";
   select.style.width = "100%";
+  select.style.padding = "10px";
   select.style.marginBottom = "15px";
-  ["Produit faux", "Arnaque", "Comportement inapproprié", "Autre"].forEach(opt => {
-    const option = document.createElement('option');
-    option.value = opt;
-    option.textContent = opt;
-    select.appendChild(option);
-  });
+  select.innerHTML = `
+    <option value="">--Choisir un motif--</option>
+    <option value="Arnaque">Arnaque</option>
+    <option value="Produit interdit">Produit interdit</option>
+    <option value="Comportement abusif">Comportement abusif</option>
+    <option value="Autre">Autre</option>
+  `;
   box.appendChild(select);
 
-  const submit = document.createElement('button');
-  submit.textContent = "Confirmer";
-  submit.style.cssText = 'padding:10px 20px;background:#d32f2f;color:white;border:none;border-radius:8px;cursor:pointer;';
-  submit.addEventListener('click', async () => {
+  const confirmBtn = document.createElement('button');
+  confirmBtn.textContent = "Signaler";
+  confirmBtn.style.cssText = "padding:10px 20px;background:#d32f2f;color:white;border:none;border-radius:8px;cursor:pointer;";
+  confirmBtn.addEventListener('click', async () => {
+    if(!select.value) return alert("Veuillez choisir un motif.");
     try {
       await addDoc(collection(db, "reports"), {
         annonceId: id,
-        reportedOwnerId: seller.uid,
-        reporterId: firebase.auth?.currentUser?.uid || "anonyme",
+        reportedId: seller.uid,
+        reporterId: currentUserId,
         motif: select.value,
         createdAt: new Date()
       });
-      alert("Signalement enregistré ✅");
+      alert("Le vendeur a été signalé.");
       document.body.removeChild(modal);
-    } catch(e) {
-      alert("Erreur lors du signalement : " + e.message);
+    } catch(err) {
+      console.error(err);
+      alert("Erreur lors du signalement.");
     }
   });
-  box.appendChild(submit);
+  box.appendChild(confirmBtn);
 
   modal.appendChild(box);
   document.body.appendChild(modal);
-});
-contactDiv.appendChild(reportBtn);
+}
 
-// Boutons S'abonner / Se désabonner
+// --- Boutons Abonnement ---
 const subscribeBtn = document.createElement('button');
 subscribeBtn.className = "button whatsapp";
 subscribeBtn.textContent = "S'abonner";
+contactDiv.appendChild(subscribeBtn);
 
 const unsubscribeBtn = document.createElement('button');
 unsubscribeBtn.className = "button phone";
 unsubscribeBtn.textContent = "Se désabonner";
-unsubscribeBtn.classList.add("disabled"); // désactivé par défaut
-
-contactDiv.appendChild(subscribeBtn);
+unsubscribeBtn.classList.add("disabled");
 contactDiv.appendChild(unsubscribeBtn);
 
-async function updateSubscriptionButtons() {
-  const userId = firebase.auth?.currentUser?.uid;
-  if(!userId) return;
-
-  const q = query(collection(db, "subscriptions"), 
-                  where("followerId","==",userId),
-                  where("followedId","==",seller.uid));
-  const snap = await getDocs(q);
-  if(snap.empty){
-    subscribeBtn.classList.remove("disabled");
-    unsubscribeBtn.classList.add("disabled");
-  } else {
+async function initSubscriptionButtons() {
+  if(!currentUserId || currentUserId === seller.uid) {
+    subscribeBtn.disabled = true;
+    unsubscribeBtn.disabled = true;
     subscribeBtn.classList.add("disabled");
-    unsubscribeBtn.classList.remove("disabled");
+    unsubscribeBtn.classList.add("disabled");
+    return;
   }
+
+  const subQuery = query(collection(db, "subscriptions"), where("followerId","==",currentUserId), where("followedId","==",seller.uid));
+  const subSnap = await getDocs(subQuery);
+  const isSubscribed = !subSnap.empty;
+
+  subscribeBtn.disabled = isSubscribed;
+  unsubscribeBtn.disabled = !isSubscribed;
+  subscribeBtn.classList.toggle("disabled", isSubscribed);
+  unsubscribeBtn.classList.toggle("disabled", !isSubscribed);
 }
 
 subscribeBtn.addEventListener('click', async () => {
-  const userId = firebase.auth?.currentUser?.uid;
-  if(!userId) return alert("Vous devez être connecté !");
-  await addDoc(collection(db, "subscriptions"), {
-    followerId: userId,
-    followedId: seller.uid,
-    createdAt: new Date()
-  });
-  updateSubscriptionButtons();
+  try {
+    await addDoc(collection(db, "subscriptions"), {
+      followerId: currentUserId,
+      followedId: seller.uid,
+      createdAt: new Date()
+    });
+    initSubscriptionButtons();
+  } catch(err) {
+    console.error(err);
+    alert("Erreur lors de l'abonnement.");
+  }
 });
 
 unsubscribeBtn.addEventListener('click', async () => {
-  const userId = firebase.auth?.currentUser?.uid;
-  const q = query(collection(db, "subscriptions"), 
-                  where("followerId","==",userId),
-                  where("followedId","==",seller.uid));
-  const snap = await getDocs(q);
-  snap.forEach(async docSnap => {
-    await deleteDoc(doc(db, "subscriptions", docSnap.id));
-  });
-  updateSubscriptionButtons();
+  try {
+    const subQuery = query(collection(db, "subscriptions"), where("followerId","==",currentUserId), where("followedId","==",seller.uid));
+    const subSnap = await getDocs(subQuery);
+    subSnap.forEach(async docSnap => {
+      await deleteDoc(doc(db, "subscriptions", docSnap.id));
+    });
+    initSubscriptionButtons();
+  } catch(err) {
+    console.error(err);
+    alert("Erreur lors de la désinscription.");
+  }
 });
-
-// Initialisation des boutons selon l'état
-updateSubscriptionButtons();
 
   } catch(err){
     console.error("Erreur chargement détails:", err);
