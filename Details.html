@@ -271,7 +271,13 @@ contactDiv.appendChild(phone);
     // ===== BOUTONS SIGNALER ET SUIVI =====
 
 const auth = getAuth();
-const user = auth.currentUser;
+let user = null;
+
+auth.onAuthStateChanged(u => {
+  user = u;  // u est null si non connecté, ou l'objet user si connecté
+  setupButtons(); // fonction pour configurer signaler / abonner
+});
+
 
 // Bouton Signaler
 const reportBtn = document.createElement('button');
