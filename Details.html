@@ -271,16 +271,17 @@ if(data.telephone){
 contactDiv.appendChild(phone);
     // ===== BOUTONS SIGNALER ET SUIVI =====
 
-
-
 const auth = getAuth();
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
+
 let user = null;
 
-// On attend que Firebase Auth charge l'utilisateur
 onAuthStateChanged(auth, (u) => {
   user = u;
-  // Ici tu peux mettre à jour l'état des boutons si nécessaire
-  checkSubscription(); // pour activer/désactiver les boutons S'abonner / Se désabonner
+  // Mettre à jour l'affichage des boutons si besoin
+  if(user) {
+    checkSubscription(); // vérifie si déjà abonné après que user soit chargé
+  }
 });
 
 
