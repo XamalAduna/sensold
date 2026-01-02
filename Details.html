@@ -268,137 +268,125 @@ if(data.telephone){
   });
 } else phone.classList.add("disabled");
 contactDiv.appendChild(phone);
-    import { collection, addDoc, deleteDoc, getDoc, doc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+    // ===== BOUTONS SIGNALER ET SUIVI =====
+import { collection, addDoc, deleteDoc, setDoc, getDoc, doc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 
 const auth = getAuth();
-let currentUserId = null;
+const user = auth.currentUser;
 
-auth.onAuthStateChanged(user => {
-  if(user) currentUserId = user.uid;
-  initSubscriptionButtons();
-});
-
-// --- Bouton Signaler ---
+// Bouton Signaler
 const reportBtn = document.createElement('button');
-reportBtn.className = "button email"; // style comme email mais peut personnaliser
-reportBtn.innerHTML = `<i class="fa-regular fa-thumbs-down"></i> Signaler ce vendeur`;
-reportBtn.addEventListener('click', () => openReportModal());
-contactDiv.appendChild(reportBtn);
-
-function openReportModal() {
+reportBtn.className = "button phone";
+reportBtn.innerHTML = `<i class="fa-solid fa-thumbs-down"></i> Signaler ce vendeur`;
+reportBtn.style.background = "#D32F2F";
+reportBtn.addEventListener('click', () => {
+  if (!user) { alert("Vous devez être connecté pour signaler."); return; }
+  // Création modal signalement
   const modal = document.createElement('div');
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;';
-  
   const box = document.createElement('div');
   box.style.cssText = 'background:white;padding:20px;border-radius:12px;max-width:400px;text-align:center;position:relative;';
-  
   const closeBtn = document.createElement('button');
   closeBtn.textContent = '×';
-  closeBtn.style.cssText = 'position:absolute;top:10px;right:10px;background:transparent;border:none;font-size:24px;cursor:pointer;color:#00796B;';
+  closeBtn.style.cssText = 'position:absolute;top:10px;right:10px;background:transparent;border:none;font-size:24px;cursor:pointer;color:#D32F2F;';
   closeBtn.addEventListener('click', () => document.body.removeChild(modal));
   box.appendChild(closeBtn);
-  
-  const title = document.createElement('p');
-  title.textContent = "Sélectionnez le motif du signalement :";
+
+  const title = document.createElement('h3');
+  title.textContent = "Motif du signalement";
   box.appendChild(title);
 
   const select = document.createElement('select');
   select.style.width = "100%";
   select.style.padding = "10px";
-  select.style.marginBottom = "15px";
+  select.style.margin = "10px 0";
   select.innerHTML = `
-    <option value="">--Choisir un motif--</option>
+    <option value="">-- Choisir un motif --</option>
     <option value="Arnaque">Arnaque</option>
-    <option value="Produit interdit">Produit interdit</option>
-    <option value="Comportement abusif">Comportement abusif</option>
+    <option value="Produit faux">Produit faux</option>
+    <option value="Comportement inapproprié">Comportement inapproprié</option>
     <option value="Autre">Autre</option>
   `;
   box.appendChild(select);
 
   const confirmBtn = document.createElement('button');
-  confirmBtn.textContent = "Signaler";
-  confirmBtn.style.cssText = "padding:10px 20px;background:#d32f2f;color:white;border:none;border-radius:8px;cursor:pointer;";
+  confirmBtn.textContent = "Confirmer";
+  confirmBtn.style.cssText = 'padding:10px 20px;margin-top:10px;background:#D32F2F;color:white;border:none;border-radius:8px;cursor:pointer;';
   confirmBtn.addEventListener('click', async () => {
-    if(!select.value) return alert("Veuillez choisir un motif.");
+    if(!select.value){ alert("Veuillez choisir un motif"); return; }
     try {
       await addDoc(collection(db, "reports"), {
         annonceId: id,
+        reporterId: user.uid,
         reportedId: seller.uid,
-        reporterId: currentUserId,
         motif: select.value,
         createdAt: new Date()
       });
-      alert("Le vendeur a été signalé.");
+      alert("Le signalement a été envoyé avec succès.");
       document.body.removeChild(modal);
-    } catch(err) {
-      console.error(err);
-      alert("Erreur lors du signalement.");
-    }
+    } catch(e) { console.error(e); alert("Erreur lors du signalement."); }
   });
   box.appendChild(confirmBtn);
 
   modal.appendChild(box);
   document.body.appendChild(modal);
-}
+});
+contactDiv.appendChild(reportBtn);
 
-// --- Boutons Abonnement ---
+// Boutons S'abonner / Se désabonner
 const subscribeBtn = document.createElement('button');
 subscribeBtn.className = "button whatsapp";
 subscribeBtn.textContent = "S'abonner";
-contactDiv.appendChild(subscribeBtn);
+subscribeBtn.style.background = "#00796B";
 
 const unsubscribeBtn = document.createElement('button');
-unsubscribeBtn.className = "button phone";
+unsubscribeBtn.className = "button disabled";
 unsubscribeBtn.textContent = "Se désabonner";
-unsubscribeBtn.classList.add("disabled");
+unsubscribeBtn.disabled = true;
+
+contactDiv.appendChild(subscribeBtn);
 contactDiv.appendChild(unsubscribeBtn);
 
-async function initSubscriptionButtons() {
-  if(!currentUserId || currentUserId === seller.uid) {
-    subscribeBtn.disabled = true;
-    unsubscribeBtn.disabled = true;
-    subscribeBtn.classList.add("disabled");
-    unsubscribeBtn.classList.add("disabled");
-    return;
+// Vérifier si déjà abonné
+async function checkSubscription() {
+  if (!user) return;
+  const q = query(collection(db, "subscriptions"), 
+                  where("followerId","==",user.uid),
+                  where("followingId","==",seller.uid));
+  const snap = await getDocs(q);
+  if(!snap.empty){
+    subscribeBtn.disabled = true; subscribeBtn.classList.add("disabled");
+    unsubscribeBtn.disabled = false; unsubscribeBtn.classList.remove("disabled");
   }
-
-  const subQuery = query(collection(db, "subscriptions"), where("followerId","==",currentUserId), where("followedId","==",seller.uid));
-  const subSnap = await getDocs(subQuery);
-  const isSubscribed = !subSnap.empty;
-
-  subscribeBtn.disabled = isSubscribed;
-  unsubscribeBtn.disabled = !isSubscribed;
-  subscribeBtn.classList.toggle("disabled", isSubscribed);
-  unsubscribeBtn.classList.toggle("disabled", !isSubscribed);
 }
+checkSubscription();
 
+// Gestion abonnement
 subscribeBtn.addEventListener('click', async () => {
+  if(!user) { alert("Vous devez être connecté pour vous abonner."); return; }
   try {
     await addDoc(collection(db, "subscriptions"), {
-      followerId: currentUserId,
-      followedId: seller.uid,
+      followerId: user.uid,
+      followingId: seller.uid,
       createdAt: new Date()
     });
-    initSubscriptionButtons();
-  } catch(err) {
-    console.error(err);
-    alert("Erreur lors de l'abonnement.");
-  }
+    subscribeBtn.disabled = true; subscribeBtn.classList.add("disabled");
+    unsubscribeBtn.disabled = false; unsubscribeBtn.classList.remove("disabled");
+  } catch(e){ console.error(e); alert("Erreur lors de l'abonnement."); }
 });
 
 unsubscribeBtn.addEventListener('click', async () => {
+  if(!user) return;
   try {
-    const subQuery = query(collection(db, "subscriptions"), where("followerId","==",currentUserId), where("followedId","==",seller.uid));
-    const subSnap = await getDocs(subQuery);
-    subSnap.forEach(async docSnap => {
-      await deleteDoc(doc(db, "subscriptions", docSnap.id));
-    });
-    initSubscriptionButtons();
-  } catch(err) {
-    console.error(err);
-    alert("Erreur lors de la désinscription.");
-  }
+    const q = query(collection(db, "subscriptions"), 
+                    where("followerId","==",user.uid),
+                    where("followingId","==",seller.uid));
+    const snap = await getDocs(q);
+    snap.forEach(async docSnap => { await deleteDoc(doc(db,"subscriptions",docSnap.id)); });
+    subscribeBtn.disabled = false; subscribeBtn.classList.remove("disabled");
+    unsubscribeBtn.disabled = true; unsubscribeBtn.classList.add("disabled");
+  } catch(e){ console.error(e); alert("Erreur lors de la désinscription."); }
 });
 
   } catch(err){
