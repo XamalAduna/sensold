@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -272,18 +271,7 @@ contactDiv.appendChild(phone);
     // ===== BOUTONS SIGNALER ET SUIVI =====
 
 const auth = getAuth();
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
-
-let user = null;
-
-onAuthStateChanged(auth, (u) => {
-  user = u;
-  // Mettre à jour l'affichage des boutons si besoin
-  if(user) {
-    checkSubscription(); // vérifie si déjà abonné après que user soit chargé
-  }
-});
-
+const user = auth.currentUser;
 
 // Bouton Signaler
 const reportBtn = document.createElement('button');
