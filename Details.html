@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -85,6 +84,10 @@ const params = new URLSearchParams(window.location.search);
 const id = params.get('id');
 let images = [];
 let currentIndex = 0;
+  
+let seller = null;
+let currentUser = null;
+
 function updateActiveThumbnail() {
   document.querySelectorAll('.thumbnails img').forEach((img, i) => {
     img.classList.toggle('active', i === currentIndex);
@@ -205,13 +208,17 @@ async function loadDetails() {
         detailsDiv.appendChild(div);
       }
     });
-    let seller = {};
     if (data.ownerId) {
-      const sellerRef = doc(db, "users", data.ownerId);
-      const sellerSnap = await getDoc(sellerRef);
-      if (sellerSnap.exists()) {
-        seller = sellerSnap.data();
-        seller.uid = sellerSnap.id;}}
+  const sellerRef = doc(db, "users", data.ownerId);
+  const sellerSnap = await getDoc(sellerRef);
+  if (sellerSnap.exists()) {
+    seller = {
+      ...sellerSnap.data(),
+      uid: sellerSnap.id
+    };
+  }
+}
+    
     const sellerDiv = document.getElementById('seller-info');
 let isPro = seller.subscribe === true && seller.subscribeEnd && seller.subscribeEnd.toDate() > new Date();
 sellerDiv.innerHTML = `
@@ -271,17 +278,14 @@ if(data.telephone){
 contactDiv.appendChild(phone);
     // ===== BOUTONS SIGNALER ET SUIVI =====
 
-
 const auth = getAuth();
-let currentUser = null;
 
 onAuthStateChanged(auth, (user) => {
   currentUser = user;
-  if (currentUser) {
+  if (currentUser && seller && seller.uid) {
     checkSubscription();
   }
 });
-
     
 // Bouton Signaler
 const reportBtn = document.createElement('button');
@@ -290,6 +294,12 @@ reportBtn.innerHTML = `<i class="fa-solid fa-thumbs-down"></i> Signaler ce vende
 reportBtn.style.background = "#D32F2F";
 reportBtn.addEventListener('click', () => {
   if (!currentUser) { alert("Vous devez être connecté pour signaler."); return; }
+
+  if (!seller || !seller.uid) {
+  alert("Impossible de signaler ce vendeur.");
+  return;
+}
+
 
   if (currentUser.uid === seller.uid) {
   alert("Vous ne pouvez pas vous signaler vous-même.");
@@ -364,7 +374,8 @@ contactDiv.appendChild(unsubscribeBtn);
 
 // Vérifier si déjà abonné
 async function checkSubscription() {
-  if (!currentUser) return;
+  if (!currentUser || !seller || !seller.uid) return;
+
   const q = query(collection(db, "subscriptions"), 
                   where("followerId","==",currentUser.uid),
                   where("followingId","==",seller.uid));
@@ -377,6 +388,11 @@ async function checkSubscription() {
 
 // Gestion abonnement
 subscribeBtn.addEventListener('click', async () => {
+  if (!seller || !seller.uid) {
+  alert("Vendeur non valide.");
+  return;
+}
+
   if(!currentUser) { alert("Vous devez être connecté pour vous abonner."); return; }
 
   if (currentUser.uid === seller.uid) {
