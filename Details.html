@@ -277,8 +277,6 @@ if(data.telephone){
 } else phone.classList.add("disabled");
 contactDiv.appendChild(phone);
 
-    
-
     // ===== BOUTONS SIGNALER ET SUIVI =====
 const auth = getAuth();
 let isSubscribed = false;
@@ -305,10 +303,7 @@ onAuthStateChanged(auth, async (user) => {
 const reportBtn = document.createElement('button');
 reportBtn.className = "button phone";
 reportBtn.innerHTML = `<i class="fa-solid fa-thumbs-down"></i> Signaler ce vendeur`;
-
-// ===== Couleur initiale =====
-reportBtn.style.background = "#D32F2F"; // rouge
-reportBtn.style.color = "white";
+reportBtn.style.background = "#D32F2F";
 
 async function checkReport(){
   if(!currentUser) return;
@@ -319,7 +314,6 @@ async function checkReport(){
   );
   const snap = await getDocs(q);
   hasReported = !snap.empty;
-  updateReportButton(); // mettre à jour le bouton dès le check
 }
 
 function updateReportButton(){
@@ -327,17 +321,6 @@ function updateReportButton(){
     reportBtn.disabled = true;
     reportBtn.classList.add("disabled");
     reportBtn.innerHTML = "Signalement envoyé";
-
-    // ===== Couleur après signalement =====
-    reportBtn.style.background = "#4CAF50"; // vert succès
-    reportBtn.style.color = "white";
-  }else{
-    // ===== Couleur quand actif =====
-    reportBtn.disabled = false;
-    reportBtn.classList.remove("disabled");
-    reportBtn.innerHTML = `<i class="fa-solid fa-thumbs-down"></i> Signaler ce vendeur`;
-    reportBtn.style.background = "#D32F2F"; // rouge
-    reportBtn.style.color = "white";
   }
 }
 
@@ -375,7 +358,7 @@ reportBtn.addEventListener('click', () => {
       createdAt:new Date()
     });
     hasReported = true;
-    updateReportButton(); // met à jour couleur + texte
+    updateReportButton();
     notify("Signalement envoyé avec succès");
     document.body.removeChild(modal);
   };
@@ -387,7 +370,6 @@ reportBtn.addEventListener('click', () => {
 
 contactDiv.appendChild(reportBtn);
 
-    
 /* =======================
    ===== BOUTON S'ABONNER UNIQUE =====
    ======================= */
@@ -442,8 +424,7 @@ subscribeBtn.addEventListener('click', async ()=>{
 
 contactDiv.appendChild(subscribeBtn);
 
-    
-    
+
 
     
   } catch(err){
