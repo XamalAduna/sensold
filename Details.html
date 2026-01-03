@@ -84,10 +84,6 @@ const params = new URLSearchParams(window.location.search);
 const id = params.get('id');
 let images = [];
 let currentIndex = 0;
-  
-let seller = null;
-let currentUser = null;
-
 function updateActiveThumbnail() {
   document.querySelectorAll('.thumbnails img').forEach((img, i) => {
     img.classList.toggle('active', i === currentIndex);
@@ -208,17 +204,13 @@ async function loadDetails() {
         detailsDiv.appendChild(div);
       }
     });
+    let seller = {};
     if (data.ownerId) {
-  const sellerRef = doc(db, "users", data.ownerId);
-  const sellerSnap = await getDoc(sellerRef);
-  if (sellerSnap.exists()) {
-    seller = {
-      ...sellerSnap.data(),
-      uid: sellerSnap.id
-    };
-  }
-}
-    
+      const sellerRef = doc(db, "users", data.ownerId);
+      const sellerSnap = await getDoc(sellerRef);
+      if (sellerSnap.exists()) {
+        seller = sellerSnap.data();
+        seller.uid = sellerSnap.id;}}
     const sellerDiv = document.getElementById('seller-info');
 let isPro = seller.subscribe === true && seller.subscribeEnd && seller.subscribeEnd.toDate() > new Date();
 sellerDiv.innerHTML = `
@@ -277,6 +269,7 @@ if(data.telephone){
 } else phone.classList.add("disabled");
 contactDiv.appendChild(phone);
 
+    
     // ===== BOUTONS SIGNALER ET SUIVI =====
 const auth = getAuth();
 let isSubscribed = false;
@@ -425,8 +418,6 @@ subscribeBtn.addEventListener('click', async ()=>{
 contactDiv.appendChild(subscribeBtn);
 
 
-
-    
   } catch(err){
     console.error("Erreur chargement détails:", err);
     document.getElementById('details').textContent = "⚠️ Erreur de chargement : " + escapeHTML(err.message);
@@ -445,3 +436,4 @@ loadDetails();
 </script>
 </body>
 </html>
+
