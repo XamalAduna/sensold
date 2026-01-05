@@ -66,7 +66,7 @@ h2 { text-align:center; color:#00796B; margin-bottom:20px; }
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getFirestore, doc, getDoc, collection, addDoc, deleteDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
@@ -84,6 +84,10 @@ const params = new URLSearchParams(window.location.search);
 const id = params.get('id');
 let images = [];
 let currentIndex = 0;
+  
+let seller = null;
+let currentUser = null;
+
 function updateActiveThumbnail() {
   document.querySelectorAll('.thumbnails img').forEach((img, i) => {
     img.classList.toggle('active', i === currentIndex);
@@ -204,13 +208,17 @@ async function loadDetails() {
         detailsDiv.appendChild(div);
       }
     });
-    let seller = {};
     if (data.ownerId) {
-      const sellerRef = doc(db, "users", data.ownerId);
-      const sellerSnap = await getDoc(sellerRef);
-      if (sellerSnap.exists()) {
-        seller = sellerSnap.data();
-        seller.uid = sellerSnap.id;}}
+  const sellerRef = doc(db, "users", data.ownerId);
+  const sellerSnap = await getDoc(sellerRef);
+  if (sellerSnap.exists()) {
+    seller = {
+      ...sellerSnap.data(),
+      uid: sellerSnap.id
+    };
+  }
+}
+    
     const sellerDiv = document.getElementById('seller-info');
 let isPro = seller.subscribe === true && seller.subscribeEnd && seller.subscribeEnd.toDate() > new Date();
 sellerDiv.innerHTML = `
