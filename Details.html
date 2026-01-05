@@ -281,7 +281,9 @@ sellerDiv.innerHTML = `
         });
       });
     } else wa.classList.add("disabled");
-    contactDiv.appendChild(wa);
+    
+    topButtons.appendChild(wa);
+    
     const phone = document.createElement('a');
 phone.className = "button phone";
 if(data.telephone){
@@ -311,8 +313,8 @@ if(data.telephone){
     document.body.appendChild(modal);
   });
 } else phone.classList.add("disabled");
-contactDiv.appendChild(phone);
 
+topButtons.appendChild(phone);
     
     // ===== BOUTONS SIGNALER ET SUIVI =====
 const auth = getAuth();
@@ -466,9 +468,7 @@ reportBtn.addEventListener('click', () => {
   document.body.appendChild(modal);
 });
 
-    
-    
-contactDiv.appendChild(reportBtn);
+bottomButtons.appendChild(reportBtn);
 
 /* =======================
    ===== BOUTON S'ABONNER UNIQUE =====
@@ -522,7 +522,12 @@ subscribeBtn.addEventListener('click', async ()=>{
   updateSubscribeButton();
 });
 
-contactDiv.appendChild(subscribeBtn);
+bottomButtons.appendChild(subscribeBtn);
+
+card.appendChild(topButtons);
+card.appendChild(bottomButtons);
+contactDiv.appendChild(card);
+
 
 
   } catch(err){
