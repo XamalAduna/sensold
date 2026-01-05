@@ -269,124 +269,154 @@ if(data.telephone){
   });
 } else phone.classList.add("disabled");
 contactDiv.appendChild(phone);
+
     // ===== BOUTONS SIGNALER ET SUIVI =====
-
 const auth = getAuth();
-const user = auth.currentUser;
+let isSubscribed = false;
+let hasReported = false;
 
-// Bouton Signaler
+// ===== NOTIFICATION SIMPLE =====
+function notify(msg){
+  alert(msg);
+}
+
+onAuthStateChanged(auth, async (user) => {
+  currentUser = user;
+  if (currentUser && seller && seller.uid) {
+    await checkSubscription();
+    await checkReport();
+    updateSubscribeButton();
+    updateReportButton();
+  }
+});
+
+/* =======================
+   ===== BOUTON SIGNALER =====
+   ======================= */
 const reportBtn = document.createElement('button');
 reportBtn.className = "button phone";
 reportBtn.innerHTML = `<i class="fa-solid fa-thumbs-down"></i> Signaler ce vendeur`;
 reportBtn.style.background = "#D32F2F";
+
+async function checkReport(){
+  if(!currentUser) return;
+  const q = query(
+    collection(db,"reports"),
+    where("annonceId","==",id),
+    where("reporterId","==",currentUser.uid)
+  );
+  const snap = await getDocs(q);
+  hasReported = !snap.empty;
+}
+
+function updateReportButton(){
+  if(hasReported){
+    reportBtn.disabled = true;
+    reportBtn.classList.add("disabled");
+    reportBtn.innerHTML = "Signalement envoyé";
+  }
+}
+
 reportBtn.addEventListener('click', () => {
-  if (!user) { alert("Vous devez être connecté pour signaler."); return; }
-  // Création modal signalement
+  if (!currentUser) return notify("Vous devez être connecté pour signaler.");
+  if (currentUser.uid === seller.uid) return notify("Vous ne pouvez pas vous signaler.");
+
   const modal = document.createElement('div');
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;';
   const box = document.createElement('div');
-  box.style.cssText = 'background:white;padding:20px;border-radius:12px;max-width:400px;text-align:center;position:relative;';
-  const closeBtn = document.createElement('button');
-  closeBtn.textContent = '×';
-  closeBtn.style.cssText = 'position:absolute;top:10px;right:10px;background:transparent;border:none;font-size:24px;cursor:pointer;color:#D32F2F;';
-  closeBtn.addEventListener('click', () => document.body.removeChild(modal));
-  box.appendChild(closeBtn);
-
-  const title = document.createElement('h3');
-  title.textContent = "Motif du signalement";
-  box.appendChild(title);
+  box.style.cssText = 'background:white;padding:20px;border-radius:12px;max-width:400px;text-align:center;';
 
   const select = document.createElement('select');
-  select.style.width = "100%";
-  select.style.padding = "10px";
-  select.style.margin = "10px 0";
+  select.style.width="100%";
+  select.style.padding="10px";
   select.innerHTML = `
     <option value="">-- Choisir un motif --</option>
-    <option value="Arnaque">Arnaque</option>
-    <option value="Produit faux">Produit faux</option>
-    <option value="Comportement inapproprié">Comportement inapproprié</option>
-    <option value="Autre">Autre</option>
+    <option>Arnaque</option>
+    <option>Produit faux</option>
+    <option>Comportement inapproprié</option>
+    <option>Autre</option>
   `;
-  box.appendChild(select);
 
-  const confirmBtn = document.createElement('button');
-  confirmBtn.textContent = "Confirmer";
-  confirmBtn.style.cssText = 'padding:10px 20px;margin-top:10px;background:#D32F2F;color:white;border:none;border-radius:8px;cursor:pointer;';
-  confirmBtn.addEventListener('click', async () => {
-    if(!select.value){ alert("Veuillez choisir un motif"); return; }
-    try {
-      await addDoc(collection(db, "reports"), {
-        annonceId: id,
-        reporterId: user.uid,
-        reportedId: seller.uid,
-        motif: select.value,
-        createdAt: new Date()
-      });
-      alert("Le signalement a été envoyé avec succès.");
-      document.body.removeChild(modal);
-    } catch(e) { console.error(e); alert("Erreur lors du signalement."); }
-  });
-  box.appendChild(confirmBtn);
+  const confirm = document.createElement('button');
+  confirm.textContent="Confirmer";
+  confirm.style.cssText="margin-top:10px;background:#D32F2F;color:white;padding:10px;border:none;border-radius:8px;";
 
+  confirm.onclick = async ()=>{
+    if(!select.value) return notify("Veuillez choisir un motif");
+    await addDoc(collection(db,"reports"),{
+      annonceId:id,
+      reporterId:currentUser.uid,
+      reportedId:seller.uid,
+      motif:select.value,
+      createdAt:new Date()
+    });
+    hasReported = true;
+    updateReportButton();
+    notify("Signalement envoyé avec succès");
+    document.body.removeChild(modal);
+  };
+
+  box.append(select,confirm);
   modal.appendChild(box);
   document.body.appendChild(modal);
 });
+
 contactDiv.appendChild(reportBtn);
 
-// Boutons S'abonner / Se désabonner
+/* =======================
+   ===== BOUTON S'ABONNER UNIQUE =====
+   ======================= */
 const subscribeBtn = document.createElement('button');
 subscribeBtn.className = "button whatsapp";
-subscribeBtn.textContent = "S'abonner";
-subscribeBtn.style.background = "#00796B";
 
-const unsubscribeBtn = document.createElement('button');
-unsubscribeBtn.className = "button disabled";
-unsubscribeBtn.textContent = "Se désabonner";
-unsubscribeBtn.disabled = true;
-
-contactDiv.appendChild(subscribeBtn);
-contactDiv.appendChild(unsubscribeBtn);
-
-// Vérifier si déjà abonné
-async function checkSubscription() {
-  if (!user) return;
-  const q = query(collection(db, "subscriptions"), 
-                  where("followerId","==",user.uid),
-                  where("followingId","==",seller.uid));
-  const snap = await getDocs(q);
-  if(!snap.empty){
-    subscribeBtn.disabled = true; subscribeBtn.classList.add("disabled");
-    unsubscribeBtn.disabled = false; unsubscribeBtn.classList.remove("disabled");
+function updateSubscribeButton(){
+  if(isSubscribed){
+    subscribeBtn.textContent = "Se désabonner";
+    subscribeBtn.style.background = "#D32F2F";
+  }else{
+    subscribeBtn.textContent = "S'abonner";
+    subscribeBtn.style.background = "#00796B";
   }
 }
-checkSubscription();
 
-// Gestion abonnement
-subscribeBtn.addEventListener('click', async () => {
-  if(!user) { alert("Vous devez être connecté pour vous abonner."); return; }
-  try {
-    await addDoc(collection(db, "subscriptions"), {
-      followerId: user.uid,
-      followingId: seller.uid,
-      createdAt: new Date()
+async function checkSubscription(){
+  const q = query(
+    collection(db,"subscriptions"),
+    where("followerId","==",currentUser.uid),
+    where("followingId","==",seller.uid)
+  );
+  const snap = await getDocs(q);
+  isSubscribed = !snap.empty;
+}
+
+subscribeBtn.addEventListener('click', async ()=>{
+  if(!currentUser) return notify("Vous devez être connecté.");
+  if(currentUser.uid === seller.uid) return notify("Action impossible.");
+
+  if(!isSubscribed){
+    await addDoc(collection(db,"subscriptions"),{
+      followerId:currentUser.uid,
+      followingId:seller.uid,
+      createdAt:new Date()
     });
-    subscribeBtn.disabled = true; subscribeBtn.classList.add("disabled");
-    unsubscribeBtn.disabled = false; unsubscribeBtn.classList.remove("disabled");
-  } catch(e){ console.error(e); alert("Erreur lors de l'abonnement."); }
+    isSubscribed = true;
+    notify("Vous êtes abonné à ce vendeur avec succès");
+  }else{
+    const q = query(
+      collection(db,"subscriptions"),
+      where("followerId","==",currentUser.uid),
+      where("followingId","==",seller.uid)
+    );
+    const snap = await getDocs(q);
+    snap.forEach(async d=> await deleteDoc(doc(db,"subscriptions",d.id)));
+    isSubscribed = false;
+    notify("Vous vous êtes désabonné avec succès");
+  }
+  updateSubscribeButton();
 });
 
-unsubscribeBtn.addEventListener('click', async () => {
-  if(!user) return;
-  try {
-    const q = query(collection(db, "subscriptions"), 
-                    where("followerId","==",user.uid),
-                    where("followingId","==",seller.uid));
-    const snap = await getDocs(q);
-    snap.forEach(async docSnap => { await deleteDoc(doc(db,"subscriptions",docSnap.id)); });
-    subscribeBtn.disabled = false; subscribeBtn.classList.remove("disabled");
-    unsubscribeBtn.disabled = true; unsubscribeBtn.classList.add("disabled");
-  } catch(e){ console.error(e); alert("Erreur lors de la désinscription."); }
-});
+contactDiv.appendChild(subscribeBtn);
+
 
   } catch(err){
     console.error("Erreur chargement détails:", err);
