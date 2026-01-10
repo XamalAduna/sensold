@@ -69,8 +69,8 @@
       <div id="editProfileContainer" style="display:none; margin-top:15px;">
         <label for="profileImageInput" class="upload-btn">Changer l'image</label>
         <input type="file" id="profileImageInput" accept="image/*">
-        <form id="editProfileForm" style="margin-top: 15px; text-align:center;">
-          <input type="text" id="fullNameInput" placeholder="Prénom et Nom" style="margin-top: 10px; width: 80%; padding: 5px; border-radius: 5px;">
+        <form id="editProfileForm" style="margin-top: 15px; text-align:center;">    
+          <input type="text" id="fullNameInput" placeholder="Prénom et Nom" maxlength="10" style="margin-top: 10px; width: 80%; padding: 5px; border-radius: 5px;">
           <button type="submit" class="upload-btn" style="margin-top: 10px;">Mettre à jour</button>
           <p id="editProfileMsg" style="margin-top: 10px; font-size: 14px;"></p>
         </form>
@@ -181,8 +181,16 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
   showEditBtn.addEventListener("click", () => {
-    editContainer.style.display = editContainer.style.display === "none" ? "block" : "none";
-  });
+  const isOpen = editContainer.style.display === "block";
+  if (isOpen) {
+    editContainer.style.display = "none";
+    showEditBtn.textContent = "Modifier le profil";
+    showEditBtn.style.backgroundColor = "#009688";
+  } else {
+    editContainer.style.display = "block";
+    showEditBtn.textContent = "Fermer";
+    showEditBtn.style.backgroundColor = "#f44336";}
+});  
   const profileImageInput = document.getElementById("profileImageInput");
   profileImageInput.addEventListener("change", async (e) => {
     const file = e.target.files[0];
@@ -228,6 +236,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const user = auth.currentUser;
     if (!user) return alert("Utilisateur non connecté !");
     const fullName = fullNameInput.value.trim();
+    if (fullName.length > 10) {
+      return alert("Le prénom et nom ne doivent pas dépasser 10 caractères.");}
     if (!fullName) return alert("Veuillez saisir un prénom et nom valides !");
     try {
       const userDocRef = doc(db, "users", user.uid);
@@ -238,8 +248,7 @@ document.addEventListener('DOMContentLoaded', function() {
       fullNameInput.value = "";
     } catch (err) {
       console.error(err);
-      alert("Erreur lors de la mise à jour du profil.");
-    }
+      alert("Erreur lors de la mise à jour du profil.");}
   });
 });
 const publishBtnMain = document.getElementById("publishBtnMain");
@@ -315,8 +324,7 @@ publishBtnMain.addEventListener("click", () => {
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   if (window.M) {
-    M.FormSelect.init(document.querySelectorAll('select'));
-  }
+    M.FormSelect.init(document.querySelectorAll('select'));}
   const subscribeModal = document.getElementById("subscribeModal");
   const confirmSubscription = document.getElementById("confirmSubscription");
   const subscriptionSelect = document.getElementById("subscriptionSelect");
@@ -326,8 +334,7 @@ document.addEventListener('DOMContentLoaded', function() {
     abonnerLink.addEventListener("click", function(e) {
       e.preventDefault();
       subscribeModal.style.display = "flex";
-    });
-  }
+    });}
   closeModal.addEventListener("click", () => subscribeModal.style.display = "none");
   subscribeModal.addEventListener("click", e => {
     if (e.target === subscribeModal) subscribeModal.style.display = "none";
@@ -350,12 +357,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const acceptRules = document.getElementById("acceptSubscriptionRules").checked;
     let ownerId = "Non connecté";
     if (typeof auth !== "undefined" && auth.currentUser) {
-      ownerId = auth.currentUser.uid;
-    }
+      ownerId = auth.currentUser.uid;}
     if (!abonnement || !phoneValue || !paymentMethodValue || !acceptRules) {
       alert("Veuillez remplir tous les champs et accepter les règles de paiement.");
-      return;
-    }
+      return;}
     const duree = abonnement === "1000" ? "1 mois" : abonnement === "1800" ? "2 mois" : "3 mois";
     const waNumber = "221781739814";
     const text = encodeURIComponent(
@@ -376,8 +381,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById("acceptSubscriptionRules").checked = false;
     if (window.M) {
       M.FormSelect.init(subscriptionSelect);
-      M.FormSelect.init(document.getElementById("subscriptionMethod"));
-    }
+      M.FormSelect.init(document.getElementById("subscriptionMethod"));}
     subscribeModal.style.display = "none";
   });
 });
@@ -400,9 +404,7 @@ function openMenuFrame(url) {
   const sidenav = document.querySelector('.sidenav');
   if (window.M && sidenav) {
     const instance = M.Sidenav.getInstance(sidenav);
-    if (instance) instance.close();
-  }
-}
+    if (instance) instance.close();}}
 document.getElementById("closeMenuFrame").addEventListener("click", () => {
   const overlay = document.getElementById("menuFrameOverlay");
   const iframe = document.getElementById("menuFrame");
@@ -412,8 +414,7 @@ document.getElementById("closeMenuFrame").addEventListener("click", () => {
 document.getElementById("menuFrameOverlay").addEventListener("click", e => {
   if (e.target.id === "menuFrameOverlay") {
     document.getElementById("menuFrame").src = "";
-    e.target.style.display = "none";
-  }
+    e.target.style.display = "none";}
 });
 </script>
 <script>
