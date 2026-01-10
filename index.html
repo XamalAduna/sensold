@@ -56,6 +56,8 @@
     .edit-profile { background: linear-gradient(135deg, #00b050, #009688); color: #fff; font-weight: 600; padding: 12px 20px; border-radius: 30px; cursor: pointer; display: flex; align-items: center; gap: 8px; justify-content: center; transition: all 0.25s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
     .edit-profile:hover { transform: scale(1.05); box-shadow: 0 6px 15px rgba(0,0,0,0.3); background: linear-gradient(135deg, #009688, #00796B); }
     .edit-profile i { font-size: 20px; }
+    .edit-profile.close {background: linear-gradient(135deg, #f44336, #d32f2f) !important; color: #fff !important;}
+    .edit-profile.close:hover {background: linear-gradient(135deg, #d32f2f, #b71c1c) !important;transform: scale(1.05);box-shadow: 0 6px 15px rgba(0,0,0,0.3);}
 </style>
 </head>
 <body>
@@ -202,12 +204,12 @@ document.addEventListener('DOMContentLoaded', function() {
   if (isOpen) {
     editContainer.style.display = "none";
     showEditBtn.textContent = "Modifier le profil";
-    showEditBtn.style.backgroundColor = "#009688";
+    showEditBtn.classList.remove("close"); 
   } else {
     editContainer.style.display = "block";
     showEditBtn.textContent = "Fermer";
-    showEditBtn.style.backgroundColor = "#f44336";}
-});  
+    showEditBtn.classList.add("close");}
+});
   const profileImageInput = document.getElementById("profileImageInput");
   profileImageInput.addEventListener("change", async (e) => {
     const file = e.target.files[0];
