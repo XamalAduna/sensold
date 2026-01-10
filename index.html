@@ -53,6 +53,9 @@
     .profile-btn.update{background:linear-gradient(135deg,#00b050,#009688);color:#fff;}
     .profile-btn.update:hover{transform:scale(1.05);background:linear-gradient(135deg,#009688,#00796B);}
     #fullNameInput {overflow: hidden;text-overflow: ellipsis; white-space: nowrap;}
+    .edit-profile { background: linear-gradient(135deg, #00b050, #009688); color: #fff; font-weight: 600; padding: 12px 20px; border-radius: 30px; cursor: pointer; display: flex; align-items: center; gap: 8px; justify-content: center; transition: all 0.25s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+    .edit-profile:hover { transform: scale(1.05); box-shadow: 0 6px 15px rgba(0,0,0,0.3); background: linear-gradient(135deg, #009688, #00796B); }
+    .edit-profile i { font-size: 20px; }
 </style>
 </head>
 <body>
@@ -71,8 +74,10 @@
     <li id="userProfile">
      <img id="profileImage" src="assets/img/default-profile.jpg" alt="Profil">
       <h5 id="userName">Utilisateur</h5>
-      <p id="userEmail">Email</p>
-      <button id="showEditProfile" class="upload-btn" style="margin-top:10px;">Modifier le profil</button>
+      <p id="userEmail">Email</p>      
+      <button id="showEditProfile" class="profile-btn edit-profile">
+        <i class="material-icons">edit</i>Modifier le profil
+      </button>
       <div id="editProfileContainer" style="display:none; margin-top:15px;">
        <div class="profile-actions">
   <label for="profileImageInput" class="profile-btn image">
