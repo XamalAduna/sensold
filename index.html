@@ -169,6 +169,10 @@ document.addEventListener('DOMContentLoaded', function() {
   const profileImageElem = document.getElementById("profileImage");
   const showEditBtn = document.getElementById("showEditProfile");
   const editContainer = document.getElementById("editProfileContainer");
+  editContainer.addEventListener("click", (e) => {
+  e.stopPropagation();
+});
+
   const fullNameInput = document.getElementById("fullNameInput");
   const editProfileForm = document.getElementById("editProfileForm");
   onAuthStateChanged(auth, async (user) => {
