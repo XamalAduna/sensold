@@ -255,8 +255,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const user = auth.currentUser;
     if (!user) return alert("Utilisateur non connecté !");
     const fullName = fullNameInput.value.trim();
-    if (fullName.length > 10) {
-      return alert("Le prénom et nom ne doivent pas dépasser 10 caractères.");}
+    if (fullName.length > 15) {
+      return alert("Le prénom et nom ne doivent pas dépasser 15 caractères.");}
     if (!fullName) return alert("Veuillez saisir un prénom et nom valides !");
     try {
       const userDocRef = doc(db, "users", user.uid);
