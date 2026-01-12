@@ -2,7 +2,7 @@
 <html lang="fr">  
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SenSold</title>
   <meta name="description" content="SenSold : Achetez et vendez facilement vos produits neufs ou d’occasion partout en Afrique.">
   <link rel="icon" type="image/png" href="assets/img/favicon.png">
@@ -143,10 +143,7 @@ const storage = getStorage(app);
 let isLoggedIn = false;
 document.addEventListener('DOMContentLoaded', function() {
   const elems = document.querySelectorAll('.sidenav');
-  M.Sidenav.init(elems, {
-    closeOnClick: false
-  });
-});
+  M.Sidenav.init(elems);
   const closeMenuButton = document.querySelector('.close-menu');
   if (closeMenuButton) {
     closeMenuButton.addEventListener('click', () => {
@@ -169,10 +166,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const profileImageElem = document.getElementById("profileImage");
   const showEditBtn = document.getElementById("showEditProfile");
   const editContainer = document.getElementById("editProfileContainer");
-  editContainer.addEventListener("click", (e) => {
-  e.stopPropagation();
-});
-
   const fullNameInput = document.getElementById("fullNameInput");
   const editProfileForm = document.getElementById("editProfileForm");
   onAuthStateChanged(auth, async (user) => {
@@ -259,7 +252,6 @@ document.addEventListener('DOMContentLoaded', function() {
   });
   editProfileForm.addEventListener("submit", async (e) => {
     e.preventDefault();
-    e.stopPropagation(); 
     const user = auth.currentUser;
     if (!user) return alert("Utilisateur non connecté !");
     const fullName = fullNameInput.value.trim();
@@ -269,7 +261,9 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
       const userDocRef = doc(db, "users", user.uid);
       await updateDoc(userDocRef, { fullName });
-      userNameElem.textContent = fullName;     
+      userNameElem.textContent = fullName;
+      editContainer.style.display = "none";
+      showEditBtn.style.display = "inline-block";
       fullNameInput.value = "";
     } catch (err) {
       console.error(err);
