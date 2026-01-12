@@ -252,6 +252,7 @@ document.addEventListener('DOMContentLoaded', function() {
   });
   editProfileForm.addEventListener("submit", async (e) => {
     e.preventDefault();
+    e.stopPropagation(); 
     const user = auth.currentUser;
     if (!user) return alert("Utilisateur non connecté !");
     const fullName = fullNameInput.value.trim();
@@ -261,9 +262,7 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
       const userDocRef = doc(db, "users", user.uid);
       await updateDoc(userDocRef, { fullName });
-      userNameElem.textContent = fullName;
-      editContainer.style.display = "none";
-      showEditBtn.style.display = "inline-block";
+      userNameElem.textContent = fullName;     
       fullNameInput.value = "";
     } catch (err) {
       console.error(err);
