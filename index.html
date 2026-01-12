@@ -143,7 +143,10 @@ const storage = getStorage(app);
 let isLoggedIn = false;
 document.addEventListener('DOMContentLoaded', function() {
   const elems = document.querySelectorAll('.sidenav');
-  M.Sidenav.init(elems);
+  M.Sidenav.init(elems, {
+    closeOnClick: false
+  });
+});
   const closeMenuButton = document.querySelector('.close-menu');
   if (closeMenuButton) {
     closeMenuButton.addEventListener('click', () => {
