@@ -262,11 +262,14 @@ document.addEventListener('DOMContentLoaded', function() {
       const userDocRef = doc(db, "users", user.uid);
       await updateDoc(userDocRef, { fullName });
       userNameElem.textContent = fullName;
+      editContainer.style.display = "none";
+      showEditBtn.style.display = "inline-block";
       fullNameInput.value = "";
     } catch (err) {
       console.error(err);
       alert("Erreur lors de la mise à jour du profil.");}
   });
+});
 const publishBtnMain = document.getElementById("publishBtnMain");
 const notLoggedMsg = document.getElementById("notLoggedMsg");
 publishBtnMain.addEventListener("click", () => {
