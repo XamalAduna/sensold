@@ -32,7 +32,6 @@
    .nav-wrapper {position: fixed;top: 0;left: 0;width: 100%;z-index: 1000;}
     body {padding-top: 64px;}
     @keyframes popIn {0% {transform: scale(0.95);opacity: 0;} 100% { transform: scale(1); opacity: 1; }}
-    .modal.open {animation: popIn 0.25s ease-out;}
     .modal.open {animation: popIn 0.3s ease-out;}
     .iframe-container {position: relative; width: 100%;height: 100vh;}
     .iframe-container iframe {width: 100%;height: 100%;border: none;}
@@ -149,6 +148,7 @@ document.addEventListener('DOMContentLoaded', function() {
     closeMenuButton.addEventListener('click', () => {
       const sidenavInstance = M.Sidenav.getInstance(elems[0]);
       sidenavInstance.close();
+      resetEditProfileUI();
     });}
   const logoutModal = document.getElementById('logoutModal');
   const modalInstance = M.Modal.init(logoutModal);
@@ -166,6 +166,14 @@ document.addEventListener('DOMContentLoaded', function() {
   const profileImageElem = document.getElementById("profileImage");
   const showEditBtn = document.getElementById("showEditProfile");
   const editContainer = document.getElementById("editProfileContainer");
+
+  function resetEditProfileUI() {
+  editContainer.style.display = "none";
+  showEditBtn.innerHTML = '<i class="material-icons">edit</i>Modifier le profil';
+  showEditBtn.classList.remove("close");
+}
+
+
   const fullNameInput = document.getElementById("fullNameInput");
   const editProfileForm = document.getElementById("editProfileForm");
   onAuthStateChanged(auth, async (user) => {
@@ -199,17 +207,20 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => { msg.style.display = 'none'; }, 4000);}
     });
   });
+  
   showEditBtn.addEventListener("click", () => {
   const isOpen = editContainer.style.display === "block";
+
   if (isOpen) {
-    editContainer.style.display = "none";
-    showEditBtn.textContent = "Modifier le profil";
-    showEditBtn.classList.remove("close"); 
+    resetEditProfileUI();
   } else {
     editContainer.style.display = "block";
-    showEditBtn.textContent = "Fermer";
-    showEditBtn.classList.add("close");}
+    showEditBtn.innerHTML = '<i class="material-icons">close</i>Fermer';
+    showEditBtn.classList.add("close");
+  }
 });
+
+  
   const profileImageInput = document.getElementById("profileImageInput");
   profileImageInput.addEventListener("change", async (e) => {
     const file = e.target.files[0];
@@ -262,26 +273,18 @@ document.addEventListener('DOMContentLoaded', function() {
       const userDocRef = doc(db, "users", user.uid);
       await updateDoc(userDocRef, { fullName });
       userNameElem.textContent = fullName;
-      editContainer.style.display = "none";
-      showEditBtn.style.display = "inline-block";
+      
+      resetEditProfileUI();
+
+      
       fullNameInput.value = "";
     } catch (err) {
       console.error(err);
       alert("Erreur lors de la mise à jour du profil.");}
   });
 });
-const publishBtnMain = document.getElementById("publishBtnMain");
-const notLoggedMsg = document.getElementById("notLoggedMsg");
-publishBtnMain.addEventListener("click", () => {
-  const user = auth.currentUser;
-  if (user) {
-    openMenuFrame("Publication/");
-  } else {
-    notLoggedMsg.style.display = "block";
-    setTimeout(() => {
-      notLoggedMsg.style.display = "none";
-    }, 4000);}
-});
+  
+
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js" defer></script>
 <div id="mainContent" style="margin-top:0; position: relative;">
@@ -340,7 +343,7 @@ publishBtnMain.addEventListener("click", () => {
     </button>
   </div>
 </div>
-<script>
+<script>  
 document.addEventListener('DOMContentLoaded', function() {
   if (window.M) {
     M.FormSelect.init(document.querySelectorAll('select'));}
@@ -403,6 +406,23 @@ document.addEventListener('DOMContentLoaded', function() {
       M.FormSelect.init(document.getElementById("subscriptionMethod"));}
     subscribeModal.style.display = "none";
   });
+  const publishBtnMain = document.getElementById("publishBtnMain");
+  const notLoggedMsg = document.getElementById("notLoggedMsg");
+
+  if (publishBtnMain) {
+    publishBtnMain.addEventListener("click", () => {
+      const user = auth.currentUser;
+
+      if (user) {
+        openMenuFrame("Publication/");
+      } else {
+        notLoggedMsg.style.display = "block";
+        setTimeout(() => {
+          notLoggedMsg.style.display = "none";
+        }, 4000);
+      }
+    });
+  }
 });
 </script>
 <div id="menuFrameOverlay" style="display:none; position:fixed; top:0; left:0; width:100%;height:100%;background:rgba(0,0,0,0.6); z-index:30000; justify-content:center;align-items:center;">
@@ -423,7 +443,8 @@ function openMenuFrame(url) {
   const sidenav = document.querySelector('.sidenav');
   if (window.M && sidenav) {
     const instance = M.Sidenav.getInstance(sidenav);
-    if (instance) instance.close();}}
+    if (instance) {
+      instance.close();resetEditProfileUI();}  
 document.getElementById("closeMenuFrame").addEventListener("click", () => {
   const overlay = document.getElementById("menuFrameOverlay");
   const iframe = document.getElementById("menuFrame");
