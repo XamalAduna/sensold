@@ -226,17 +226,25 @@ async function loadAnnonces(limitCount = 50) {
   window.isLoading = true;
   document.getElementById("spinner").style.display = "flex";
   try {
-    let annoncesQuery = query(
-      collection(db, "annonces"),
-      orderBy("createdAt", "desc"),
-      limit(limitCount));
-    if (window.lastVisible) {
-      annoncesQuery = query(
-        collection(db, "annonces"),
-        orderBy("createdAt", "desc"),
-        startAfter(window.lastVisible),
-        limit(limitCount)
-      );}
+    let annoncesQuery;
+    if (!window.lastVisible) {
+  // Premier lot
+  annoncesQuery = query(
+    collection(db, "annonces"),
+    orderBy("isBoosted", "desc"), // boostées en premier
+    orderBy("createdAt", "desc"), // puis par date
+    limit(limitCount)
+  );
+} else {
+  // Lots suivants pour scroll infini
+  annoncesQuery = query(
+    collection(db, "annonces"),
+    orderBy("isBoosted", "desc"),
+    orderBy("createdAt", "desc"),
+    startAfter(window.lastVisible),
+    limit(limitCount)
+  );
+}
     const annoncesSnap = await getDocs(annoncesQuery);
     if (annoncesSnap.empty) {
       window.allAnnoncesLoaded = true;
