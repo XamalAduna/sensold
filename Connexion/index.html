@@ -94,8 +94,7 @@ a:hover { text-decoration:underline; }
           loginMessage.textContent = "⚠️ Veuillez confirmer votre email avant de vous connecter.";
           loginMessage.className = "error";
           await signOut(auth);
-          return;
-        }
+          return;}
         loginMessage.textContent = "✅ Connexion réussie !";
         loginMessage.className = "success";
         window.location.href = "https://xamaladuna.github.io/sensold/index.html"; 
@@ -103,8 +102,7 @@ a:hover { text-decoration:underline; }
         loginMessage.textContent = "Email ou mot de passe incorrect";
         loginMessage.className = "error";
       } finally {
-        loader.style.display = "none";
-      }
+        loader.style.display = "none";}
     });
     document.getElementById("forgotPassword").addEventListener("click", async (e) => {
       e.preventDefault();
@@ -114,8 +112,7 @@ a:hover { text-decoration:underline; }
         await sendPasswordResetEmail(auth, email);
         alert("Un email de réinitialisation a été envoyé !");
       } catch (error) {
-        alert("Erreur : " + error.message);
-      }
+        alert("Erreur : " + error.message);}
     });
   </script>
 </body>
