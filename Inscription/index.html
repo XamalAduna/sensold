@@ -114,7 +114,7 @@ registerForm.addEventListener("submit", async (e) => {
   const acceptTerms = document.getElementById("acceptTerms").checked;
   const recaptchaResponse = grecaptcha.getResponse(recaptchaWidgetId);
   let valid = true;
-  if (!fullName) {document.getElementById("fullNameError").textContent ="Veuillez entrer votre nom et prénom.";valid = false;}
+  if (!fullName) {document.getElementById("fullNameError").textContent ="Veuillez entrer votre prénom et nom.";valid = false;}
   else if (fullName.length > 15) {document.getElementById("fullNameError").textContent ="Le nom et prénom ne doivent pas dépasser 15 caractères.";valid = false;}
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(emailValue)) { document.getElementById("emailError").textContent = "Veuillez entrer un email valide."; valid = false; }
   if (!/^(?=.*[a-z])(?=.*[A-Z]).{8,}$/.test(passwordValue)) { document.getElementById("passwordError").textContent = "Le mot de passe doit contenir au moins 8 caractères, une majuscule et une minuscule."; valid = false; }
