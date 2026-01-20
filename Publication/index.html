@@ -673,6 +673,7 @@ adForm.addEventListener('submit', async (e)=>{
       createdAt: serverTimestamp(),
       userEmail: escapeHTML(auth.currentUser.email),
       ownerId: auth.currentUser.uid,
+      isBoosted: false,
       boost: false, 
       boostEnd: null,
       ...Object.fromEntries(Object.entries(cleanedAdditionalData).map(([k,v])=>[escapeHTML(k), escapeHTML(v)]))
