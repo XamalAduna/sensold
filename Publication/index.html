@@ -605,9 +605,22 @@ adForm.addEventListener('submit', async (e)=>{
   images.forEach(img=>{ if(img.files.length>0) selectedImages++; });
   if(selectedImages<1){ document.getElementById('imagesError').style.display='block'; isValid=false; }
   else document.getElementById('imagesError').style.display='none';
+
   const title = document.getElementById('title');
-  if(title.value.trim()===''){ document.getElementById('titleError').style.display='block'; isValid=false; }
-  else document.getElementById('titleError').style.display='none';
+const titleValue = title.value.trim();
+if(titleValue === ''){
+    document.getElementById('titleError').textContent = "Veuillez saisir un titre.";
+    document.getElementById('titleError').style.display='block';
+    isValid=false;
+} else if(titleValue.length > 15){
+    document.getElementById('titleError').textContent = "Le titre ne doit pas dépasser 15 caractères.";
+    document.getElementById('titleError').style.display='block';
+    isValid=false;
+} else {
+    document.getElementById('titleError').style.display='none';
+}
+
+  
   const categorieInput = document.getElementById('categorie');
   if(categorieInput.value===''){ document.getElementById('categorieError').style.display='block'; isValid=false; }
   else document.getElementById('categorieError').style.display='none';
@@ -646,6 +659,20 @@ adForm.addEventListener('submit', async (e)=>{
       imageUrls.push(url);
     }
     let priceVal = document.getElementById('price').value.replace(/\s*FCFA$/i,'').trim();
+
+    if(priceVal === ''){
+    document.getElementById('priceError').textContent = "Veuillez saisir un prix.";
+    document.getElementById('priceError').style.display='block';
+    isValid=false;
+} else if(priceVal.length > 15){
+    document.getElementById('priceError').textContent = "Le prix ne doit pas dépasser 15 caractères.";
+    document.getElementById('priceError').style.display='block';
+    isValid=false;
+} else {
+    document.getElementById('priceError').style.display='none';
+}
+
+    
     const additionalFieldsContainer = document.getElementById('additionalFieldsContainer');
     const additionalData = {};
     if(additionalFieldsContainer){
