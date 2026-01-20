@@ -82,9 +82,9 @@ textarea {position: relative; z-index: 1;}
     <div id="imagesError" class="error-msg">Veuillez sélectionner au moins 1 image.</div>
   </div>
   <div class="form-section">
-    <input type="text" id="title" placeholder="Titre du produit" maxlength="15">
+    <input type="text" id="title" placeholder="Titre du produit" maxlength="30">
     <div id="titleError" class="error-msg">Veuillez saisir un titre.</div>
-    <input type="text" id="price" placeholder="0 FCFA" maxlength="15">
+    <input type="text" id="price" placeholder="0 FCFA" maxlength="14">
     <div id="priceError" class="error-msg">Veuillez saisir un prix valide.</div>
     <div class="custom-dropdown" id="categorieDropdown">
       <div class="selected">Catégorie ▼</div>
@@ -593,8 +593,7 @@ function cleanAdditionalData(data) {
   for (let key in data) {
     if (key && data[key] !== undefined && data[key] !== "") {
       cleaned[key] = data[key];}}
-  return cleaned;
-}
+  return cleaned;}
 const adForm = document.getElementById('adForm');
 const loader = document.getElementById('loader');
 adForm.addEventListener('submit', async (e)=>{
@@ -605,22 +604,18 @@ adForm.addEventListener('submit', async (e)=>{
   images.forEach(img=>{ if(img.files.length>0) selectedImages++; });
   if(selectedImages<1){ document.getElementById('imagesError').style.display='block'; isValid=false; }
   else document.getElementById('imagesError').style.display='none';
-
   const title = document.getElementById('title');
-const titleValue = title.value.trim();
-if(titleValue === ''){
+  const titleValue = title.value.trim();
+  if(titleValue === ''){
     document.getElementById('titleError').textContent = "Veuillez saisir un titre.";
     document.getElementById('titleError').style.display='block';
     isValid=false;
-} else if(titleValue.length > 15){
-    document.getElementById('titleError').textContent = "Le titre ne doit pas dépasser 15 caractères.";
+} else if(titleValue.length > 30){
+    document.getElementById('titleError').textContent = "Le titre ne doit pas dépasser 30 caractères.";
     document.getElementById('titleError').style.display='block';
     isValid=false;
 } else {
-    document.getElementById('titleError').style.display='none';
-}
-
-  
+    document.getElementById('titleError').style.display='none';}
   const categorieInput = document.getElementById('categorie');
   if(categorieInput.value===''){ document.getElementById('categorieError').style.display='block'; isValid=false; }
   else document.getElementById('categorieError').style.display='none';
@@ -656,23 +651,17 @@ if(titleValue === ''){
       const storageRef = ref(storage, `annonces/${userId}/${Date.now()}_${file.name}`);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
-      imageUrls.push(url);
-    }
+      imageUrls.push(url);}
     let priceVal = document.getElementById('price').value.replace(/\s*FCFA$/i,'').trim();
-
     if(priceVal === ''){
     document.getElementById('priceError').textContent = "Veuillez saisir un prix.";
     document.getElementById('priceError').style.display='block';
-    isValid=false;
-} else if(priceVal.length > 15){
-    document.getElementById('priceError').textContent = "Le prix ne doit pas dépasser 15 caractères.";
+    isValid=false;} 
+    else if(priceVal.length > 14){
+    document.getElementById('priceError').textContent = "Le prix ne doit pas dépasser 14 caractères.";
     document.getElementById('priceError').style.display='block';
-    isValid=false;
-} else {
-    document.getElementById('priceError').style.display='none';
-}
-
-    
+    isValid=false;}
+    else {document.getElementById('priceError').style.display='none';}
     const additionalFieldsContainer = document.getElementById('additionalFieldsContainer');
     const additionalData = {};
     if(additionalFieldsContainer){
@@ -681,8 +670,7 @@ if(titleValue === ''){
         let value = field.value.trim();
         if(value === '') value = null;
         additionalData[key] = value;
-      });
-    }
+      });}
     const cleanedAdditionalData = cleanAdditionalData(additionalData);
     await addDoc(collection(db,'annonces'),{
       title: escapeHTML(title.value.trim()),
@@ -724,8 +712,7 @@ document.querySelectorAll('.image-upload').forEach(label => {
     loader.style.display = 'none';
     console.error("Erreur Firestore :", err);
     alert("Erreur Firestore : " + err.message);
-    M.toast({html: 'Erreur lors de l\'enregistrement de l\'annonce.', classes: 'red darken-1'});
-  }
+    M.toast({html: 'Erreur lors de l\'enregistrement de l\'annonce.', classes: 'red darken-1'});}
 });
 </script>
 <script>
@@ -739,14 +726,12 @@ description.addEventListener('input', () => {
   } else if (len > 500) {
     descCount.style.color = 'orange';
   } else {
-    descCount.style.color = '#555';
-  }
+    descCount.style.color = '#555';}
 });
   document.addEventListener('click', (e) => {
     document.querySelectorAll('.custom-dropdown').forEach(dd => {
       if (!dd.contains(e.target)) {
-        dd.classList.remove('active');
-      }
+        dd.classList.remove('active');}
     });
   });
 </script>
