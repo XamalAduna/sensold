@@ -269,8 +269,7 @@ function fetchJSON(url, callback) {
   fetch(url)
     .then(res => {
       if (!res.ok) throw new Error(`Erreur chargement ${url}`);
-      return res.json();
-    })
+      return res.json();})
     .then(callback)
     .catch(err => console.error(err));}
 fetchJSON('../categories.json', data => {
@@ -322,8 +321,7 @@ fetchJSON('../villes.json', villes => {
         quartierInput.value = '';
       } else {
         quartierDropdown.style.display = 'none';
-        quartierInput.value = '';
-      }
+        quartierInput.value = '';}
     });
   });
 });
@@ -344,8 +342,7 @@ function updateSousCategories(catKey) {
   if (!subs || subs.length === 0) {
     sousDropdown.style.display = 'none';
     additionalFieldsContainer.innerHTML = ""; 
-    return;
-  }
+    return;}
   subs.forEach(sc => {
     const div = document.createElement('div');
     div.dataset.value = (sc.label || '').toLowerCase();
@@ -356,16 +353,13 @@ function updateSousCategories(catKey) {
       sousDropdown.classList.remove('active');
       if(additionalFields[catKey] && additionalFields[catKey][sc.label] && additionalFields[catKey][sc.label].length > 0){
         showAdditionalFields(catKey, sc.label);
-      } else {
-        additionalFieldsContainer.innerHTML = ""; 
-      }
+      } else {additionalFieldsContainer.innerHTML = "";}
     });
     sousOptions.appendChild(div);
   });
   sousDropdown.style.display = 'block';
   sousSelected.innerHTML = 'Sous-Catégorie ▼';
-  sousInput.value = '';
-}
+  sousInput.value = '';}
 function showAdditionalFields(category, subCategory) {
   additionalFieldsContainer.innerHTML = ""; 
   const fields = additionalFields[category][subCategory];
@@ -407,8 +401,7 @@ function showAdditionalFields(category, subCategory) {
             hiddenInput = document.createElement('input');
             hiddenInput.type = 'hidden';
             hiddenInput.id = fieldData.name.replace(/\s+/g,'');
-            additionalFieldsContainer.appendChild(hiddenInput);
-          }
+            additionalFieldsContainer.appendChild(hiddenInput);}
           hiddenInput.value = optText;
         });
         optionsContainer.appendChild(optionDiv);
@@ -419,14 +412,12 @@ function showAdditionalFields(category, subCategory) {
         additionalFieldsContainer.querySelectorAll('.custom-dropdown').forEach(dd => dd.classList.remove('active'));
         dropdown.classList.add('active');
       });
-      fieldWrapper.appendChild(dropdown);
-    }
+      fieldWrapper.appendChild(dropdown);}
     additionalFieldsContainer.appendChild(fieldWrapper);
   });
   document.addEventListener('click', () => {
     additionalFieldsContainer.querySelectorAll('.custom-dropdown').forEach(dd => dd.classList.remove('active'));
-  });
-}
+  });}
 function getAdditionalFieldsData() {
   const data = {};
   additionalFieldsContainer.querySelectorAll('input, select').forEach(field => {
@@ -434,8 +425,7 @@ function getAdditionalFieldsData() {
     let value = field.value ? field.value.trim() : null;
     data[key] = value || null;
   });
-  return data;
-}
+  return data;}
 const additionalData = getAdditionalFieldsData();
 function previewImage(input) {
   if (!input.files || !input.files[0]) return;
@@ -464,12 +454,9 @@ function previewImage(input) {
         removeBtn.remove();       
         if (icon) icon.style.display = 'block';
       });
-      input.parentElement.appendChild(removeBtn);
-    }
-    img.src = e.target.result;
-  }
-  reader.readAsDataURL(input.files[0]);
-}
+      input.parentElement.appendChild(removeBtn);}
+    img.src = e.target.result;}
+  reader.readAsDataURL(input.files[0]);}
 </script>
 <script>
 const priceInput = document.getElementById('price');
@@ -495,8 +482,7 @@ priceInput.addEventListener('focus', () => {
       let value = input.value.replace(/\D/g, '');
       if (value.length > 9) value = value.slice(0, 9);
       input.value = value;
-    });
-  }
+    });}
   setupNumberField('whatsapp');
   setupNumberField('telephone');
 </script>
@@ -536,8 +522,7 @@ onAuthStateChanged(auth, async user => {
   if(userData?.subscribe === true && userData?.subscribeEnd){
     const now = new Date();
     const end = new Date(userData.subscribeEnd.seconds * 1000);
-    if(end > now) isSubscribed = true;
-  }
+    if(end > now) isSubscribed = true;}
   const imageLabels = document.querySelectorAll('.image-upload');
   imageLabels.forEach((label, idx) => {
     if(isSubscribed || idx < 3){
@@ -549,8 +534,7 @@ onAuthStateChanged(auth, async user => {
       label.addEventListener('click', (e) => {
         e.preventDefault(); 
         showSubscribeModal();
-      });
-    }
+      });}
   });
 });
 function showSubscribeModal() {
@@ -569,8 +553,7 @@ function showSubscribeModal() {
   document.body.insertAdjacentHTML('beforeend', modalHTML);
   document.getElementById('closeModal').addEventListener('click', () => {
     document.getElementById('subscribeModal').remove();
-  });
-}
+  });}
 function escapeHTML(str) {
   if (!str) return '';
   return str.replace(/&/g, "&amp;")
