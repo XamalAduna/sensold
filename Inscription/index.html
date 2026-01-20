@@ -25,6 +25,7 @@
     .form-container { padding: 20px; width: 95%; }
      h2, input, button, a {font-size: 16px; }}
     .brand-text {position: absolute;top: 10px;left: 15px;font-weight: bold;font-size: 18px;color: #009688;}
+    .checkbox-group input[type="checkbox"] { transform: scale(1.5);margin-right: 8px;cursor: pointer;}
   </style>
 </head>
 <body>
@@ -34,7 +35,7 @@
     <form id="registerForm" novalidate>
       <div class="form-group">
         <label>Nom et Prénom</label>
-        <input type="text" id="fullName" required>
+        <input type="text" id="fullName" maxlength="15" required>
         <div class="error" id="fullNameError"></div>
       </div>
       <div class="form-group">
@@ -56,8 +57,7 @@
       </div>
       <div class="checkbox-group">
         <input type="checkbox" id="acceptTerms" required>
-        <label for="acceptTerms">
-          J'accepte les <a style="color: #009688;text-decoration: none;" href="../Conditions/" target="_blank">conditions générales d’utilisation et les règles de diffusion.</a>
+        <label for="acceptTerms">J'accepte les <a style="color: #009688;text-decoration: none;" href="../Conditions/" target="_blank">conditions générales d’utilisation et les règles de diffusion.</a>
         </label>
         <div class="error" id="acceptTermsError"></div>
       </div>
@@ -79,9 +79,7 @@
   <script src="https://www.google.com/recaptcha/api.js?onload=initRecaptcha&render=explicit&hl=fr" async defer></script>
   <script>
     let recaptchaWidgetId;
-    function initRecaptcha() {
-      recaptchaWidgetId = grecaptcha.render('recaptcha', {
-        'sitekey': '6Lcej7srAAAAAP447wZkg9mQeoLzU36ElSI7RTsf'});}
+    function initRecaptcha() {recaptchaWidgetId = grecaptcha.render('recaptcha', {'sitekey': '6Lcej7srAAAAAP447wZkg9mQeoLzU36ElSI7RTsf'});}
   </script>
   <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
@@ -116,7 +114,8 @@ registerForm.addEventListener("submit", async (e) => {
   const acceptTerms = document.getElementById("acceptTerms").checked;
   const recaptchaResponse = grecaptcha.getResponse(recaptchaWidgetId);
   let valid = true;
-  if (!fullName) { document.getElementById("fullNameError").textContent = "Veuillez entrer votre nom et prénom."; valid = false; }
+  if (!fullName) {document.getElementById("fullNameError").textContent ="Veuillez entrer votre nom et prénom.";valid = false;}
+  else if (fullName.length > 15) {document.getElementById("fullNameError").textContent ="Le nom et prénom ne doivent pas dépasser 15 caractères.";valid = false;}
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(emailValue)) { document.getElementById("emailError").textContent = "Veuillez entrer un email valide."; valid = false; }
   if (!/^(?=.*[a-z])(?=.*[A-Z]).{8,}$/.test(passwordValue)) { document.getElementById("passwordError").textContent = "Le mot de passe doit contenir au moins 8 caractères, une majuscule et une minuscule."; valid = false; }
   if (passwordValue !== confirmPasswordValue) { document.getElementById("confirmPasswordError").textContent = "Les mots de passe ne correspondent pas."; valid = false; }
@@ -147,8 +146,7 @@ registerForm.addEventListener("submit", async (e) => {
     globalMessage.textContent = message;
     globalMessage.className = "error";
   } finally {
-    loader.style.display = "none";
-  }
+    loader.style.display = "none";}
 });
 </script>
 </body>
