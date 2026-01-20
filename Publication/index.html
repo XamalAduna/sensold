@@ -600,102 +600,40 @@ const loader = document.getElementById('loader');
 adForm.addEventListener('submit', async (e)=>{
   e.preventDefault();
   let isValid = true;
-
-  // --- Validation des images ---
   const images = adForm.querySelectorAll('input[type="file"]');
   let selectedImages = 0;
   images.forEach(img=>{ if(img.files.length>0) selectedImages++; });
-  if(selectedImages<1){ 
-    document.getElementById('imagesError').style.display='block'; 
-    isValid=false; 
-  } else document.getElementById('imagesError').style.display='none';
-
-  // --- Validation du titre ---
+  if(selectedImages<1){ document.getElementById('imagesError').style.display='block'; isValid=false; }
+  else document.getElementById('imagesError').style.display='none';
   const title = document.getElementById('title');
-  if(title.value.trim()===''){ 
-    document.getElementById('titleError').textContent = 'Veuillez saisir un titre.';
-    document.getElementById('titleError').style.display='block'; 
-    isValid=false; 
-  } else if(title.value.trim().length > 15){ 
-    document.getElementById('titleError').textContent = 'Le titre ne doit pas dépasser 15 caractères.';
-    document.getElementById('titleError').style.display='block';
-    isValid=false;
-  } else {
-    document.getElementById('titleError').style.display='none'; 
-  }
-
-  // --- Validation du prix ---
-  const priceInput = document.getElementById('price');
-  let priceVal = priceInput.value.replace(/\s*FCFA$/i,'').trim();
-  if(priceVal === '' || isNaN(priceVal)){ 
-    document.getElementById('priceError').textContent = 'Veuillez saisir un prix valide.';
-    document.getElementById('priceError').style.display='block'; 
-    isValid=false; 
-  } else if(priceVal.length > 15){ 
-    document.getElementById('priceError').textContent = 'Le prix ne doit pas dépasser 15 caractères.';
-    document.getElementById('priceError').style.display='block';
-    isValid=false;
-  } else {
-    document.getElementById('priceError').style.display='none';
-  }
-
-  // --- Validation catégorie ---
+  if(title.value.trim()===''){ document.getElementById('titleError').style.display='block'; isValid=false; }
+  else document.getElementById('titleError').style.display='none';
   const categorieInput = document.getElementById('categorie');
-  if(categorieInput.value===''){ 
-    document.getElementById('categorieError').style.display='block'; 
-    isValid=false; 
-  } else document.getElementById('categorieError').style.display='none';
-
-  // --- Validation sous-catégorie ---
+  if(categorieInput.value===''){ document.getElementById('categorieError').style.display='block'; isValid=false; }
+  else document.getElementById('categorieError').style.display='none';
   const sousInput = document.getElementById('souscategorie');
   const sousDropdown = document.getElementById('souscategorieDropdown');
-  if(sousDropdown.style.display!=='none' && sousInput.value===''){ 
-    document.getElementById('souscategorieError').style.display='block'; 
-    isValid=false; 
-  } else document.getElementById('souscategorieError').style.display='none';
-
-  // --- Validation ville ---
+  if(sousDropdown.style.display!=='none' && sousInput.value===''){ document.getElementById('souscategorieError').style.display='block'; isValid=false; }
+  else document.getElementById('souscategorieError').style.display='none';
   const cityInput = document.getElementById('city');
-  if(cityInput.value===''){ 
-    document.getElementById('cityError').style.display='block'; 
-    isValid=false; 
-  } else document.getElementById('cityError').style.display='none';
-
-  // --- Validation quartier pour Dakar ---
+  if(cityInput.value===''){ document.getElementById('cityError').style.display='block'; isValid=false; }
+  else document.getElementById('cityError').style.display='none';
   const quartierInput = document.getElementById('quartier');
   const quartierValue = quartierInput.value;
   if(cityInput.value === 'Dakar' && quartierValue === ''){
     document.getElementById('quartierError').style.display = 'block';
     isValid = false;
   } else document.getElementById('quartierError').style.display = 'none';
-
-  // --- Validation description ---
   const description = document.getElementById('description');
-  if(description.value.trim()===''){ 
-    document.getElementById('descriptionError').style.display='block'; 
-    isValid=false; 
-  } else document.getElementById('descriptionError').style.display='none';
-
-  // --- Validation WhatsApp ---
+  if(description.value.trim()===''){ document.getElementById('descriptionError').style.display='block'; isValid=false; }
+  else document.getElementById('descriptionError').style.display='none';
   const whatsapp = document.getElementById('whatsapp');
-  if(!/^\d{9}$/.test(whatsapp.value.trim())){ 
-    document.getElementById('whatsappError').style.display='block'; 
-    isValid=false; 
-  } else document.getElementById('whatsappError').style.display='none';
-
-  // --- Validation téléphone ---
+  if(!/^\d{9}$/.test(whatsapp.value.trim())){ document.getElementById('whatsappError').style.display='block'; isValid=false; }
+  else document.getElementById('whatsappError').style.display='none';
   const telephone = document.getElementById('telephone');
-  if(!/^\d{9}$/.test(telephone.value.trim())){ 
-    document.getElementById('telephoneError').style.display='block'; 
-    isValid=false; 
-  } else document.getElementById('telephoneError').style.display='none';
-
-  // --- Stop si invalide ---
+  if(!/^\d{9}$/.test(telephone.value.trim())){ document.getElementById('telephoneError').style.display='block'; isValid=false; }
+  else document.getElementById('telephoneError').style.display='none';
   if(!isValid) return;
-
-  // Ici tu peux continuer avec l'envoi vers Firestore ou autre
-});
-
   try {
     loader.style.display = 'flex';
     const imageFiles = Array.from(images).filter(input=>input.files[0]).map(i=>i.files[0]);
@@ -780,7 +718,8 @@ description.addEventListener('input', () => {
   document.addEventListener('click', (e) => {
     document.querySelectorAll('.custom-dropdown').forEach(dd => {
       if (!dd.contains(e.target)) {
-        dd.classList.remove('active');}
+        dd.classList.remove('active');
+      }
     });
   });
 </script>
