@@ -35,7 +35,7 @@
     <form id="registerForm" novalidate>
       <div class="form-group">
         <label>Nom et Prénom</label>
-        <input type="text" id="fullName" maxlength="15" required>
+        <input type="text" id="fullName" maxlength="25" required>
         <div class="error" id="fullNameError"></div>
       </div>
       <div class="form-group">
@@ -82,9 +82,9 @@
     function initRecaptcha() {recaptchaWidgetId = grecaptcha.render('recaptcha', {'sitekey': '6Lcej7srAAAAAP447wZkg9mQeoLzU36ElSI7RTsf'});}
   </script>
   <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, sendEmailVerification, signOut } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
-import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, sendEmailVerification, signOut } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
+    import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDLrPKEzDueP4j-HjAdOhmkuA74cLsCn2M",
