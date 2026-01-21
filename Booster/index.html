@@ -50,7 +50,6 @@ h2 {position:fixed;top:0;left:0;right:0;background:#f7f7f7;z-index:1000;text-ali
 <div id="boostModal">
   <div class="modal-content">
     <span class="brand">SenSold</span>
-    <span id="closeModal" style="position:absolute; top:10px; right:15px; font-size:22px; font-weight:bold; cursor:pointer;">&times;</span> 
     <h3>Choisir un tarif pour booster</h3>
     <p style="background:#e0f7fa;padding:10px;border-radius:8px;">
       📱 Envoyez le paiement au numéro :<br>
@@ -110,26 +109,22 @@ function timeAgo(timestamp){
   const hours = Math.floor(minutes/60);
   if(hours < 24) return `il y a ${hours} h`;
   const days = Math.floor(hours/24);
-  return `il y a ${days} j`;
-}
+  return `il y a ${days} j`;}
 onAuthStateChanged(auth, async (user) => {
   if(!user){
     window.location.href = "../index.html";
-    return;
-  }
+    return;}
   const annoncesSnap = await getDocs(collection(db,"annonces"));
   const annonces = [];
   annoncesSnap.forEach(d=>{
     const data = d.data();
     data.id = d.id;
     if(data.userEmail && data.userEmail.toLowerCase().trim() === user.email.toLowerCase().trim()){
-      annonces.push(data);
-    }
+      annonces.push(data);}
   });
   if(annonces.length === 0){
     container.innerHTML = "<p>Vous n'avez publié aucune annonce.</p>";
-    return;
-  }
+    return;}
   annonces.sort((a,b)=>{
     if(!a.createdAt || !b.createdAt) return 0;
     return b.createdAt.toDate() - a.createdAt.toDate();
@@ -160,8 +155,7 @@ onAuthStateChanged(auth, async (user) => {
         e.stopPropagation();
         currentAnnonce = a;
         boostModal.style.display = "flex";
-      });
-    }
+      });}
     container.appendChild(card);
   });
 });
@@ -173,8 +167,7 @@ confirmBoost.addEventListener("click", ()=> {
   const acceptRules = document.getElementById("acceptSubscriptionRules").checked;
   if(!tarif || !clientPhoneValue || !paymentMethodValue || !acceptRules){
     alert("Veuillez remplir tous les champs et accepter les règles de paiement avant de continuer.");
-    return;
-  }
+    return;}
   let duree = "";
   if(tarif === "1000") duree = "7 jours";
   else if(tarif === "1900") duree = "14 jours";
@@ -199,10 +192,7 @@ confirmBoost.addEventListener("click", ()=> {
   document.getElementById("acceptSubscriptionRules").checked = false;
 });
 boostModal.addEventListener("click", e=>{
-  if(e.target === boostModal) boostModal.style.display = "none";});
-  const closeModalBtn = document.getElementById("closeModal");
-  closeModalBtn.addEventListener("click", () => {
-  boostModal.style.display = "none";});
+  if(e.target === boostModal) boostModal.style.display = "none";});  
 document.getElementById('clientPhone').addEventListener('input', function(e){
   this.value = this.value.replace(/\D/g,'');});
 </script>
