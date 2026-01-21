@@ -75,27 +75,23 @@ function timeAgo(timestamp){
   const hours = Math.floor(minutes/60);
   if(hours < 24) return `il y a ${hours} h`;
   const days = Math.floor(hours/24);
-  return `il y a ${days} j`;
-}
+  return `il y a ${days} j`;}
 function escapeHTML(str){ if(!str) return ""; return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 function showToast(message){
   const toast = document.getElementById("toast");
   toast.textContent = message;
   toast.style.display = "block";
-  setTimeout(()=>{ toast.style.display = "none"; }, 2500);
-}
+  setTimeout(()=>{ toast.style.display = "none"; }, 2500);}
 function isBoostActive(annonce){
   if(!annonce.boost || !annonce.boostEnd) return false;
   const now = new Date();
   const boostEndDate = new Date(annonce.boostEnd.toDate ? annonce.boostEnd.toDate() : annonce.boostEnd);
-  return boostEndDate > now;
-}
+  return boostEndDate > now;}
 onAuthStateChanged(auth, async user => {
   currentUser = user;
   if(!user){
     annoncesContainer.innerHTML = "<p>Veuillez vous connecter pour voir vos favoris.</p>";
-    return;
-  }
+    return;}
   const userRef = doc(db,"users",user.uid);
   const userSnap = await getDoc(userRef);
   userFavorites = userSnap.data()?.favorites || [];
@@ -114,8 +110,7 @@ async function loadFavorites() {
     });
     if (annoncesData.length === 0){
       annoncesContainer.innerHTML = "<p>Vous n'avez aucune annonce en favoris.</p>";
-      return;
-    }
+      return;}
     if (!window.__usersCache) {
       const usersSnap = await getDocs(collection(db,"users"));
       const byEmail = {}, byId = {};
@@ -125,14 +120,11 @@ async function loadFavorites() {
         const email = (u.email || u.emailAddress || "").toLowerCase().trim();
         if(email) byEmail[email] = u;
       });
-      window.__usersCache = { byEmail, byId };
-    }
+      window.__usersCache = { byEmail, byId };}
     renderFavorites();
   } catch(err){
     console.error(err);
-    annoncesContainer.innerHTML = "<p>Erreur de chargement des favoris.</p>";
-  }
-}
+    annoncesContainer.innerHTML = "<p>Erreur de chargement des favoris.</p>";}}
 async function renderFavorites(){
   annoncesContainer.innerHTML = "";
   for(const a of annoncesData){
@@ -150,8 +142,7 @@ async function renderFavorites(){
     if(sellerData && sellerData.subscribe === true){
       const now = new Date();
       const subEnd = sellerData.subscribeEnd?.toDate ? sellerData.subscribeEnd.toDate() : new Date(sellerData.subscribeEnd);
-      if(subEnd > now) isPro = true;
-    }
+      if(subEnd > now) isPro = true;}
     let fullName = "Utilisateur inconnu";
     if(sellerData){
       fullName = escapeHTML(
@@ -162,14 +153,12 @@ async function renderFavorites(){
         sellerData.nom ||
         sellerData.prenom ||
         "Utilisateur"
-      );
-    }
+      );}
     let sellerPhoto = (sellerData && (
       sellerData.profileImage || sellerData.profilePic || sellerData.profile || sellerData.photoURL || sellerData.avatar || sellerData.image || sellerData.photo
     )) || "";
     if(!sellerPhoto || typeof sellerPhoto !== "string" || sellerPhoto.startsWith("gs://") || sellerPhoto.startsWith("/")){
-      sellerPhoto = "https://via.placeholder.com/40";
-    }
+      sellerPhoto = "https://via.placeholder.com/40";}
     sellerPhoto = escapeHTML(sellerPhoto);
     let annonceImage = escapeHTML(a.images?.[0] || "https://via.placeholder.com/400x200?text=Annonce");
     card.innerHTML = `
@@ -199,8 +188,7 @@ async function renderFavorites(){
         const msg = document.getElementById("notLoggedMsg");
         msg.style.display = "block";
         setTimeout(()=>{msg.style.display="none";},3000);
-        return;
-      }
+        return;}
       const favRef = doc(db,"users",currentUser.uid);
       if(favBtn.classList.contains("active")){
         favBtn.classList.remove("active");
@@ -213,8 +201,7 @@ async function renderFavorites(){
         favBtn.classList.add("active");
         favBtn.textContent = "favorite";
         userFavorites.push(docId);
-        await updateDoc(favRef,{favorites:arrayUnion(docId)});
-      }
+        await updateDoc(favRef,{favorites:arrayUnion(docId)});}
     });
     card.addEventListener("click", e=>{
       if(e.target.classList.contains("favorite")) return;
@@ -222,8 +209,7 @@ async function renderFavorites(){
       window.location.href=`../Details.html?id=${encodeURIComponent(a.id)}`;
     });
     annoncesContainer.appendChild(card);
-  }
-}
+  }}
 </script>
 </body>
 </html>
