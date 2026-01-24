@@ -228,22 +228,21 @@ async function loadAnnonces(limitCount = 50) {
   try {
     let annoncesQuery;
     if (!window.lastVisible) {
-  // Premier lot
-  annoncesQuery = query(
-    collection(db, "annonces"),
-    orderBy("isBoosted", "desc"), // boostées en premier
-    orderBy("createdAt", "desc"), // puis par date
-    limit(limitCount)
-  );
+      annoncesQuery = query(
+  collection(db, "annonces"),
+  orderBy("boost", "desc"),       // 🔥 boost en premier
+  orderBy("createdAt", "desc"),
+  limit(limitCount)
+);
+
 } else {
-  // Lots suivants pour scroll infini
-  annoncesQuery = query(
-    collection(db, "annonces"),
-    orderBy("isBoosted", "desc"),
-    orderBy("createdAt", "desc"),
-    startAfter(window.lastVisible),
-    limit(limitCount)
-  );
+      annoncesQuery = query(
+  collection(db, "annonces"),
+  orderBy("boost", "desc"),
+  orderBy("createdAt", "desc"),
+  startAfter(window.lastVisible),
+  limit(limitCount)
+);
 }
     const annoncesSnap = await getDocs(annoncesQuery);
     if (annoncesSnap.empty) {
@@ -255,8 +254,7 @@ async function loadAnnonces(limitCount = 50) {
     window.annoncesData.push(...newAnnonces);
     window.lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
 
-    // ✅ Ajouter ici
-    await checkExpiredBoosts();
+    if (!window.__boostChecked) {await checkExpiredBoosts();window.__boostChecked = true;}
 
     if (!window.__usersCache) {
       try {
@@ -311,15 +309,19 @@ async function checkExpiredBoosts() {
   const batchUpdates = [];
 
   for (const annonce of window.annoncesData) {
-    if (annonce.isBoosted && annonce.boostEnd) {
-      const boostEndDate = annonce.boostEnd.toDate ? annonce.boostEnd.toDate() : new Date(annonce.boostEnd);
-      if (boostEndDate <= now) {
-        // Boost expiré → mettre isBoosted à false
-        const annonceRef = doc(db, "annonces", annonce.id);
-        batchUpdates.push(updateDoc(annonceRef, { isBoosted: false }));
+    if (annonce.boost && annonce.boostEnd) {
+      const boostEndDate = annonce.boostEnd.toDate
+        ? annonce.boostEnd.toDate()
+        : new Date(annonce.boostEnd);
 
-        // Mise à jour locale pour l'affichage immédiat
-        annonce.isBoosted = false;
+      if (boostEndDate <= now) {
+        const annonceRef = doc(db, "annonces", annonce.id);
+
+        // 🔥 désactiver le boost
+        batchUpdates.push(updateDoc(annonceRef, { boost: false }));
+
+        // mise à jour locale immédiate
+        annonce.boost = false;
       }
     }
   }
@@ -327,9 +329,9 @@ async function checkExpiredBoosts() {
   if (batchUpdates.length > 0) {
     try {
       await Promise.all(batchUpdates);
-      console.log(`${batchUpdates.length} boosts expirés ont été désactivés.`);
+      console.log(`✅ ${batchUpdates.length} boosts expirés désactivés`);
     } catch (err) {
-      console.error("Erreur lors de la mise à jour des boosts expirés :", err);
+      console.error("❌ Erreur lors de la désactivation des boosts :", err);
     }
   }
 }
