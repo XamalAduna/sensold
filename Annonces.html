@@ -209,32 +209,16 @@ function timeAgo(timestamp){
   if(hours < 24) return `il y a ${hours} h`;
   const days = Math.floor(hours/24);
   return `il y a ${days} j`;}
-  
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
   if(user){
     const userRef = doc(db,"users",user.uid);
     const userSnap = await getDoc(userRef);
     userFavorites = userSnap.data()?.favorites || [];
-
-    // ✅ Vérifier les boosts expirés pour cet utilisateur
-    await checkExpiredBoosts();
   } else {
-    userFavorites = [];
-  }
-
+    userFavorites = [];}
   loadAnnonces();
-
-  // ✅ Vérification automatique toutes les 5 minutes
-  if(user){ 
-    setInterval(() => {
-      if (currentUser) checkExpiredBoosts();
-    }, 5 * 60 * 1000); // toutes les 5 minutes
-  }
 });
-
-
-  
 async function loadAnnonces(limitCount = 50) {
   if (!window.annoncesData) window.annoncesData = [];
   if (!window.lastVisible) window.lastVisible = null;
@@ -270,9 +254,6 @@ async function loadAnnonces(limitCount = 50) {
     const newAnnonces = annoncesSnap.docs.map(d => ({ ...d.data(), id: d.id }));
     window.annoncesData.push(...newAnnonces);
     window.lastVisible = annoncesSnap.docs[annoncesSnap.docs.length - 1];
-
-    // ✅ Ajouter ici
-    await checkExpiredBoosts();
 
     if (!window.__usersCache) {
       try {
@@ -320,45 +301,7 @@ function escapeHTML(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
 }
-
-
-async function checkExpiredBoosts() {
-  if (!currentUser) return; // si pas connecté, rien à faire
-  const now = new Date();
-  const batchUpdates = [];
-
-  try {
-    // Récupérer toutes les annonces de l'utilisateur connecté
-    const annoncesSnap = await getDocs(collection(db, "annonces"));
-
-    annoncesSnap.forEach(docSnap => {
-      const annonce = docSnap.data();
-      // Vérifier que l'annonce appartient à l'utilisateur
-      if (annonce.ownerId === currentUser.uid || annonce.userId === currentUser.uid) {
-        if (annonce.boost && annonce.boostEnd) {
-          const boostEndDate = annonce.boostEnd.toDate ? annonce.boostEnd.toDate() : new Date(annonce.boostEnd);
-          if (boostEndDate <= now) {
-            // Boost expiré → mettre boost à false
-            const annonceRef = doc(db, "annonces", docSnap.id);
-            batchUpdates.push(updateDoc(annonceRef, { boost: false }));
-
-            // Mise à jour locale pour affichage immédiat
-            const localAnnonce = window.annoncesData.find(a => a.id === docSnap.id);
-            if (localAnnonce) localAnnonce.boost = false;
-          }
-        }
-      }
-    });
-
-    if (batchUpdates.length > 0) {
-      await Promise.all(batchUpdates);
-      console.log(`${batchUpdates.length} boosts expirés pour cet utilisateur ont été désactivés.`);
-    }
-  } catch (err) {
-    console.error("Erreur lors de la vérification des boosts expirés :", err);
-  }
-}
-
+  
 async function renderAnnonces(filtered) {
   annoncesContainer.innerHTML = "";
   if (filtered.length === 0) {
