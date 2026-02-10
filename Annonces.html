@@ -247,7 +247,7 @@ async function loadAnnonces(limitCount = 50) {
   // Premier lot
   annoncesQuery = query(
     collection(db, "annonces"),
-    orderBy("isBoosted", "desc"), // boostées en premier
+    orderBy("boost", "desc"), // boostées en premier
     orderBy("createdAt", "desc"), // puis par date
     limit(limitCount)
   );
@@ -255,7 +255,7 @@ async function loadAnnonces(limitCount = 50) {
   // Lots suivants pour scroll infini
   annoncesQuery = query(
     collection(db, "annonces"),
-    orderBy("isBoosted", "desc"),
+    orderBy("boost", "desc"),
     orderBy("createdAt", "desc"),
     startAfter(window.lastVisible),
     limit(limitCount)
