@@ -402,13 +402,13 @@ async function renderAnnonces(filtered) {
         e.target.classList.add("active");
         e.target.textContent = "favorite";}
     });
-    card.addEventListener("click", (e) => {
+    
+   card.addEventListener("click", (e) => {
   if (e.target.classList.contains("favorite")) return;
-  const modal = document.getElementById("detailsModal");
-  const iframe = document.getElementById("modalIframe");
-  modal.style.display = "flex";
-  iframe.src = `Details.html?id=${encodeURIComponent(docId)}`;
+  // Au lieu du modal interne, on ouvre le modal parent
+  window.parent.openMenuFrame(`Details.html?id=${encodeURIComponent(docId)}`);
 });
+
     fragment.appendChild(card);}
   annoncesContainer.appendChild(fragment);
   renderPagination(totalPages);
