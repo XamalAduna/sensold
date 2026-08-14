@@ -37,19 +37,19 @@ footer{background:#1a4d8f;color:white;text-align:center;padding:15px;margin-top:
 .card-carousel{position:relative;width:100%;height:260px;overflow:hidden;background:#f0f0f0;}
 .card-carousel-track{display:flex;height:100%;transition:transform .35s ease;}
 .card-carousel-track img{min-width:100%;height:100%;object-fit:contain;flex-shrink:0;background:#fff;padding:6px;}
-.content{padding:12px 14px 14px 14px;}
-.content h3{margin-bottom:4px;font-weight:600;color:#1a1a2e;font-size:clamp(14px,2vw,18px);line-height:1.2;}
-.price{font-size:clamp(18px,2.5vw,24px);font-weight:bold;color:#f5a623;margin:4px 0 8px 0;}
+.content{padding:8px 14px 14px 14px;}
+.content h3{margin-bottom:3px;font-weight:600;color:#1a1a2e;font-size:clamp(14px,2vw,18px);line-height:1.2;}
+.price{font-size:clamp(18px,2.5vw,24px);font-weight:bold;color:#f5a623;margin:3px 0 6px 0;}
 .card-buttons{display:flex;gap:8px;}
 .card-buttons button{font-size:clamp(10px,1vw,12px);padding:8px 4px;white-space:nowrap;}
-@media(max-width:600px){.card-buttons button{padding:6px 4px;font-size:10px;}.card-carousel{height:200px;}.content{padding:10px 10px 12px 10px;}}
+@media(max-width:600px){.card-buttons button{padding:6px 4px;font-size:10px;}.card-carousel{height:200px;}.content{padding:6px 10px 10px 10px;}.content h3{margin-bottom:2px;}.price{margin:2px 0 4px 0;}}
 @media(max-width:400px){.card-carousel{height:160px;}}
 .carousel{position:relative;width:100%;height:350px;overflow:hidden;border-radius:20px 20px 0 0;background:#f0f0f0;flex-shrink:0;}
 .carousel-track{display:flex;height:100%;transition:transform .4s ease;}
 .carousel-track img{min-width:100%;height:100%;object-fit:contain;flex-shrink:0;background:#fff;padding:10px;}
 .container{width:90%;max-width:1200px;margin:40px auto;}
-.title{text-align:center;font-size:36px;font-weight:700;margin-bottom:35px;position:relative;color:#1a1a2e;}
-.title::after{content:'';display:block;width:70px;height:4px;background:linear-gradient(90deg,#f5a623,#e69500);border-radius:4px;margin:12px auto 0;}
+.title{text-align:center;font-size:36px;font-weight:700;margin-bottom:18px;position:relative;color:#1a1a2e;}
+.title::after{content:'';display:block;width:70px;height:4px;background:linear-gradient(90deg,#f5a623,#e69500);border-radius:4px;margin:10px auto 0;}
 .products{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:25px;}
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center;}
 .modal-overlay.active{display:flex;}
@@ -129,9 +129,9 @@ footer{background:#1a4d8f;color:white;text-align:center;padding:15px;margin-top:
 .carousel-dots{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);display:flex;gap:6px;}
 .carousel-dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.5);border:none;cursor:pointer;transition:.2s;padding:0;}
 .carousel-dot.active{background:white;}
-@media(max-width:600px){header{padding:12px 4%;height:60px;}.logo{font-size:20px;}.logo .material-symbols-outlined{font-size:22px;}.container{width:94%;margin:25px auto;}.title{font-size:24px;margin-bottom:20px;}.page-title{font-size:22px;margin-bottom:20px;}.products{grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;}.modal{width:96%;max-height:95vh;}.carousel{height:200px;}.modal-body{padding:14px 16px 16px 16px;}.modal-body h2{font-size:20px;}.modal-price{font-size:22px;}.form-row{grid-template-columns:1fr;gap:0;}.cart-item{flex-wrap:wrap;padding:12px;gap:10px;}.cart-item-info{min-width:100px;}.cart-item-total{text-align:left;}.checkout-form,.order-recap{padding:16px;}.cart-summary{padding:16px;}.cart-actions{flex-direction:column;}.cart-actions button{width:100%;}.input-icon-wrapper{padding:0 10px;}.input-icon-wrapper .material-symbols-outlined{font-size:18px;}#page-shop,#page-cart,#page-checkout{padding-top:68px;}}
+@media(max-width:600px){header{padding:12px 4%;height:60px;}.logo{font-size:20px;}.logo .material-symbols-outlined{font-size:22px;}.container{width:94%;margin:25px auto;}.title{font-size:24px;margin-bottom:14px;}.page-title{font-size:22px;margin-bottom:20px;}.products{grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;}.modal{width:96%;max-height:95vh;}.carousel{height:200px;}.modal-body{padding:14px 16px 16px 16px;}.modal-body h2{font-size:20px;}.modal-price{font-size:22px;}.form-row{grid-template-columns:1fr;gap:0;}.cart-item{flex-wrap:wrap;padding:12px;gap:10px;}.cart-item-info{min-width:100px;}.cart-item-total{text-align:left;}.checkout-form,.order-recap{padding:16px;}.cart-summary{padding:16px;}.cart-actions{flex-direction:column;}.cart-actions button{width:100%;}.input-icon-wrapper{padding:0 10px;}.input-icon-wrapper .material-symbols-outlined{font-size:18px;}#page-shop,#page-cart,#page-checkout{padding-top:68px;}}
 @media(min-width:601px) and (max-width:768px){.products{grid-template-columns:repeat(2,1fr);gap:16px;}.container{width:94%;}}
-@media(max-width:500px){.products{grid-template-columns:1fr;gap:12px;}.container{width:96%;margin:18px auto;}}
+@media(max-width:500px){.products{grid-template-columns:1fr;gap:12px;}.container{width:96%;margin:18px auto;}.title{font-size:22px;margin-bottom:12px;}}
 .phone-prefix{color:#555;font-weight:600;font-size:14px;padding-right:4px;flex-shrink:0;}
 /* Fix pour que les images de la modal ne scrollent pas verticalement */
 .modal{display:flex;flex-direction:column;}
@@ -141,7 +141,7 @@ footer{background:#1a4d8f;color:white;text-align:center;padding:15px;margin-top:
 </style>
 </head>
 <body>
-<header><div class="logo" onclick="showPage('shop')"><span class="material-symbols-outlined">liquor</span>MewMi</div><nav><button class="cart-icon" onclick="showPage('cart')"><span class="material-symbols-outlined">shopping_cart</span><span class="cart-badge" id="cart-badge">0</span></button></nav></header>
+<header><div class="logo" onclick="showPage('shop')"><span class="material-symbols-outlined">shopping_bag</span>MewMi</div><nav><button class="cart-icon" onclick="showPage('cart')"><span class="material-symbols-outlined">shopping_cart</span><span class="cart-badge" id="cart-badge">0</span></button></nav></header>
 <div id="page-shop"><div class="container"><h2 class="title">Nos Produits</h2><div class="products" id="products-grid"></div></div></div>
 <div id="page-cart"><div class="container"><h2 class="page-title"><span class="material-symbols-outlined" style="font-size:28px;vertical-align:middle;">shopping_cart</span> Mon Panier</h2><div id="cart-content"></div></div></div>
 <div id="page-checkout"><div class="container"><h2 class="page-title"><span class="material-symbols-outlined" style="font-size:28px;vertical-align:middle;">assignment</span> Finaliser la commande</h2><div id="checkout-content"></div></div></div>
