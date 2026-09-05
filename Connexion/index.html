@@ -155,49 +155,372 @@ const app=initializeApp(firebaseConfig);const db=getFirestore(app);
 window.db=db;window.collection=collection;window.addDoc=addDoc;console.log("Firebase initialisé avec succès");
 </script>
 <script>
-// ── IMAGES GÉNÉRIQUES POUR LE LAIT ──
-const IMG1=`data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='400' viewBox='0 0 600 400'><rect width='600' height='400' fill='%23f0f5ff'/><rect x='150' y='60' width='300' height='300' rx='20' fill='%23ffffff' stroke='%231a4d8f' stroke-width='3'/><rect x='170' y='80' width='260' height='260' rx='10' fill='%23e8f0fe'/><text x='300' y='180' font-family='Arial' font-size='32' font-weight='bold' fill='%231a4d8f' text-anchor='middle'>MADILAIT</text><text x='300' y='220' font-family='Arial' font-size='18' fill='%23555' text-anchor='middle'>Lait en poudre</text><text x='300' y='250' font-family='Arial' font-size='16' fill='%23777' text-anchor='middle'>100% qualité supérieure</text><circle cx='300' cy='310' r='20' fill='%23f5a623'/><text x='300' y='316' font-family='Arial' font-size='12' fill='white' text-anchor='middle'>✓</text></svg>`;
-const IMG2=`data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='400' viewBox='0 0 600 400'><rect width='600' height='400' fill='%23e8f5e9'/><rect x='130' y='50' width='340' height='300' rx='25' fill='%23ffffff' stroke='%232E7D32' stroke-width='3'/><rect x='155' y='75' width='290' height='250' rx='12' fill='%23c8e6c9'/><text x='300' y='170' font-family='Arial' font-size='34' font-weight='bold' fill='%232E7D32' text-anchor='middle'>MADILAIT</text><text x='300' y='210' font-family='Arial' font-size='18' fill='%23555' text-anchor='middle'>Qualité supérieure</text><text x='300' y='240' font-family='Arial' font-size='14' fill='%23777' text-anchor='middle'>Lait en poudre instantané</text><circle cx='300' cy='295' r='18' fill='%232E7D32'/><text x='300' y='301' font-family='Arial' font-size='12' fill='white' text-anchor='middle'>100%</text></svg>`;
-const IMG3=`data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='400' viewBox='0 0 600 400'><rect width='600' height='400' fill='%23fff8e1'/><rect x='140' y='55' width='320' height='300' rx='22' fill='%23ffffff' stroke='%23f5a623' stroke-width='3'/><rect x='165' y='80' width='270' height='250' rx='10' fill='%23ffecb3'/><text x='300' y='175' font-family='Arial' font-size='30' font-weight='bold' fill='%23e65100' text-anchor='middle'>MADILAIT</text><text x='300' y='210' font-family='Arial' font-size='18' fill='%23555' text-anchor='middle'>Lait en poudre</text><text x='300' y='240' font-family='Arial' font-size='14' fill='%23777' text-anchor='middle'>Qualité garantie</text><rect x='250' y='270' width='100' height='30' rx='5' fill='%23f5a623'/><text x='300' y='290' font-family='Arial' font-size='12' fill='white' text-anchor='middle'>BIO</text></svg>`;
-const IMG4=`data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='400' viewBox='0 0 600 400'><rect width='600' height='400' fill='%23e3f2fd'/><rect x='120' y='40' width='360' height='320' rx='18' fill='%23ffffff' stroke='%231a4d8f' stroke-width='3'/><rect x='145' y='65' width='310' height='270' rx='8' fill='%23bbdefb'/><text x='300' y='160' font-family='Arial' font-size='36' font-weight='bold' fill='%231a4d8f' text-anchor='middle'>MADILAIT</text><text x='300' y='200' font-family='Arial' font-size='20' fill='%23555' text-anchor='middle'>Lait en poudre</text><text x='300' y='230' font-family='Arial' font-size='15' fill='%23777' text-anchor='middle'>Format grossiste</text><circle cx='300' cy='285' r='22' fill='%23f5a623'/><text x='300' y='292' font-family='Arial' font-size='14' fill='white' text-anchor='middle'>kg</text></svg>`;
-const IMG5=`data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='400' viewBox='0 0 600 400'><rect width='600' height='400' fill='%23fce4ec'/><rect x='110' y='30' width='380' height='340' rx='20' fill='%23ffffff' stroke='%23c62828' stroke-width='3'/><rect x='140' y='55' width='320' height='290' rx='10' fill='%23f8bbd0'/><text x='300' y='165' font-family='Arial' font-size='34' font-weight='bold' fill='%23c62828' text-anchor='middle'>MADILAIT</text><text x='300' y='205' font-family='Arial' font-size='20' fill='%23555' text-anchor='middle'>Lait en poudre</text><text x='300' y='235' font-family='Arial' font-size='16' fill='%23777' text-anchor='middle'>Format économique</text><circle cx='300' cy='285' r='24' fill='%23c62828'/><text x='300' y='292' font-family='Arial' font-size='14' fill='white' text-anchor='middle'>kg</text></svg>`;
+// ================================================
+// 🔗 CONFIGURATION - Mets TA vraie URL ici !
+// ================================================
+const API_URL = 'https://script.google.com/macros/s/AKfycbym-Y1rNUHI48JzDusMy2-QAPtKYZXz6qdUhReR3LEdGe0Cy-sZ3uGbOQLoDP5m1e-YNw/exec';
 
-// ── PRODUITS MADILAIT ──
-const products=[
-{id:1,name:"MADILAIT - Carton 12g (100 sachets)",price:3500,img:IMG1,gallery:[IMG1,IMG2,IMG3],desc:"Carton de 100 sachets de 12g de lait en poudre MADILAIT. Idéal pour les petits déjeuners, les voyages et les pauses. Format pratique et individuel. Qualité supérieure, 100% pur lait.",details:[{label:"Format",val:"100 sachets de 12g"},{label:"Poids total",val:"1,2 kg"},{label:"Qualité",val:"Supérieure"},{label:"Origine",val:"Importation directe"},{label:"Livraison",val:"Dakar et région"}]},
-{id:2,name:"MADILAIT - Carton 20g (100 sachets)",price:4500,img:IMG2,gallery:[IMG2,IMG3,IMG1],desc:"Carton de 100 sachets de 20g de lait en poudre MADILAIT. Format familial idéal pour les foyers nombreux. Riche en vitamines et minéraux essentiels. Qualité constante et goût authentique.",details:[{label:"Format",val:"100 sachets de 20g"},{label:"Poids total",val:"2 kg"},{label:"Qualité",val:"Supérieure"},{label:"Origine",val:"Importation directe"},{label:"Livraison",val:"Dakar et région"}]},
-{id:3,name:"MADILAIT - Carton 400g (10 sachets)",price:6500,img:IMG3,gallery:[IMG3,IMG1,IMG2],desc:"Carton de 10 sachets de 400g de lait en poudre MADILAIT. Format économique pour les familles et les petites boutiques. Lait en poudre de première qualité, onctueux et savoureux.",details:[{label:"Format",val:"10 sachets de 400g"},{label:"Poids total",val:"4 kg"},{label:"Qualité",val:"Supérieure"},{label:"Origine",val:"Importation directe"},{label:"Livraison",val:"Dakar et région"}]},
-{id:4,name:"MADILAIT - Sac 5kg",price:18500,img:IMG4,gallery:[IMG4,IMG5],desc:"Sac de 5kg de lait en poudre MADILAIT. Format grossiste idéal pour les boutiques, restaurants et collectivités. Qualité constante, prix compétitif. Economique et pratique.",details:[{label:"Poids",val:"5 kg"},{label:"Quantité min.",val:"3 sacs"},{label:"Qualité",val:"Supérieure"},{label:"Origine",val:"Importation directe"},{label:"Livraison",val:"Dakar et région"}]},
-{id:5,name:"MADILAIT - Sac 10kg",price:35000,img:IMG5,gallery:[IMG5,IMG4],desc:"Sac de 10kg de lait en poudre MADILAIT. Le meilleur rapport qualité-prix pour les gros consommateurs. Parfait pour les grossistes, les écoles et les grandes familles.",details:[{label:"Poids",val:"10 kg"},{label:"Quantité min.",val:"2 sacs"},{label:"Qualité",val:"Supérieure"},{label:"Origine",val:"Importation directe"},{label:"Livraison",val:"Dakar et région"}]}
-];
+// ================================================
+// VARIABLES GLOBALES
+// ================================================
+let products = [];
+let cart = [];
+const cardSlides = {};
 
-function formatPrice(p){return p.toString().replace(/\B(?=(\d{3})+(?!\d))/g," ")+" FCFA";}
-let cart=[];const cardSlides={};
-function getCartCount(){return cart.reduce((s,i)=>s+i.qty,0);}
-function getCartTotal(){return cart.reduce((s,i)=>s+i.price*i.qty,0);}
-function updateBadge(){document.getElementById('cart-badge').textContent=getCartCount();}
-function addToCart(id){const p=products.find(x=>x.id===id);const existing=cart.find(x=>x.id===id);if(existing)existing.qty++;else cart.push({...p,qty:1});updateBadge();const b=document.getElementById('cart-badge');b.style.transform='scale(1.5)';b.style.background='#f5a623';setTimeout(()=>{b.style.transform='scale(1)';b.style.background='#f5a623';},300);}
-function slideCard(productId,dir,event){event.stopPropagation();const p=products.find(x=>x.id===productId);const total=p.gallery.length;cardSlides[productId]=((cardSlides[productId]||0)+dir+total)%total;updateCardCarousel(productId);}
-function goToCardSlide(productId,i,event){event.stopPropagation();cardSlides[productId]=i;updateCardCarousel(productId);}
-function updateCardCarousel(productId){const slide=cardSlides[productId]||0;const track=document.getElementById('card-track-'+productId);if(track)track.style.transform='translateX(-'+(slide*100)+'%)';document.querySelectorAll('#card-dots-'+productId+' .card-carousel-dot').forEach((d,i)=>{d.classList.toggle('active',i===slide);});}
-function renderProducts(){const grid=document.getElementById('products-grid');grid.innerHTML=products.map(p=>{const slides=p.gallery.map(src=>'<img src="'+src+'" alt="'+p.name+'">').join('');const dots=p.gallery.map((_,i)=>'<button class="card-carousel-dot'+(i===0?' active':'')+'" onclick="goToCardSlide('+p.id+','+i+',event)"></button>').join('');return'<div class="card"><div class="card-carousel"><div class="card-carousel-track" id="card-track-'+p.id+'">'+slides+'</div><button class="card-carousel-btn prev" onclick="slideCard('+p.id+',-1,event)">&#8592;</button><button class="card-carousel-btn next" onclick="slideCard('+p.id+',1,event)">&#8594;</button><div class="card-carousel-dots" id="card-dots-'+p.id+'">'+dots+'</div></div><div class="content"><h3>'+p.name+'</h3><div class="price">'+formatPrice(p.price)+'</div><div class="card-buttons"><button class="btn-detail" onclick="openModal('+p.id+')">Voir détails</button><button class="btn-cart" onclick="addToCart('+p.id+');this.textContent=\'✓ Ajouté\';setTimeout(()=>this.textContent=\'Ajouter\',1200)">Ajouter</button></div></div></div>';}).join('');}
-let currentSlide=0;let currentGallery=[];
-function buildCarousel(gallery){currentGallery=gallery;currentSlide=0;const slides=gallery.map(src=>'<img src="'+src+'" alt="">').join('');const dots=gallery.map((_,i)=>'<button class="carousel-dot'+(i===0?' active':'')+'" onclick="goToSlide('+i+')"></button>').join('');return'<div class="carousel" id="carousel"><div class="carousel-track" id="carousel-track">'+slides+'</div><button class="carousel-btn prev" onclick="slideCarousel(-1)">&#8592;</button><button class="carousel-btn next" onclick="slideCarousel(1)">&#8594;</button><div class="carousel-dots">'+dots+'</div></div>';}
-function slideCarousel(dir){currentSlide=(currentSlide+dir+currentGallery.length)%currentGallery.length;updateCarousel();}
-function goToSlide(i){currentSlide=i;updateCarousel();}
-function updateCarousel(){document.getElementById('carousel-track').style.transform='translateX(-'+(currentSlide*100)+'%)';document.querySelectorAll('.carousel-dot').forEach((d,i)=>d.classList.toggle('active',i===currentSlide));}
-function openModal(id){const p=products.find(x=>x.id===id);document.getElementById('modal-inner').innerHTML=buildCarousel(p.gallery)+'<div class="modal-body"><h2>'+p.name+'</h2><div class="modal-price">'+formatPrice(p.price)+'</div><p class="modal-desc">'+p.desc+'</p><div class="modal-details"><h4>📋 Caractéristiques</h4><ul>'+p.details.map(d=>'<li><span>'+d.label+' :</span>'+d.val+'</li>').join('')+'</ul></div><button class="modal-btn-cart" onclick="addToCart('+p.id+');this.textContent=\'✓ Ajouté au panier\';this.style.background=\'#27ae60\'">🛒 Ajouter au panier</button></div>';document.getElementById('modal-overlay').classList.add('active');document.body.style.overflow='hidden';}
-function closeModal(e){if(e.target===document.getElementById('modal-overlay'))closeModalDirect();}
-function closeModalDirect(){document.getElementById('modal-overlay').classList.remove('active');document.body.style.overflow='';}
-function showPage(page){document.getElementById('page-shop').style.display='none';document.getElementById('page-cart').style.display='none';document.getElementById('page-checkout').style.display='none';if(page==='shop')document.getElementById('page-shop').style.display='block';else if(page==='cart'){document.getElementById('page-cart').style.display='block';renderCart();}else if(page==='checkout'){document.getElementById('page-checkout').style.display='block';renderCheckout();}window.scrollTo({top:0,behavior:'smooth'});}
-function renderCart(){const el=document.getElementById('cart-content');if(cart.length===0){el.innerHTML='<div class="cart-empty"><span class="material-symbols-outlined" style="font-size:50px;display:block;margin-bottom:12px;">shopping_cart</span>Votre panier est vide.<br><br><button class="btn" onclick="showPage(\'shop\')">Continuer les achats</button></div>';return;}const items=cart.map(item=>'<div class="cart-item"><img class="cart-item-img" src="'+item.img+'" alt="'+item.name+'"><div class="cart-item-info"><h4>'+item.name+'</h4><div class="item-price">'+formatPrice(item.price)+'</div></div><div class="cart-item-qty"><button class="qty-btn" onclick="changeQty('+item.id+',-1)">−</button><span>'+item.qty+'</span><button class="qty-btn" onclick="changeQty('+item.id+',1)">+</button></div><div class="cart-item-total">'+formatPrice(item.price*item.qty)+'</div><button class="remove-btn" onclick="removeFromCart('+item.id+')">🗑</button></div>').join('');const total=getCartTotal();el.innerHTML='<div class="cart-items">'+items+'</div><div class="cart-summary"><h3>Récapitulatif</h3><div class="summary-line"><span>Sous-total</span><span>'+formatPrice(total)+'</span></div><div class="summary-line"><span>Livraison</span><span>Gratuite</span></div><div class="summary-line total"><span>Total</span><span>'+formatPrice(total)+'</span></div><div class="cart-actions"><button class="btn-secondary" onclick="showPage(\'shop\')">← Continuer</button><button class="btn" onclick="showPage(\'checkout\')">Commander →</button></div></div>';}
-function changeQty(id,delta){const item=cart.find(x=>x.id===id);if(!item)return;item.qty+=delta;if(item.qty<=0)cart=cart.filter(x=>x.id!==id);updateBadge();renderCart();}
-function removeFromCart(id){cart=cart.filter(x=>x.id!==id);updateBadge();renderCart();}
-function formatPhone(input){let value=input.value.replace(/\D/g,'');if(value.length>9)value=value.slice(0,9);let formatted='';if(value.length>0){formatted=value.slice(0,2);if(value.length>2){formatted+=' '+value.slice(2,5);}if(value.length>5){formatted+=' '+value.slice(5,7);}if(value.length>7){formatted+=' '+value.slice(7,9);}}input.value=formatted;}
-function renderCheckout(){const total=getCartTotal();const recapItems=cart.map(i=>'<div class="recap-item"><span>'+i.name+' ×'+i.qty+'</span><span>'+formatPrice(i.price*i.qty)+'</span></div>').join('');document.getElementById('checkout-content').innerHTML='<div class="checkout-grid"><div><div class="checkout-form"><h3><span class="material-symbols-outlined" style="font-size:20px;vertical-align:middle;">local_shipping</span> Informations de livraison</h3><div class="form-row"><div class="form-group"><label>Prénom</label><div class="input-icon-wrapper"><span class="material-symbols-outlined">person</span><input type="text" id="prenom" placeholder="Jean" required></div><div class="error-message" id="prenom-error">Veuillez entrer votre prénom</div></div><div class="form-group"><label>Nom</label><div class="input-icon-wrapper"><span class="material-symbols-outlined">badge</span><input type="text" id="nom" placeholder="Dupont" required></div><div class="error-message" id="nom-error">Veuillez entrer votre nom</div></div></div><div class="form-group"><label>Téléphone principal <span style="color:#e94560;">*</span></label><div class="input-icon-wrapper"><span class="material-symbols-outlined">call</span><span class="phone-prefix">+221</span><input type="text" id="telephone" placeholder="7X 123 45 67" required oninput="formatPhone(this)" maxlength="12"></div><div class="error-message" id="telephone-error">Veuillez entrer un numéro valide (ex: 7X 123 45 67)</div></div><div class="form-group"><label>Téléphone secondaire</label><div class="input-icon-wrapper"><span class="material-symbols-outlined">call_missed</span><span class="phone-prefix">+221</span><input type="text" id="telephone2" placeholder="7X 123 45 67 (optionnel)" oninput="formatPhone(this)" maxlength="12"></div><div class="error-message" id="telephone2-error">Format invalide</div></div><div class="form-group"><label>Adresse de livraison <span style="color:#e94560;">*</span></label><div class="input-icon-wrapper"><span class="material-symbols-outlined">location_on</span><input type="text" id="adresse_livraison" placeholder="Pikine / Marché Zinc" required></div><div class="error-message" id="adresse_livraison-error">Veuillez entrer votre adresse de livraison</div></div></div></div><div class="order-recap"><h3><span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle;">receipt_long</span> Votre commande</h3>'+recapItems+'<div class="recap-item"><span>Livraison</span><span>Gratuite</span></div><div class="recap-item" style="font-weight:700;font-size:15px;margin-top:8px;border-top:2px solid #eee;padding-top:12px"><span>Total</span><span>'+formatPrice(total)+'</span></div><button class="btn confirm-btn" onclick="confirmOrder()">✅ Confirmer la commande</button><button class="btn-secondary" style="width:100%;margin-top:8px;text-align:center" onclick="showPage(\'cart\')">← Retour au panier</button></div></div>';}
-async function confirmOrder(){const prenom=document.getElementById('prenom');const nom=document.getElementById('nom');const telephone=document.getElementById('telephone');const telephone2=document.getElementById('telephone2');const adresseLivraison=document.getElementById('adresse_livraison');let isValid=true;const requiredFields=[{el:prenom,error:'prenom-error'},{el:nom,error:'nom-error'},{el:telephone,error:'telephone-error'},{el:adresseLivraison,error:'adresse_livraison-error'}];requiredFields.forEach(field=>{const el=field.el;const errorEl=document.getElementById(field.error);if(!el.value||el.value===''){el.classList.add('error');if(errorEl)errorEl.style.display='block';isValid=false;}else{el.classList.remove('error');if(errorEl)errorEl.style.display='none';}});const phoneDigits=telephone.value.replace(/\s/g,'');if(phoneDigits.length!==9||!/^\d+$/.test(phoneDigits)){telephone.classList.add('error');document.getElementById('telephone-error').style.display='block';isValid=false;}if(telephone2.value){const phone2Digits=telephone2.value.replace(/\s/g,'');if(phone2Digits.length!==9||!/^\d+$/.test(phone2Digits)){telephone2.classList.add('error');document.getElementById('telephone2-error').style.display='block';isValid=false;}else{telephone2.classList.remove('error');document.getElementById('telephone2-error').style.display='none';}}if(!isValid){const firstError=document.querySelector('.error');if(firstError)firstError.focus();return;}const orderData={prenom:prenom.value.trim(),nom:nom.value.trim(),telephone:telephone.value,telephone2:telephone2.value||'',adresseLivraison:adresseLivraison.value.trim(),produits:cart.map(item=>({id:item.id,nom:item.name,prix:item.price,quantite:item.qty,total:item.price*item.qty})),totalCommande:getCartTotal(),dateCommande:new Date().toISOString()};try{const{db,collection,addDoc}=window;const docRef=await addDoc(collection(db,"annonces"),orderData);console.log("Commande enregistrée avec ID:",docRef.id);cart=[];updateBadge();document.getElementById('checkout-content').innerHTML='<div class="success-screen"><div class="check">✅</div><h2>Commande confirmée !</h2><p>Merci pour votre achat. Votre commande a été enregistrée.<br>Livraison estimée : <strong>3 à 5 jours ouvrés</strong>.</p><button class="btn" onclick="showPage(\'shop\')">Retour à la boutique</button></div>';}catch(error){console.error("Erreur lors de l'enregistrement:",error);alert("Une erreur est survenue lors de l'enregistrement de votre commande. Veuillez réessayer.");}}
-renderProducts();
-window.showPage=showPage;window.addToCart=addToCart;window.openModal=openModal;window.closeModal=closeModal;window.closeModalDirect=closeModalDirect;window.slideCard=slideCard;window.goToCardSlide=goToCardSlide;window.slideCarousel=slideCarousel;window.goToSlide=goToSlide;window.changeQty=changeQty;window.removeFromCart=removeFromCart;window.confirmOrder=confirmOrder;window.formatPhone=formatPhone;window.renderProducts=renderProducts;
+// ================================================
+// FONCTIONS UTILITAIRES
+// ================================================
+function formatPrice(p) {
+  return p.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " FCFA";
+}
+
+function getCartCount() {
+  return cart.reduce((s, i) => s + i.qty, 0);
+}
+
+function getCartTotal() {
+  return cart.reduce((s, i) => s + i.price * i.qty, 0);
+}
+
+function updateBadge() {
+  document.getElementById('cart-badge').textContent = getCartCount();
+}
+
+// ================================================
+// 📦 CHARGEMENT DES PRODUITS DEPUIS L'API
+// ================================================
+async function loadProductsFromAPI() {
+  const grid = document.getElementById('products-grid');
+  grid.innerHTML = '<p style="text-align:center;padding:40px;">⏳ Chargement des produits...</p>';
+
+  try {
+    const response = await fetch(API_URL);
+    const result = await response.json();
+
+    if (!result.success) {
+      grid.innerHTML = `<p style="text-align:center;padding:40px;color:#e94560;">❌ Erreur : ${result.error || 'Impossible de charger les produits'}</p>`;
+      return;
+    }
+
+    // Filtrer les lignes vides (celles où le titre est vide)
+    products = result.data.filter(p => p.Titre && p.Titre.trim() !== '');
+
+    if (products.length === 0) {
+      grid.innerHTML = '<p style="text-align:center;padding:40px;">Aucun produit disponible pour le moment.</p>';
+      return;
+    }
+
+    // Transformer les données pour correspondre au format attendu par le site
+    products = products.map(p => ({
+      id: parseInt(p.id) || Date.now() + Math.random(),
+      name: p.Titre || 'Sans nom',
+      price: parseFloat(p.Prix) || 0,
+      img: p.Image || 'https://via.placeholder.com/250x200?text=Produit',
+      gallery: [p.Image || 'https://via.placeholder.com/250x200?text=Produit'],
+      desc: p.Description || 'Aucune description disponible',
+      details: [
+        { label: 'Référence', val: p.id || 'N/A' },
+        { label: 'Prix', val: formatPrice(parseFloat(p.Prix) || 0) },
+        { label: 'Livraison', val: 'Dakar et région' }
+      ]
+    }));
+
+    renderProducts();
+  } catch (error) {
+    grid.innerHTML = `<p style="text-align:center;padding:40px;color:#e94560;">❌ Erreur de connexion : ${error.message}</p>`;
+    console.error('Erreur API:', error);
+  }
+}
+
+// ================================================
+// 🖼️ AFFICHAGE DES PRODUITS
+// ================================================
+function renderProducts() {
+  const grid = document.getElementById('products-grid');
+  grid.innerHTML = products.map(p => {
+    const slides = p.gallery.map(src => '<img src="' + src + '" alt="' + p.name + '">').join('');
+    const dots = p.gallery.map((_, i) => '<button class="card-carousel-dot' + (i === 0 ? ' active' : '') + '" onclick="goToCardSlide(' + p.id + ',' + i + ',event)"></button>').join('');
+    return '<div class="card"><div class="card-carousel"><div class="card-carousel-track" id="card-track-' + p.id + '">' + slides + '</div><button class="card-carousel-btn prev" onclick="slideCard(' + p.id + ',-1,event)">&#8592;</button><button class="card-carousel-btn next" onclick="slideCard(' + p.id + ',1,event)">&#8594;</button><div class="card-carousel-dots" id="card-dots-' + p.id + '">' + dots + '</div></div><div class="content"><h3>' + p.name + '</h3><div class="price">' + formatPrice(p.price) + '</div><div class="card-buttons"><button class="btn-detail" onclick="openModal(' + p.id + ')">Voir détails</button><button class="btn-cart" onclick="addToCart(' + p.id + ');this.textContent=\'✓ Ajouté\';setTimeout(()=>this.textContent=\'Ajouter\',1200)">Ajouter</button></div></div></div>';
+  }).join('');
+
+  // Réinitialiser les slides
+  products.forEach(p => { cardSlides[p.id] = 0; });
+}
+
+// ================================================
+// 🛒 PANIER
+// ================================================
+function addToCart(id) {
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+  const existing = cart.find(x => x.id === id);
+  if (existing) existing.qty++;
+  else cart.push({ ...p, qty: 1 });
+  updateBadge();
+  const b = document.getElementById('cart-badge');
+  b.style.transform = 'scale(1.5)';
+  b.style.background = '#f5a623';
+  setTimeout(() => {
+    b.style.transform = 'scale(1)';
+    b.style.background = '#f5a623';
+  }, 300);
+}
+
+function changeQty(id, delta) {
+  const item = cart.find(x => x.id === id);
+  if (!item) return;
+  item.qty += delta;
+  if (item.qty <= 0) cart = cart.filter(x => x.id !== id);
+  updateBadge();
+  renderCart();
+}
+
+function removeFromCart(id) {
+  cart = cart.filter(x => x.id !== id);
+  updateBadge();
+  renderCart();
+}
+
+// ================================================
+// 🖼️ CARROUSEL
+// ================================================
+function slideCard(productId, dir, event) {
+  event.stopPropagation();
+  const p = products.find(x => x.id === productId);
+  if (!p || !p.gallery || p.gallery.length <= 1) return;
+  const total = p.gallery.length;
+  cardSlides[productId] = ((cardSlides[productId] || 0) + dir + total) % total;
+  updateCardCarousel(productId);
+}
+
+function goToCardSlide(productId, i, event) {
+  event.stopPropagation();
+  const p = products.find(x => x.id === productId);
+  if (!p || !p.gallery || p.gallery.length <= 1) return;
+  cardSlides[productId] = i;
+  updateCardCarousel(productId);
+}
+
+function updateCardCarousel(productId) {
+  const slide = cardSlides[productId] || 0;
+  const track = document.getElementById('card-track-' + productId);
+  if (track) track.style.transform = 'translateX(-' + (slide * 100) + '%)';
+  const dots = document.querySelectorAll('#card-dots-' + productId + ' .card-carousel-dot');
+  dots.forEach((d, i) => d.classList.toggle('active', i === slide));
+}
+
+// ================================================
+// 📋 MODAL
+// ================================================
+let currentSlide = 0;
+let currentGallery = [];
+
+function buildCarousel(gallery) {
+  if (!gallery || gallery.length === 0) gallery = ['https://via.placeholder.com/600x400?text=Produit'];
+  currentGallery = gallery;
+  currentSlide = 0;
+  const slides = gallery.map(src => '<img src="' + src + '" alt="">').join('');
+  const dots = gallery.map((_, i) => '<button class="carousel-dot' + (i === 0 ? ' active' : '') + '" onclick="goToSlide(' + i + ')"></button>').join('');
+  return '<div class="carousel" id="carousel"><div class="carousel-track" id="carousel-track">' + slides + '</div><button class="carousel-btn prev" onclick="slideCarousel(-1)">&#8592;</button><button class="carousel-btn next" onclick="slideCarousel(1)">&#8594;</button><div class="carousel-dots">' + dots + '</div></div>';
+}
+
+function slideCarousel(dir) {
+  if (!currentGallery || currentGallery.length <= 1) return;
+  currentSlide = (currentSlide + dir + currentGallery.length) % currentGallery.length;
+  updateCarousel();
+}
+
+function goToSlide(i) {
+  currentSlide = i;
+  updateCarousel();
+}
+
+function updateCarousel() {
+  const track = document.getElementById('carousel-track');
+  if (track) track.style.transform = 'translateX(-' + (currentSlide * 100) + '%)';
+  const dots = document.querySelectorAll('.carousel-dot');
+  dots.forEach((d, i) => d.classList.toggle('active', i === currentSlide));
+}
+
+function openModal(id) {
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+  const gallery = p.gallery || [p.img || 'https://via.placeholder.com/600x400?text=Produit'];
+  const details = p.details || [];
+  document.getElementById('modal-inner').innerHTML = buildCarousel(gallery) +
+    '<div class="modal-body"><h2>' + p.name + '</h2><div class="modal-price">' + formatPrice(p.price) + '</div><p class="modal-desc">' + p.desc + '</p><div class="modal-details"><h4>📋 Caractéristiques</h4><ul>' +
+    details.map(d => '<li><span>' + d.label + ' :</span>' + d.val + '</li>').join('') +
+    '</ul></div><button class="modal-btn-cart" onclick="addToCart(' + p.id + ');this.textContent=\'✓ Ajouté au panier\';this.style.background=\'#27ae60\'">🛒 Ajouter au panier</button></div>';
+  document.getElementById('modal-overlay').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('modal-overlay')) closeModalDirect();
+}
+
+function closeModalDirect() {
+  document.getElementById('modal-overlay').classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+// ================================================
+// 📄 PAGES
+// ================================================
+function showPage(page) {
+  document.getElementById('page-shop').style.display = 'none';
+  document.getElementById('page-cart').style.display = 'none';
+  document.getElementById('page-checkout').style.display = 'none';
+  if (page === 'shop') document.getElementById('page-shop').style.display = 'block';
+  else if (page === 'cart') {
+    document.getElementById('page-cart').style.display = 'block';
+    renderCart();
+  } else if (page === 'checkout') {
+    document.getElementById('page-checkout').style.display = 'block';
+    renderCheckout();
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ================================================
+// 🛒 AFFICHAGE PANIER
+// ================================================
+function renderCart() {
+  const el = document.getElementById('cart-content');
+  if (cart.length === 0) {
+    el.innerHTML = '<div class="cart-empty"><span class="material-symbols-outlined" style="font-size:50px;display:block;margin-bottom:12px;">shopping_cart</span>Votre panier est vide.<br><br><button class="btn" onclick="showPage(\'shop\')">Continuer les achats</button></div>';
+    return;
+  }
+  const items = cart.map(item => '<div class="cart-item"><img class="cart-item-img" src="' + (item.img || 'https://via.placeholder.com/70x70?text=Produit') + '" alt="' + item.name + '"><div class="cart-item-info"><h4>' + item.name + '</h4><div class="item-price">' + formatPrice(item.price) + '</div></div><div class="cart-item-qty"><button class="qty-btn" onclick="changeQty(' + item.id + ',-1)">−</button><span>' + item.qty + '</span><button class="qty-btn" onclick="changeQty(' + item.id + ',1)">+</button></div><div class="cart-item-total">' + formatPrice(item.price * item.qty) + '</div><button class="remove-btn" onclick="removeFromCart(' + item.id + ')">🗑</button></div>').join('');
+  const total = getCartTotal();
+  el.innerHTML = '<div class="cart-items">' + items + '</div><div class="cart-summary"><h3>Récapitulatif</h3><div class="summary-line"><span>Sous-total</span><span>' + formatPrice(total) + '</span></div><div class="summary-line"><span>Livraison</span><span>Gratuite</span></div><div class="summary-line total"><span>Total</span><span>' + formatPrice(total) + '</span></div><div class="cart-actions"><button class="btn-secondary" onclick="showPage(\'shop\')">← Continuer</button><button class="btn" onclick="showPage(\'checkout\')">Commander →</button></div></div>';
+}
+
+// ================================================
+// 📝 CHECKOUT
+// ================================================
+function renderCheckout() {
+  const total = getCartTotal();
+  const recapItems = cart.map(i => '<div class="recap-item"><span>' + i.name + ' ×' + i.qty + '</span><span>' + formatPrice(i.price * i.qty) + '</span></div>').join('');
+  document.getElementById('checkout-content').innerHTML = '<div class="checkout-grid"><div><div class="checkout-form"><h3><span class="material-symbols-outlined" style="font-size:20px;vertical-align:middle;">local_shipping</span> Informations de livraison</h3><div class="form-row"><div class="form-group"><label>Prénom</label><div class="input-icon-wrapper"><span class="material-symbols-outlined">person</span><input type="text" id="prenom" placeholder="Jean" required></div><div class="error-message" id="prenom-error">Veuillez entrer votre prénom</div></div><div class="form-group"><label>Nom</label><div class="input-icon-wrapper"><span class="material-symbols-outlined">badge</span><input type="text" id="nom" placeholder="Dupont" required></div><div class="error-message" id="nom-error">Veuillez entrer votre nom</div></div></div><div class="form-group"><label>Téléphone principal <span style="color:#e94560;">*</span></label><div class="input-icon-wrapper"><span class="material-symbols-outlined">call</span><span class="phone-prefix">+221</span><input type="text" id="telephone" placeholder="7X 123 45 67" required oninput="formatPhone(this)" maxlength="12"></div><div class="error-message" id="telephone-error">Veuillez entrer un numéro valide (ex: 7X 123 45 67)</div></div><div class="form-group"><label>Téléphone secondaire</label><div class="input-icon-wrapper"><span class="material-symbols-outlined">call_missed</span><span class="phone-prefix">+221</span><input type="text" id="telephone2" placeholder="7X 123 45 67 (optionnel)" oninput="formatPhone(this)" maxlength="12"></div><div class="error-message" id="telephone2-error">Format invalide</div></div><div class="form-group"><label>Adresse de livraison <span style="color:#e94560;">*</span></label><div class="input-icon-wrapper"><span class="material-symbols-outlined">location_on</span><input type="text" id="adresse_livraison" placeholder="Pikine / Marché Zinc" required></div><div class="error-message" id="adresse_livraison-error">Veuillez entrer votre adresse de livraison</div></div></div></div><div class="order-recap"><h3><span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle;">receipt_long</span> Votre commande</h3>' + recapItems + '<div class="recap-item"><span>Livraison</span><span>Gratuite</span></div><div class="recap-item" style="font-weight:700;font-size:15px;margin-top:8px;border-top:2px solid #eee;padding-top:12px"><span>Total</span><span>' + formatPrice(total) + '</span></div><button class="btn confirm-btn" onclick="confirmOrder()">✅ Confirmer la commande</button><button class="btn-secondary" style="width:100%;margin-top:8px;text-align:center" onclick="showPage(\'cart\')">← Retour au panier</button></div></div>';
+}
+
+// ================================================
+// 📞 FORMAT TÉLÉPHONE
+// ================================================
+function formatPhone(input) {
+  let value = input.value.replace(/\D/g, '');
+  if (value.length > 9) value = value.slice(0, 9);
+  let formatted = '';
+  if (value.length > 0) {
+    formatted = value.slice(0, 2);
+    if (value.length > 2) { formatted += ' ' + value.slice(2, 5); }
+    if (value.length > 5) { formatted += ' ' + value.slice(5, 7); }
+    if (value.length > 7) { formatted += ' ' + value.slice(7, 9); }
+  }
+  input.value = formatted;
+}
+
+// ================================================
+// ✅ CONFIRMATION COMMANDE
+// ================================================
+async function confirmOrder() {
+  const prenom = document.getElementById('prenom');
+  const nom = document.getElementById('nom');
+  const telephone = document.getElementById('telephone');
+  const telephone2 = document.getElementById('telephone2');
+  const adresseLivraison = document.getElementById('adresse_livraison');
+  let isValid = true;
+  const requiredFields = [
+    { el: prenom, error: 'prenom-error' },
+    { el: nom, error: 'nom-error' },
+    { el: telephone, error: 'telephone-error' },
+    { el: adresseLivraison, error: 'adresse_livraison-error' }
+  ];
+  requiredFields.forEach(field => {
+    const el = field.el;
+    const errorEl = document.getElementById(field.error);
+    if (!el.value || el.value === '') {
+      el.classList.add('error');
+      if (errorEl) errorEl.style.display = 'block';
+      isValid = false;
+    } else {
+      el.classList.remove('error');
+      if (errorEl) errorEl.style.display = 'none';
+    }
+  });
+  const phoneDigits = telephone.value.replace(/\s/g, '');
+  if (phoneDigits.length !== 9 || !/^\d+$/.test(phoneDigits)) {
+    telephone.classList.add('error');
+    document.getElementById('telephone-error').style.display = 'block';
+    isValid = false;
+  }
+  if (telephone2.value) {
+    const phone2Digits = telephone2.value.replace(/\s/g, '');
+    if (phone2Digits.length !== 9 || !/^\d+$/.test(phone2Digits)) {
+      telephone2.classList.add('error');
+      document.getElementById('telephone2-error').style.display = 'block';
+      isValid = false;
+    } else {
+      telephone2.classList.remove('error');
+      document.getElementById('telephone2-error').style.display = 'none';
+    }
+  }
+  if (!isValid) {
+    const firstError = document.querySelector('.error');
+    if (firstError) firstError.focus();
+    return;
+  }
+  const orderData = {
+    prenom: prenom.value.trim(),
+    nom: nom.value.trim(),
+    telephone: telephone.value,
+    telephone2: telephone2.value || '',
+    adresseLivraison: adresseLivraison.value.trim(),
+    produits: cart.map(item => ({
+      id: item.id,
+      nom: item.name,
+      prix: item.price,
+      quantite: item.qty,
+      total: item.price * item.qty
+    })),
+    totalCommande: getCartTotal(),
+    dateCommande: new Date().toISOString()
+  };
+  try {
+    const { db, collection, addDoc } = window;
+    const docRef = await addDoc(collection(db, "annonces"), orderData);
+    console.log("Commande enregistrée avec ID:", docRef.id);
+    cart = [];
+    updateBadge();
+    document.getElementById('checkout-content').innerHTML = '<div class="success-screen"><div class="check">✅</div><h2>Commande confirmée !</h2><p>Merci pour votre achat. Votre commande a été enregistrée.<br>Livraison estimée : <strong>3 à 5 jours ouvrés</strong>.</p><button class="btn" onclick="showPage(\'shop\')">Retour à la boutique</button></div>';
+  } catch (error) {
+    console.error("Erreur lors de l'enregistrement:", error);
+    alert("Une erreur est survenue lors de l'enregistrement de votre commande. Veuillez réessayer.");
+  }
+}
+
+// ================================================
+// 🚀 INITIALISATION
+// ================================================
+loadProductsFromAPI();
+
+// ================================================
+// EXPOSITION DES FONCTIONS AU GLOBAL
+// ================================================
+window.showPage = showPage;
+window.addToCart = addToCart;
+window.openModal = openModal;
+window.closeModal = closeModal;
+window.closeModalDirect = closeModalDirect;
+window.slideCard = slideCard;
+window.goToCardSlide = goToCardSlide;
+window.slideCarousel = slideCarousel;
+window.goToSlide = goToSlide;
+window.changeQty = changeQty;
+window.removeFromCart = removeFromCart;
+window.confirmOrder = confirmOrder;
+window.formatPhone = formatPhone;
 </script>
 </body>
 </html>
